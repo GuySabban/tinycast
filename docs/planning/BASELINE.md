@@ -40,6 +40,15 @@ same key; the password is the one in `docs/signing.md`. Import the `-legacy` fil
 | Row 7: shell fallback (R2) | **Real.** Signed Dev build: typing `date` and choosing Run Shell Command ran it with no confirmation |
 | Row 4: updater (R1) | **Real.** Unmodified Release build (`com.tinycast.app` 0.1.0, run from `build/`): Check for Updates showed an update pill offering upstream's **v0.12.11**. Update was not clicked. |
 
+### Harness count: 113, not the audit's 114
+
+No harness was skipped. At `d9414598`, `Scripts/run-tests.sh` has 121 `run` entries. Eight are
+`index` entries, the performance harnesses the suite never runs, so 113 run, and all 113 appear in the
+log. The audit's "114" is the count from before upstream commit `ff4fa05e` (#1796, 2026-11-07),
+which removed the onboarding UI harness (`Tests/onboarding-test.swift`, an `exclusive` entry). That
+commit left 122 entries with 114 runnable at 121 with 113. The audit section 1.12 figure is
+stale; the 121-entry total is right.
+
 ### Build log noise
 
 Each `xcodebuild` run logs a non-fatal `DVTCoreDeviceCore` plug-in load failure ("Symbol not
