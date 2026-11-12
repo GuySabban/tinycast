@@ -26,6 +26,8 @@ settings:
       TINYCAST_URL_SCHEME: tinycast-dev
       DICTATION_EXECUTABLE_NAME: Tinycast Dev Dictation
     Release:
+      TINYCAST_BUNDLE_IDENTIFIER: io.github.guysabban.spotcast
+      TINYCAST_URL_SCHEME: spotcast
       DICTATION_EXECUTABLE_NAME: Tinycast Dictation
       # Release-only: library validation refuses Debug's `.debug.dylib`, whose team never matches.
       ENABLE_HARDENED_RUNTIME: YES
@@ -97,6 +99,8 @@ targets:
         # Debug is its own channel, so a local build never corrupts the installed app's state.
         Debug:
           PRODUCT_NAME: Tinycast Dev
+        Release:
+          PRODUCT_NAME: Spotcast
 
   ClipboardTextHelper:
     type: tool

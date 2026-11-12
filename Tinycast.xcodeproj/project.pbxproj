@@ -5123,6 +5123,7 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(TINYCAST_BUNDLE_IDENTIFIER)";
+				PRODUCT_NAME = Spotcast;
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 			};
@@ -5315,8 +5316,8 @@
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
-				TINYCAST_BUNDLE_IDENTIFIER = com.tinycast.app;
-				TINYCAST_URL_SCHEME = tinycast;
+				TINYCAST_BUNDLE_IDENTIFIER = io.github.guysabban.spotcast;
+				TINYCAST_URL_SCHEME = spotcast;
 			};
 			name = Release;
 		};
