@@ -270,7 +270,17 @@ final class CustomCommandCoordinator {
             name: CommandID.runShellCommand.name, command: text, loadsShellEnvironment: true,
             showsOutput: true)
         lastShellCommand = (command.id, text)
-        Task { await streamOutput(of: command, arguments: []) }
+        Task {
+            guard
+                await core.confirm(
+                    title: command.name,
+                    message: String(
+                        localized: "Are you sure you want to run this command?\n\n\(command.command)"),
+                    symbol: command.symbol, confirmTitle: String(localized: "Run"),
+                    tone: .neutral, confirmRole: .standard)
+            else { return }
+            await streamOutput(of: command, arguments: [])
+        }
     }
 
     /// The window's Rerun. An ad-hoc shell line is not in the store, so it is repeated from here.

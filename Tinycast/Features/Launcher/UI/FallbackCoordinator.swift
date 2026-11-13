@@ -71,8 +71,7 @@ final class FallbackCoordinator {
         switch builtin {
         case .quickAI: return settings.aiEnabled
         case .searchFiles: return settings.fileSearchEnabled
-        // Its own capability: this shell is not the custom-command library's switch to hold.
-        case .runShellCommand: return true
+        case .runShellCommand: return settings.customCommandsEnabled
         // Settings › Commands is Define's only switch, so hiding the command there hides this too.
         case .define: return visibility.isVisible(CommandCatalog.makeEntry(.define))
         }
