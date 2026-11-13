@@ -11,6 +11,14 @@ struct CaskRecord: Sendable, Equatable {
         var installedName: String {
             target.split(separator: "/").last.map(String.init) ?? target
         }
+
+        /// Homebrew writes a target under the home folder as `/$HOME/…`.
+        func path(home: String) -> String {
+            for marker in ["/$HOME/", "$HOME/", "~/"] where target.hasPrefix(marker) {
+                return home + "/" + target.dropFirst(marker.count)
+            }
+            return target
+        }
     }
 
     /// Why Homebrew disabled or deprecated a cask.

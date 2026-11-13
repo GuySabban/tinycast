@@ -13,7 +13,6 @@ final class CaskIndexStore {
         static let standard = Schedule(refresh: 24 * 3600, retry: 30 * 60)
     }
 
-    nonisolated static let homebrewAPI = URL(string: "https://formulae.brew.sh/api/")!
     private nonisolated static let analyticsPath = "analytics/cask-install/homebrew-cask/30d.json"
 
     /// Kept while a refresh runs, so the card never drops back to loading.
@@ -34,18 +33,14 @@ final class CaskIndexStore {
 
     /// `baseURL` and `protocolClasses` exist so a harness can serve fixtures in process.
     init(
-        cacheURL: URL, baseURL: URL = homebrewAPI, protocolClasses: [AnyClass]? = nil,
+        cacheURL: URL, baseURL: URL = CaskAPI.base, protocolClasses: [AnyClass]? = nil,
         schedule: Schedule = .standard, now: @escaping () -> Date = Date.init
     ) {
         self.cacheURL = cacheURL
         analyticsURL = baseURL.appending(path: Self.analyticsPath)
         self.schedule = schedule
         self.now = now
-        // Cacheless, never `URLSession.shared`, so the cache file stays the only copy on disk.
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.urlCache = nil
-        configuration.protocolClasses = protocolClasses
-        session = URLSession(configuration: configuration)
+        session = CaskAPI.session(protocolClasses: protocolClasses)
     }
 
     /// The cache is read here, off the main actor, rather than in `init` on the launch path.

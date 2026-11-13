@@ -35,6 +35,9 @@ struct PackageInstallTests {
         refusesMalformedRecords()
         try shapesTheVersion()
         buildsOnlySafeInvocations()
+        writesTheTerminalScript()
+        recognisesARefusedSudo()
+        try resolvesTargetsUnderHome()
         try plansEveryOutcome()
         judgesEveryVerification()
 
@@ -395,6 +398,43 @@ struct PackageInstallTests {
             expect(script.contains(setting), "the script sets \(setting)")
         }
         expect(!script.contains("blender"), "no token is ever spliced into the script")
+    }
+
+    static func writesTheTerminalScript() {
+        let script = BrewInvocation(brew: brew, token: "zoom")!.terminalScript
+        let lines = script.split(separator: "\n").map(String.init)
+        expect(lines.first == "#!/bin/zsh", "zsh runs it, whatever the user's shell")
+        expect(lines.contains(#"rm -f -- "$0""#), "the file deletes itself once Terminal has it")
+        expect(
+            lines.last == "HOMEBREW_NO_ANALYTICS=1 exec '/opt/homebrew/bin/brew' install --cask 'zoom'",
+            "the same command, by absolute path, quoted: \(lines.last ?? "")")
+        expect(script.contains("brew install --cask zoom"), "it shows the command the dialog named")
+        expect(!script.contains("HOMEBREW_NO_SUDO"), "Terminal is where sudo is allowed to ask")
+        let odd = BrewInvocation(brew: URL(fileURLWithPath: "/tmp/it's here/brew"), token: "zoom")!
+        expect(
+            odd.terminalScript.contains(#"exec '/tmp/it'\''s here/brew' install"#),
+            "a quote in the path cannot end the quoting")
+    }
+
+    static func recognisesARefusedSudo() {
+        let log = "==> Installing Cask zoom\nError: Failure while executing; `/usr/bin/sudo -E -- /usr/sbin/installer`"
+            + " exited with 1. Here's the output:\nsudo is disabled by HOMEBREW_NO_SUDO.\n"
+        expect(BrewInvocation.refusedSudo(in: log), "Homebrew's own message, mid-log")
+        expect(BrewInvocation.refusedSudo(in: "sudo is disabled by HOMEBREW_NO_SUDO.\r\n"), "with a pty's line end")
+        expect(!BrewInvocation.refusedSudo(in: "Error: Download failed"), "another failure")
+        expect(!BrewInvocation.refusedSudo(in: ""), "no output")
+    }
+
+    static func resolvesTargetsUnderHome() throws {
+        let home = "/Users/someone"
+        func path(_ target: String) -> String {
+            CaskRecord.AppArtifact(source: "A.app", target: target).path(home: home)
+        }
+        expect(path("/Applications/A.app") == "/Applications/A.app", "an absolute target is kept")
+        expect(path("/$HOME/Library/Box/A.app") == "/Users/someone/Library/Box/A.app", "Homebrew's /$HOME")
+        expect(path("$HOME/Applications/A.app") == "/Users/someone/Applications/A.app", "a bare $HOME")
+        expect(path("~/Applications/A.app") == "/Users/someone/Applications/A.app", "a tilde")
+        expect(path("/Applications/$HOMEBREW/A.app") == "/Applications/$HOMEBREW/A.app", "only a leading $HOME")
     }
 
     static func plansEveryOutcome() throws {

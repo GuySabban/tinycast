@@ -21,4 +21,23 @@ struct BrewInvocation: Sendable, Equatable {
 
     /// The script's positional values, in order.
     var arguments: [String] { [brew.path(percentEncoded: false), token] }
+
+    /// A `.command` file's text; no `HOMEBREW_NO_SUDO`, since a visible terminal may ask.
+    var terminalScript: String {
+        """
+        #!/bin/zsh
+        rm -f -- "$0"
+        print -r -- \(Self.quoted(displayText))
+        HOMEBREW_NO_ANALYTICS=1 exec \(Self.quoted(arguments[0])) install --cask \(Self.quoted(token))
+        """
+    }
+
+    /// Homebrew's words when a step needs `sudo` and `HOMEBREW_NO_SUDO` forbids it.
+    static func refusedSudo(in output: String) -> Bool {
+        output.contains("sudo is disabled by HOMEBREW_NO_SUDO")
+    }
+
+    private static func quoted(_ text: String) -> String {
+        "'" + text.replacing("'", with: #"'\''"#) + "'"
+    }
 }

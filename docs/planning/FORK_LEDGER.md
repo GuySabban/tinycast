@@ -17,7 +17,8 @@ before resolving it. New files the fork owns (`Scripts/fork/`, `docs/planning/`)
 | 3 | `Tinycast/Features/Launcher/UI/FallbackCoordinator.swift` | `isAvailable(_:)` | Deleted the comment above the `.runShellCommand` arm | It said the shell is not the Custom Commands switch's to hold, which is no longer true |
 | 3 | `Tinycast/Features/CustomCommands/UI/CustomCommandCoordinator.swift` | `runShellCommand(_:)` | The one-line `Task` now opens with `guard await core.confirm(...)`, using the same title, message, symbol, "Run" title, `.neutral` tone and `.standard` role as `perform` | Every run, including the output window's Run Again, shows the exact text and asks first (risk R2). Reuses `perform`'s strings, so no new localization |
 | P1.1 | `Scripts/run-tests.sh` | the `run` list, after `MCPStdioTests` | Added `PI=Tinycast/Features/PackageInstall` and a two-line `run PackageInstallTests` entry | Registers the install model's harness. Kept together at the end of the list so a merge resolves by keeping both sides |
-| P1.2 | `Scripts/run-tests.sh` | the `run` list, after `PackageInstallTests` | Added a two-line `run CaskIndexStoreTests` entry | Registers the index store's harness, in the same block |
+| P1.2 | `Scripts/run-tests.sh` | the `run` list, after `PackageInstallTests` | Added a `run CaskIndexStoreTests` entry, three lines since step 3 added `CaskAPI.swift` to it | Registers the index store's harness, in the same block |
+| P1.3 | `Scripts/run-tests.sh` | the `run` list, after `CaskIndexStoreTests` | Added a six-line `run PackageInstallServiceTests` entry | Registers the services' harness. It also compiles upstream's `BundleSignature`, `PseudoTerminal`, `ProcessExit` and `ShellCommandRunner`, so a merge that renames one breaks this entry |
 
 `Tinycast.xcodeproj/project.pbxproj` is regenerated from `project.yml` by `xcodegen generate` and is
 never edited by hand.
