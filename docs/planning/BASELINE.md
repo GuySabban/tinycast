@@ -271,16 +271,45 @@ passes:
 | Palette closed, 60 s settled | 54.3 MB after the install session (run 1). 40.1 MB after the palette alone (run 3) | 63 MB, not back to idle |
 | Idle CPU after closing, 60 s | 0.0% in 12 of 13 five-second samples, max 0.2% (run 1). Max 0.6% (run 2) | Under 0.1% |
 
-The pill is the one point over 100 MB, so Phase 1's memory criterion fails at its peak.
+The pill is the one point over 100 MB, so Phase 1's memory criterion failed at its peak until the
+delay below.
 
 - **The cause.** The pill's spinner is upstream's `progress.indicator` with a repeating
   `variableColor` symbol effect. `MessageHUDView` chose it because a `ProgressView` ignores tint.
   Step 8's probe measured it at 53 MB, 46 MB of it graphics memory, while it is on screen. Added to
-  the open palette's 47 to 50 MB, that crosses 100 MB for the 0.2 s a lookup takes.
+  the 47 to 50 MB the app holds after using the palette, that crosses 100 MB for the 0.2 s a lookup
+  takes.
 - **The leak fix holds.** Memory now falls back within a second, where before it stayed.
-- **Two possible fixes, neither made yet:**
-  - Show the lookup's pill only once the lookup has run past a short delay. This is fork code.
-  - Draw the spinner without the symbol effect. This changes upstream's file and the pill's look.
+
+### Feature in use with the 300 ms pill delay
+
+The owner chose the fork-side fix: `PackageInstallCoordinator` shows the lookup's pill only once the
+lookup has run past `lookupPillDelay` (300 ms), and hides only a pill that appeared.
+`PackageInstallCoordinatorTests` drives Return through a stubbed API and covers four cases:
+
+- a 50 ms reply: no pill;
+- an 800 ms reply: pill, hide, then the dialog;
+- a cancel inside the delay: no pill;
+- a cancel while the pill is up.
+
+The two cases for a fast reply or an early cancel, plus the check on the 300 ms value, fail with the
+delay set to zero.
+
+Re-measured on a fresh launch, with the same flow as run 1 (`rectangle` installed from the card,
+approved by the owner, uninstalled afterwards). `footprint` was sampled every 150 ms, 438 samples:
+
+| Point | Result | Before the delay |
+| --- | --- | --- |
+| Feature in use (peak) | **57.5 MB**, at the end of the `brew` run with the output window open | 102.9 MB |
+| Around Return | 47.6, 48.5, 49.3, then 53 MB as the dialog opened; no pill | A 56 MB spike |
+| Palette closed, 20 s | 53.8 MB | 54.3 MB at 60 s |
+
+- **This lookup took 298 ms,** just inside the delay. It was the first after launch, so its
+  connection to formulae.brew.sh was new.
+- **Slower lookups still show the pill.** Step 8 measured a median of 163 ms and a p95 of 311 ms, so
+  about one lookup in twenty still runs past 300 ms. That one shows the pill and briefly costs its
+  53 MB, which puts the app at about 100 MB.
+- **The remaining fix** is the spinner's symbol effect in upstream's `MessageHUDView`.
 
 ## Phase 1 step 9: upstream merge (2026-11-13)
 

@@ -615,7 +615,15 @@ The app does not remove the flag.
 - **Stale replies.** After each `await` (record fetch, dialog, install, verify) the flow checks its
   generation and returns if it has been superseded.
 - **Cancellation.** While the record is fetched, a progress pill from `AppCore.showProgress` offers
-  cancel, which cancels the task and bumps the generation. During install, Stop ends the process. A
+  cancel, which cancels the task and bumps the generation.
+  - The pill appears only once the fetch has run past `lookupPillDelay` (300 ms), and only a pill
+    that appeared is hidden.
+  - Most lookups end sooner. Showing the pill at once put the open launcher over the 100 MB limit,
+    since its spinner costs about 50 MB (`BASELINE.md`, Phase 1 follow-up).
+  - `PackageInstallCoordinatorTests` covers a reply on each side of the delay, and a cancel inside
+    it.
+
+  During install, Stop ends the process. A
   cancelled download leaves whatever Homebrew leaves; the app deletes nothing. A cancelled step ends
   the flow silently and is never shown as a failure.
 - **Index refresh** follows `CurrencyRateStore`: refresh every 24 hours measured from the index's

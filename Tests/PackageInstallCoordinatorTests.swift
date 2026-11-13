@@ -1,8 +1,10 @@
 import AppKit
+import Synchronization
 
 /// The card's whole read path: a real store from a cache, a scratch Caskroom read by the real
-/// `HomebrewEnvironment`, and `PackageInstallCoordinator.candidate(for:)` itself. Only the app's own
-/// collaborators below are stand-ins, so nothing is fetched, installed, opened or shown.
+/// `HomebrewEnvironment`, and `PackageInstallCoordinator.candidate(for:)` itself. Return's lookup runs
+/// against a stubbed API. Only the app's own collaborators below are stand-ins, so nothing is
+/// fetched, installed, opened or shown.
 @main
 @MainActor
 struct PackageInstallCoordinatorTests {
@@ -77,10 +79,48 @@ struct PackageInstallCoordinatorTests {
         await expectSettles("on again, the card comes back") {
             coordinator.candidate(for: "install blender") != nil
         }
+
+        // The lookup's pill waits out the delay, so a quick reply never shows its costly spinner.
+        let core = fixture.core
+        expect(PackageInstallCoordinator.lookupPillDelay == .milliseconds(300), "the pill waits 300 ms")
+        await lookUp("blender", replyAfter: .milliseconds(50), in: fixture)
+        expect(core.events == ["choose"], "a reply inside the delay opens the dialog with no pill")
+        await lookUp("blender", replyAfter: .milliseconds(800), in: fixture)
+        expect(
+            core.events == ["progress", "hide", "choose"],
+            "a reply after the delay shows the pill, then hides it before the dialog")
+
+        LookupFixture.replyDelay(.milliseconds(800))
+        core.events = []
+        coordinator.install(token: "blender")
+        try await Task.sleep(for: .milliseconds(100))
+        coordinator.setEnabled(false)
+        try await Task.sleep(for: .milliseconds(1_000))
+        expect(core.events.isEmpty, "a lookup cancelled inside the delay never shows the pill")
+        coordinator.setEnabled(true)
+
+        core.events = []
+        coordinator.install(token: "blender")
+        await expectSettles("a slow lookup's pill appears") { core.events == ["progress"] }
+        coordinator.setEnabled(false)
+        try await Task.sleep(for: .milliseconds(800))
+        expect(core.events == ["progress", "hide"], "cancelling hides the pill, and no dialog follows")
+        coordinator.setEnabled(true)
         fixture.store.stop()
 
         print("\(passes) passed, \(failures) failed")
         if failures > 0 { exit(1) }
+    }
+
+    /// Return on the card, with the API answering after `delay`; ends once the dialog has been answered.
+    static func lookUp(_ token: String, replyAfter delay: Duration, in fixture: World) async {
+        LookupFixture.replyDelay(delay)
+        fixture.core.events = []
+        fixture.coordinator.install(token: token)
+        await expectSettles("the lookup for \(token) reaches its dialog") {
+            fixture.core.events.last == "choose"
+        }
+        try? await Task.sleep(for: .milliseconds(50))
     }
 
     static func token(of candidate: PackageCandidate?) -> String? {
@@ -94,6 +134,8 @@ struct PackageInstallCoordinatorTests {
         let apps: URL
         let store: CaskIndexStore
         let settings: PackageInstallSettingsStore
+        /// Held here because the coordinator keeps it `unowned`, as the app's `AppCore` owns it.
+        let core = AppCore()
         let coordinator: PackageInstallCoordinator
 
         init() throws {
@@ -129,9 +171,35 @@ struct PackageInstallCoordinatorTests {
             coordinator = PackageInstallCoordinator(
                 settings: settings, index: store, appIndex: AppIndex(),
                 paletteCoordinator: PaletteCoordinator(), settingsCoordinator: SettingsCoordinator(),
-                activationPolicy: ActivationPolicy(), core: AppCore(), prefix: prefix, home: root.path)
+                activationPolicy: ActivationPolicy(), core: core, prefix: prefix, home: root.path,
+                session: CaskAPI.session(protocolClasses: [LookupFixture.self]))
         }
     }
+}
+
+/// Serves the Blender record for any request, after a delay the case sets.
+final class LookupFixture: URLProtocol, @unchecked Sendable {
+    private static let delay = Mutex<Duration>(.zero)
+    static let record = (try? Data(contentsOf: URL(fileURLWithPath: "Tests/package-fixtures/cask-blender.json"))) ?? Data()
+
+    static func replyDelay(_ duration: Duration) { delay.withLock { $0 = duration } }
+
+    override static func canInit(with request: URLRequest) -> Bool { true }
+    override static func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    /// Sleeps on the loading thread, since the client must be answered on the thread that started it.
+    override func startLoading() {
+        let wait = Self.delay.withLock { $0 }.components
+        Thread.sleep(forTimeInterval: Double(wait.seconds) + Double(wait.attoseconds) / 1e18)
+        guard let url = request.url,
+            let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)
+        else { return }
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Self.record)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
 }
 
 /// Set from Observation's change callback, which may run on another thread.
@@ -154,17 +222,25 @@ enum DialogTone: Sendable { case neutral, success, danger }
 
 @MainActor
 final class AppCore {
-    func showMessage(_ message: String, tone: DialogTone = .success) {}
-    func showProgress(_ message: String, onCancel: (() -> Void)? = nil) {}
-    func hideProgress() {}
-    func showNotice(title: String, message: String, symbol: String, tone: DialogTone) async {}
+    /// What the flow showed, in order: "progress", "hide", "choose", "message" or "notice".
+    var events: [String] = []
+
+    func showMessage(_ message: String, tone: DialogTone = .success) { events.append("message") }
+    func showProgress(_ message: String, onCancel: (() -> Void)? = nil) { events.append("progress") }
+    func hideProgress() { events.append("hide") }
+    func showNotice(title: String, message: String, symbol: String, tone: DialogTone) async {
+        events.append("notice")
+    }
     func confirm(
         title: String, message: String?, symbol: String?, confirmTitle: String,
         tone: DialogTone = .danger, confirmRole: DialogAction.Role = .destructive
     ) async -> Bool { false }
     func choose(
         title: String, message: String?, symbol: String?, options: [DialogAction], defaultIndex: Int
-    ) async -> Int { options.count - 1 }
+    ) async -> Int {
+        events.append("choose")
+        return options.count - 1
+    }
     func reportFailure(title: String, message: String, symbol: String, recovery: String?) async -> Bool {
         false
     }

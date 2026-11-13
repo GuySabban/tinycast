@@ -192,7 +192,8 @@ upstream requires.
 hands-on run. `PackageInstallServiceTests` covers the services, and `PackageInstallCoordinatorTests`
 was added after a gap the plan-level cases missed (prowlarr, step 5): it drives
 `PackageInstallCoordinator.candidate(for:)` end to end over a real store, a scratch Caskroom and
-stand-ins for the app's own collaborators, in the style of `UninstallCoordinatorTests`.
+stand-ins for the app's own collaborators, in the style of `UninstallCoordinatorTests`. Since the
+Phase 1 follow-up it also drives Return's lookup against a stubbed API, timing the progress pill.
 
 ### Acceptance
 

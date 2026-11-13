@@ -12,17 +12,19 @@ final class PackageInstallCoordinator {
     private let paletteCoordinator: PaletteCoordinator
     private let settingsCoordinator: SettingsCoordinator
     private let activationPolicy: ActivationPolicy
-    /// Parameters so a harness can point the flow at a scratch Caskroom.
+    /// Parameters so a harness can point the flow at a scratch Caskroom and a stubbed API.
     private let prefix: URL
     private let home: String
+    @ObservationIgnored private let session: URLSession
     /// Dialog and message-HUD presentation only — never for state this type owns.
     private unowned let core: AppCore
-    @ObservationIgnored private let session = CaskAPI.session()
     /// One deep: the launcher builds its rows several times per keystroke.
     @ObservationIgnored private var memo: (key: MemoKey, candidate: PackageCandidate?)?
     @ObservationIgnored private var flow: Task<Void, Never>?
     /// Bumped by a new flow or a cancel, so a reply to an older one is dropped.
     @ObservationIgnored private var generation = 0
+    @ObservationIgnored private var pendingLookupPill: Task<Void, Never>?
+    @ObservationIgnored private var isLookupPillShown = false
     @ObservationIgnored private var liveRun: (id: UUID, token: String, stop: @Sendable () -> Void)?
     @ObservationIgnored private var lastRunToken: String?
     /// Built on first use; it shares the Command Output window's title and saved frame.
@@ -43,7 +45,8 @@ final class PackageInstallCoordinator {
         settings: PackageInstallSettingsStore, index: CaskIndexStore, appIndex: AppIndex,
         paletteCoordinator: PaletteCoordinator, settingsCoordinator: SettingsCoordinator,
         activationPolicy: ActivationPolicy, core: AppCore,
-        prefix: URL = HomebrewEnvironment.prefix, home: String = NSHomeDirectory()
+        prefix: URL = HomebrewEnvironment.prefix, home: String = NSHomeDirectory(),
+        session: URLSession = CaskAPI.session()
     ) {
         self.settings = settings
         self.index = index
@@ -54,6 +57,7 @@ final class PackageInstallCoordinator {
         self.core = core
         self.prefix = prefix
         self.home = home
+        self.session = session
     }
 
     // MARK: - Lifecycle
@@ -135,19 +139,40 @@ final class PackageInstallCoordinator {
 
     // MARK: - The flow
 
+    /// Most lookups end sooner, and the pill's spinner costs about 50 MB while it is on screen.
+    static let lookupPillDelay: Duration = .milliseconds(300)
+
     /// Cancelling a lookup ends the flow silently; it is never reported as a failure.
     private func cancel() {
         guard flow != nil, liveRun == nil else { return }
         flow?.cancel()
         flow = nil
         generation += 1
+        hideLookupPill()
+    }
+
+    private func showLookupPill(token: String, generation: Int) {
+        pendingLookupPill = Task { [weak self] in
+            try? await Task.sleep(for: Self.lookupPillDelay)
+            guard let self, !Task.isCancelled, self.generation == generation else { return }
+            self.isLookupPillShown = true
+            self.core.showProgress(
+                String(localized: "Looking up \(token) on Homebrew…"),
+                onCancel: { [weak self] in self?.cancel() })
+        }
+    }
+
+    /// Hides only a pill this flow showed, so a quick lookup never dismisses another message.
+    private func hideLookupPill() {
+        pendingLookupPill?.cancel()
+        pendingLookupPill = nil
+        guard isLookupPillShown else { return }
+        isLookupPillShown = false
         core.hideProgress()
     }
 
     private func run(token: String, generation: Int) async {
-        core.showProgress(
-            String(localized: "Looking up \(token) on Homebrew…"),
-            onCancel: { [weak self] in self?.cancel() })
+        showLookupPill(token: token, generation: generation)
         let record: CaskRecord
         let facts: InstallPlan.Facts
         do {
@@ -158,12 +183,12 @@ final class PackageInstallCoordinator {
             return
         } catch {
             guard self.generation == generation else { return }
-            core.hideProgress()
+            hideLookupPill()
             await reportLookupFailure(error, token: token)
             return
         }
         guard self.generation == generation, !Task.isCancelled else { return }
-        core.hideProgress()
+        hideLookupPill()
         installed = facts.installedCasks
         await present(InstallPlan.make(record: record, facts: facts), record: record, generation: generation)
     }
