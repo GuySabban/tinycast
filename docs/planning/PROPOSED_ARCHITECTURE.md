@@ -303,13 +303,24 @@ struct PackageCandidate: Sendable, Equatable {
 // Service/CaskIndexStore.swift
 @MainActor @Observable
 final class CaskIndexStore {
-    enum State: Equatable { case empty, loading, ready(CaskIndex), failed }
-    private(set) var state: State = .empty
-    private(set) var revision = 0
+    struct Schedule: Sendable {
+        let refresh: TimeInterval   // 24 h from the index's fetchedAt
+        let retry: TimeInterval     // 30 min after a failed fetch
+        static let standard: Schedule
+    }
+    /// Kept through a refresh, so the card never drops back to "Loading…".
+    private(set) var index: CaskIndex?
+    /// The cache read or a fetch is running; with no index this means loading, not unavailable.
+    private(set) var isFetching: Bool
+    private(set) var revision: Int
 
-    /// `baseURL` and `protocolClasses` exist so a harness can serve fixtures in process.
-    init(cacheURL: URL, baseURL: URL, protocolClasses: [AnyClass]? = nil)
+    /// `baseURL`, `protocolClasses`, `schedule` and `now` exist so a harness can serve
+    /// fixtures in process and run the schedule in fractions of a second.
+    init(cacheURL: URL, baseURL: URL = homebrewAPI, protocolClasses: [AnyClass]? = nil,
+         schedule: Schedule = .standard, now: @escaping () -> Date = Date.init)
+    /// Reads the cache off the main actor, then refreshes on the schedule.
     func start()
+    /// Cancels the pump; a reply that arrives later is never applied or cached.
     func stop()
 }
 
@@ -510,8 +521,12 @@ The app does not remove the flag.
   cancel, which cancels the task and bumps the generation. During install, Stop ends the process. A
   cancelled download leaves whatever Homebrew leaves; the app deletes nothing. A cancelled step ends
   the flow silently and is never shown as a failure.
-- **Index refresh** follows `CurrencyRateStore`: load the cache file in `init`, refresh every 24 hours
-  measured from the last success, retry after 30 minutes, keep serving the cached index offline.
+- **Index refresh** follows `CurrencyRateStore`: refresh every 24 hours measured from the index's
+  `fetchedAt`, retry after 30 minutes, keep serving the cached index offline. Unlike the reference it
+  reads its cache in `start()`, off the main actor: decoding about 6,000 tokens and folding them for
+  the matcher costs tens of milliseconds, too much for `init` on the launch path. The cache is the
+  decoded index re-encoded (about 240 KB), not Homebrew's file. A malformed or non-200 reply is
+  ignored and the cache kept.
 - **Errors** are one typed enum, `PackageInstallFailure`, with a case per failure the user can act on:
   index unavailable, record not found, cask disabled, Homebrew missing, password needed, already
   installed, install failed with status and log tail, verification failed with the check that failed.

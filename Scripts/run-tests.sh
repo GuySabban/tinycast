@@ -939,6 +939,8 @@ run slow MCPStdioTests     Tinycast/Platform/ExecutableLocator.swift \
 PI=Tinycast/Features/PackageInstall
 run PackageInstallTests    $L/SearchRelevance.swift $L/ScriptRomanization.swift \
                            $L/LauncherMatch.swift $PI/Model/*.swift
+run CaskIndexStoreTests    $L/SearchRelevance.swift $L/ScriptRomanization.swift \
+                           $L/LauncherMatch.swift $PI/Model/*.swift $PI/Service/CaskIndexStore.swift
 
 if [ "$emit_db" -eq 1 ]; then
     printf ']\n' >> "$DB"
