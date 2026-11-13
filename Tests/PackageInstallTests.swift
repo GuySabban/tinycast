@@ -19,6 +19,7 @@ struct PackageInstallTests {
 
     static func main() throws {
         recognisesInstallRequests()
+        waitsForTwoLetters()
         validatesTokens()
         try decodesTheInstallCountFile()
         refusesMalformedInstallCounts()
@@ -68,6 +69,20 @@ struct PackageInstallTests {
         expect(InstallIntent.name(in: "blender") == nil, "an ordinary query")
         expect(InstallIntent.name(in: "how to install blender") == nil, "the keyword must lead")
         expect(InstallIntent.name(in: "") == nil, "an empty query")
+    }
+
+    /// One letter matches hundreds of casks, so no card shows until a second is typed.
+    static func waitsForTwoLetters() {
+        expect(InstallIntent.minimumLetters == 2, "two letters before a match")
+        expect(InstallIntent.name(in: "install b") == nil, "one letter shows no match")
+        expect(InstallIntent.name(in: "install 1") == nil, "one digit shows no match")
+        expect(InstallIntent.name(in: "install b-") == nil, "a separator is not a letter")
+        expect(InstallIntent.name(in: "install b .") == nil, "nor is punctuation after a space")
+        expect(InstallIntent.name(in: "install é") == nil, "one accented letter is still one")
+        expect(InstallIntent.name(in: "install bl") == "bl", "two letters match")
+        expect(InstallIntent.name(in: "install 1p") == "1p", "a digit counts as a letter")
+        expect(InstallIntent.name(in: "install b l") == "b l", "two letters across words")
+        expect(InstallIntent.name(in: "install 微信") == "微信", "two letters in another script")
     }
 
     static func validatesTokens() {
