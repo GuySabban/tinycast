@@ -172,8 +172,8 @@ upstream requires.
 
 ### Risks
 
-- **The Terminal hand-off does not work as designed on macOS 27.** Fallback: copy the command and open
-  Terminal. Settle it in the first week (decision D5).
+- **The Terminal hand-off does not work as designed on macOS 27.** Settled on 2026-11-13 in step 3:
+  it works with no prompt (decision D5).
 - **Token matching misses common names.** Measured by the 50-name harness case. Fallback: the full
   catalogue (decision D4).
 - **`brew` behaves differently under the pseudo-terminal** than its documentation suggests. Found in

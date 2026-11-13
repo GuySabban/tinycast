@@ -152,10 +152,10 @@ Scope for the first version: Homebrew casks only, on Apple silicon, with Homebre
 | `InstallVerification` | Model | pure | Decide whether an install succeeded, from observed facts | None |
 | `CaskIndexStore` | Service | `@MainActor @Observable` | Download, cache and refresh the index | `AppPaths` |
 | `CaskAPI` | Service | `@concurrent` statics | Fetch one cask record | None |
-| `HomebrewEnvironment` | Service | nonisolated statics | Find `brew`; read the Caskroom | None |
+| `HomebrewEnvironment` | Service | nonisolated and `@concurrent` statics | Find `brew`; read the Caskroom | None |
 | `CaskInstaller` | Service | nonisolated statics | Start the install | `ShellCommandRunner`, `ShellCommandSession` |
 | `InstallVerifier` | Service | `@concurrent` statics | Gather the facts verification needs | `BundleSignature` |
-| `TerminalHandoff` | Service | `@MainActor` | Run one `brew` command in Terminal; open Terminal | `AppLauncher`, `Paster` |
+| `TerminalHandoff` | Service | `@MainActor` | Run one `brew` command in Terminal; open Terminal | `AppLauncher`, `NSWorkspace` |
 | `PackageInstallSettingsStore` | Settings | `@MainActor @Observable` | The feature switch, under a raw key | None |
 | `PackageInstallCoordinator` | UI | `@MainActor` | The feature's action surface; owns the flow and its output window | `AppCore`, `AppIndex`, `CommandOutputPresenter`, `PaletteCoordinator` |
 | `PackageInstallCard`, `PackageActionsMenu` | UI | views | The lead card and its Cmd-K menu | `PopoverMenuContent`, `Theme` |
@@ -326,15 +326,23 @@ final class CaskIndexStore {
 
 // Service/CaskAPI.swift
 enum CaskAPI {
-    @concurrent nonisolated static func record(token: String, baseURL: URL, session: URLSession)
-        async throws -> CaskRecord
+    /// `notFound` is a 404 (or a token that fails `CaskToken.isValid`, never requested);
+    /// `malformed` includes a record whose token differs from the one asked for.
+    enum Failure: Error, Equatable { case notFound, unavailable, malformed }
+    nonisolated static let base: URL   // https://formulae.brew.sh/api/, shared with the store
+    /// The one ephemeral, cacheless session shape; `CaskIndexStore` builds its own from it.
+    nonisolated static func session(protocolClasses: [AnyClass]? = nil) -> URLSession
+    /// Throws `Failure`, or `CancellationError` when the caller is cancelled.
+    @concurrent nonisolated static func record(token: String, variation: String?,
+        baseURL: URL = base, session: URLSession) async throws -> CaskRecord
 }
 
 // Service/HomebrewEnvironment.swift
 enum HomebrewEnvironment {
     nonisolated static let prefix = URL(fileURLWithPath: "/opt/homebrew")
-    nonisolated static func brew() -> URL?
-    @concurrent nonisolated static func installedCasks() async -> [String: String]
+    nonisolated static func brew(prefix: URL = prefix) -> URL?
+    /// Tokens whose Caskroom folder has `.metadata`, which Homebrew writes once an install completes.
+    @concurrent nonisolated static func installedCasks(prefix: URL = prefix) async -> Set<String>
 }
 
 // Service/CaskInstaller.swift
@@ -344,13 +352,17 @@ enum CaskInstaller {
 
 // Service/InstallVerifier.swift
 enum InstallVerifier {
-    @concurrent nonisolated static func observe(record: CaskRecord) async -> InstallObservation
+    /// `prefix` and `home` are parameters so a harness can lay out a scratch Caskroom.
+    @concurrent nonisolated static func observe(record: CaskRecord,
+        prefix: URL = HomebrewEnvironment.prefix, home: String = NSHomeDirectory())
+        async -> InstallVerification.Observation
 }
 
 // Service/TerminalHandoff.swift
 enum TerminalHandoff {
-    /// Runs one `brew install --cask` command in a new Terminal window.
-    @MainActor static func run(_ invocation: BrewInvocation) throws
+    /// Writes `BrewInvocation.terminalScript` to a `.command` file and opens it with
+    /// Terminal.app by path, not the user's default handler for `.command`.
+    @MainActor static func run(_ invocation: BrewInvocation) async throws
     /// Brings Terminal forward and runs nothing.
     @MainActor static func openTerminal()
 }
@@ -401,8 +413,8 @@ HOMEBREW_NO_ENV_HINTS=1 HOMEBREW_NO_INSTALL_CLEANUP=1 \
 
 | Setting | Why |
 | --- | --- |
-| `HOMEBREW_NO_SUDO=1` | `brew` never prompts. If the cask needs a password it stops before downloading with "The pkg artifact requires sudo, but HOMEBREW_NO_SUDO is set." |
-| `HOMEBREW_NO_ASK=1` | Homebrew 7 asks for confirmation by default when it has a terminal, and the runner uses a pseudo-terminal whose input is closed. |
+| `HOMEBREW_NO_SUDO=1` | `brew` never prompts for a password. When a step first needs `sudo`, Homebrew fails it with "sudo is disabled by HOMEBREW_NO_SUDO." (`system_command.rb`, Homebrew 7.0.13). For a pkg that is after the download, when `installer` runs, not before it. `CaskRecord.needsPassword` sends such casks to Terminal beforehand, so this message is the fallback, detected by `BrewInvocation.refusedSudo(in:)`. |
+| `HOMEBREW_NO_ASK=1` | Homebrew 7 asks for confirmation by default and skips asking only "without a TTY" (`cmd/install.rb`). The runner's pseudo-terminal is a TTY whose input nobody writes, so a question would wait forever. |
 | `HOMEBREW_CASK_OPTS=` (empty) | The runner always starts a login shell, so the user's `~/.zprofile` runs first. A custom install folder set there would make the dialog's "Installs to" line wrong. |
 | `HOMEBREW_NO_ANALYTICS=1` | Installs started by the launcher are not reported to Homebrew's analytics. |
 | `HOMEBREW_NO_ENV_HINTS=1`, `HOMEBREW_NO_INSTALL_CLEANUP=1` | Shorter output, no unrelated cleanup |
@@ -487,9 +499,17 @@ dialog cannot list them (threat T3 in `RISKS_AND_DECISIONS.md`).
 - **Two known rough edges.** The second presenter shares the first one's window title and saved
   frame, and upstream's Dock-click handler brings forward only the custom-command window.
 - **Verify.** `InstallVerifier` gathers three facts off the main actor: the token now has a Caskroom
-  entry; each `app` artifact exists at its target; and `BundleSignature.trustedHash(of:releaseSigned:
-  true)` returns a value, which means the bundle is sealed and Developer ID signed. `InstallVerification`
-  turns the facts into pass or a named failure.
+  entry with `.metadata`; each `app` artifact exists at its target, with Homebrew's `/$HOME/` resolved;
+  and `BundleSignature.trustedHash(of:releaseSigned: true)` returns a value, which means the bundle
+  is sealed and Developer ID signed. `InstallVerification` turns the facts into pass or a named
+  failure. Measured on 2026-11-13 against the casks already installed on the owner's Mac: six app
+  casks passed (ChatGPT Classic, MiddleClick, noTunes, Obsidian, Tinycast, Unity Hub). The strict
+  nested check took up to 1.8 s (Obsidian), so the confirmation waits that long after `brew` exits.
+  Two consequences:
+  - An app signed by Apple rather than with a Developer ID fails the check (Calculator does in the
+    harness), so a cask shipping one would be reported as unverified.
+  - A Caskroom entry outlives an app deleted by hand (Prowlarr and Wine Stable on the owner's Mac),
+    which is why `InstallPlan` lets Homebrew's record win.
 - **Rescan.** On pass the coordinator awaits `AppIndex.refresh()` and then shows a message. The new
   app is searchable at once, and for five minutes it also appears in Suggestions on the empty
   launcher (`LauncherSuggestions`, existing).
@@ -505,11 +525,17 @@ The app does not remove the flag.
   dialog with the setup command and two buttons. **Copy and Open Terminal** copies the command with
   `Paster.copyPlainText` and brings Terminal forward; the user pastes and runs it. **Copy Command**
   only copies. The launcher never starts Homebrew's installer.
-- **A cask that needs a password.** Nothing in Tinycast opens Terminal today, so `TerminalHandoff` is
-  new. Its `run` writes the one `brew install --cask TOKEN` line to an executable `.command` file in a
-  temporary folder and opens it with `NSWorkspace`, which makes Terminal run it in a new window. It
-  needs no Automation permission. How macOS 27 treats a locally created `.command` file is
-  UNVERIFIED; the fallback is the copy-and-open behaviour above (decision D5).
+- **A cask that needs a password or a manual step.** Nothing in Tinycast opens Terminal today, so
+  `TerminalHandoff` is new. Its `run` writes `BrewInvocation.terminalScript` to an executable
+  (`0700`) `.command` file in the temporary folder. The script deletes itself, prints the command,
+  and runs `brew` by absolute path with analytics off and `sudo` allowed. `run` then opens the file
+  with Terminal.app named by path: `NSWorkspace`'s default for `.command` may be another terminal the
+  user chose. It needs no Automation permission. **Decision D5 is settled (2026-11-13, macOS 27.2):**
+  the real `TerminalHandoff` code, with a stand-in `brew` that ran `echo hello`, opened a Terminal
+  window that ran the script about 2 seconds later. There was no Gatekeeper or Automation prompt,
+  and the file was gone afterwards. The app sets no `LSFileQuarantineEnabled`, so files it writes
+  carry no quarantine flag, as in the test. Copy-and-open stays only for Homebrew's own setup
+  command.
 
 ### 4.8 Concurrency, cancellation and errors
 
@@ -823,12 +849,12 @@ measure.
 
 | # | Assumption | How it is settled |
 | --- | --- | --- |
-| 1 | A locally written `.command` file opens in Terminal and runs without a Gatekeeper prompt on macOS 27 | Try it once on the owner's Mac; fall back to copy-and-open |
-| 2 | With `HOMEBREW_NO_SUDO=1`, `brew` stops early for a password cask and exits non-zero under the pseudo-terminal | Install a pkg cask in a Debug build |
-| 3 | `brew` does not wait for input under the pseudo-terminal once `HOMEBREW_NO_ASK=1` is set | Same run |
+| 1 | A locally written `.command` file opens in Terminal and runs without a Gatekeeper prompt on macOS 27 | **Settled 2026-11-13: it does** (section 4.7) |
+| 2 | With `HOMEBREW_NO_SUDO=1`, `brew` fails a password step and exits non-zero under the pseudo-terminal. Homebrew's source says the message is "sudo is disabled by HOMEBREW_NO_SUDO.", raised when the step runs, not before the download. | Install a pkg cask in a Debug build |
+| 3 | `brew` does not wait for input under the pseudo-terminal once `HOMEBREW_NO_ASK=1` is set. The source confirms ask mode is on whenever there is a TTY, so the setting is needed. | Same run |
 | 4 | Token matching finds the intended cask for common app names | A list of 50 names checked in a harness against a captured copy of the analytics file |
 | 5 | The cask index adds under 2 MB of resident memory | `footprint` before and after loading |
-| 6 | A fresh install passes the Developer ID check | Run the verifier on three installed casks |
+| 6 | A fresh install passes the Developer ID check | **Settled for installed casks on 2026-11-13:** six app casks pass (section 4.6). A fresh install is checked in the Phase 1 hands-on run. |
 | 7 | Homebrew warns about App Management permission only when replacing an existing app | Reinstall one cask from the app |
 | 8 | Exa's `lite` search returns in about a second | Time ten searches |
 
