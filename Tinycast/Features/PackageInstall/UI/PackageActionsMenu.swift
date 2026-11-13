@@ -23,7 +23,7 @@ enum PackageActionsMenu {
                 title: alternate.token, icon: .symbol("shippingbox"),
                 sectionTitle: offset == 0 ? String(localized: "Other Matches") : nil,
                 startsSection: offset == 0,
-                detail: String(localized: "\(alternate.installs.formatted()) installs")
+                detail: String(localized: "\(alternate.installs) installs")
             ) { coordinator.install(token: alternate.token) }
         }
         return PopoverMenuContent(header: entry.token, items: items)

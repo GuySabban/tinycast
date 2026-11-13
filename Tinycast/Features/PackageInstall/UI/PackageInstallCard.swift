@@ -39,7 +39,7 @@ struct PackageInstallCard: View {
         case .installed: String(localized: "Installed with Homebrew")
         case .appMissing(let app): String(localized: "\(app) is missing")
         case nil:
-            String(localized: "\(entry.installs.formatted()) installs this month")
+            String(localized: "\(entry.installs) installs this month")
         }
     }
 }

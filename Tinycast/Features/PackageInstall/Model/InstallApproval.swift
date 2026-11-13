@@ -4,10 +4,10 @@ import Foundation
 enum InstallApproval {
     static func message(record: CaskRecord, invocation: BrewInvocation) -> String {
         var lines = [heading(record)]
-        let cask = String(localized: "Homebrew cask “\(record.token)”")
+        let token = record.token
         lines.append(
-            record.homepage.flatMap(host).map { String(localized: "Source: \($0), \(cask)") }
-                ?? String(localized: "Source: \(cask)"))
+            record.homepage.flatMap(host).map { String(localized: "Source: \($0), Homebrew cask “\(token)”") }
+                ?? String(localized: "Source: Homebrew cask “\(token)”"))
         if let download = record.downloadURL.flatMap(host) {
             lines.append(String(localized: "Download from: \(download)"))
         }
@@ -33,11 +33,13 @@ enum InstallApproval {
         return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
     }
 
+    /// Whole sentences, each its own literal, so a translation never splices one into another.
     private static func deprecation(_ retirement: CaskRecord.Retirement) -> String {
-        let reason = retirement.reason?.sentence ?? ""
-        guard let replacement = retirement.replacementCask else {
-            return String(localized: "Homebrew has deprecated this cask. \(reason)")
-        }
-        return String(localized: "Homebrew has deprecated this cask. \(reason) Use “\(replacement)” instead.")
+        let sentences = [
+            String(localized: "Homebrew has deprecated this cask."),
+            retirement.reason?.sentence,
+            retirement.replacementCask.map { String(localized: "Use “\($0)” instead.") },
+        ]
+        return sentences.compactMap(\.self).joined(separator: " ")
     }
 }
