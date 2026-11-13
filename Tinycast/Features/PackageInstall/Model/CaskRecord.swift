@@ -34,6 +34,23 @@ struct CaskRecord: Sendable, Equatable {
             /// A sentence the cask states in place of one of Homebrew's symbols.
             case stated(String)
 
+            /// Homebrew's own wording for each symbol, so the dialog never shows a raw one.
+            var sentence: String {
+                switch self {
+                case .discontinued: String(localized: "It is discontinued upstream.")
+                case .noLongerAvailable: String(localized: "It is no longer available upstream.")
+                case .noLongerMeetsCriteria:
+                    String(localized: "It no longer meets Homebrew's criteria for casks.")
+                case .unmaintained: String(localized: "It is not maintained upstream.")
+                case .unreachable: String(localized: "Its download can no longer be reached.")
+                case .failsGatekeeperCheck:
+                    String(localized: "It does not pass the macOS Gatekeeper check.")
+                case .movedToMacAppStore:
+                    String(localized: "It is now only distributed on the Mac App Store.")
+                case .stated(let words): String(localized: "Homebrew says it \(words).")
+                }
+            }
+
             init(_ raw: String) {
                 self =
                     switch raw {

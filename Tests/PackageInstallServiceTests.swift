@@ -22,6 +22,7 @@ struct PackageInstallServiceTests {
         try await mapsRecordFailures()
         try await reportsCancellationAsCancellation()
         try await findsBrewAndTheCaskroom()
+        try await noticesAnAppDeletedByHand()
         try await installsThroughTheFixedScript()
         try await passesBrewsExitStatusThrough()
         try await stopsALongInstall()
@@ -125,11 +126,34 @@ struct PackageInstallServiceTests {
         return prefix
     }
 
+    static func receipt(_ app: String) -> Data {
+        Data(#"{"uninstall_artifacts":[{"app":["\#(app)"]}]}"#.utf8)
+    }
+
+    /// Prowlarr and Wine Stable on the owner's Mac: Homebrew's record outlived the app.
+    static func noticesAnAppDeletedByHand() async throws {
+        let prefix = try prefix(casks: ["kept", "deleted", "tool"])
+        let apps = try scratch()
+        let config = Data(#"{"default":{"appdir":"\#(apps.path)"},"env":{},"explicit":{}}"#.utf8)
+        for (cask, app) in [("kept", "Kept.app"), ("deleted", "Deleted.app")] {
+            let metadata = prefix.appending(path: "Caskroom/\(cask)/.metadata")
+            try receipt(app).write(to: metadata.appending(path: "INSTALL_RECEIPT.json"))
+            try config.write(to: metadata.appending(path: "config.json"))
+        }
+        try FileManager.default.createDirectory(
+            at: apps.appending(path: "Kept.app/Contents"), withIntermediateDirectories: true)
+        let installed = await HomebrewEnvironment.installedCasks(prefix: prefix, home: "/nowhere")
+        expect(installed["kept"]?.missingAppPaths == [], "an app where its receipt says is not missing")
+        expect(installed["kept"]?.appPaths == [apps.appending(path: "Kept.app").path], "at the recorded folder")
+        expect(installed["deleted"]?.missingAppName == "Deleted.app", "a deleted app is named as missing")
+        expect(installed["tool"]?.appPaths == [], "a cask with no receipt still counts, with no apps")
+    }
+
     static func findsBrewAndTheCaskroom() async throws {
         let empty = try prefix()
         expect(HomebrewEnvironment.brew(prefix: empty) == nil, "no brew in an empty prefix")
-        let outcome7 = await HomebrewEnvironment.installedCasks(prefix: empty)
-        expect(outcome7.isEmpty, "and no Caskroom")
+        let nothing = await HomebrewEnvironment.installedCasks(prefix: empty, home: "/nowhere")
+        expect(nothing.isEmpty, "and no Caskroom")
 
         let full = try prefix(brewScript: "#!/bin/sh\n", casks: ["blender", "zoom"])
         expect(
@@ -138,9 +162,9 @@ struct PackageInstallServiceTests {
         try FileManager.default.createDirectory(
             at: full.appending(path: "Caskroom/half-done/1.0"), withIntermediateDirectories: true)
         try Data().write(to: full.appending(path: "Caskroom/.DS_Store"))
-        let installed = await HomebrewEnvironment.installedCasks(prefix: full)
+        let installed = await HomebrewEnvironment.installedCasks(prefix: full, home: "/nowhere")
         expect(
-            installed == ["blender", "zoom"],
+            Set(installed.keys) == ["blender", "zoom"],
             "a cask counts once Homebrew wrote its metadata, and stray files never do")
 
         let unexecutable = try prefix(brewScript: "#!/bin/sh\n")
@@ -247,14 +271,34 @@ struct PackageInstallServiceTests {
         let unsigned = await InstallVerifier.observe(
             record: record(target: "/$HOME/Applications/Probe.app"), prefix: installed, home: home.path)
         expect(unsigned.missingApps.isEmpty, "the app under the home folder is found")
-        expect(unsigned.unsignedApps == ["Probe.app"], "an unsealed bundle fails the signature check")
+        expect(unsigned.untrustedApps == ["Probe.app"], "an unsealed bundle fails the signature check")
+
+        let executable = home.appending(path: "Applications/Probe.app/Contents/MacOS")
+        try FileManager.default.createDirectory(at: executable, withIntermediateDirectories: true)
+        try FileManager.default.copyItem(atPath: "/usr/bin/true", toPath: executable.appending(path: "Probe").path)
+        try Data(#"<plist version="1.0"><dict><key>CFBundleExecutable</key><string>Probe</string></dict></plist>"#.utf8)
+            .write(to: app.appending(path: "Info.plist"))
+        expect(try codesign(home.appending(path: "Applications/Probe.app")), "the probe is ad-hoc signed")
+        let adHoc = await InstallVerifier.observe(
+            record: record(target: "/$HOME/Applications/Probe.app"), prefix: installed, home: home.path)
+        expect(adHoc.untrustedApps == ["Probe.app"], "an ad-hoc seal is no one's, so it fails too")
 
         let apple = await InstallVerifier.observe(
             record: record(target: "/System/Applications/Calculator.app"), prefix: bare, home: home.path)
         expect(!apple.hasCaskroomEntry, "no Caskroom entry")
         expect(apple.missingApps.isEmpty, "Calculator is there")
-        expect(apple.unsignedApps == ["Calculator.app"], "Apple's own signature is not a Developer ID")
+        expect(apple.untrustedApps.isEmpty, "Apple's own signature is trusted as well as a Developer ID")
         expect(InstallVerification.judge(apple) == .noCaskroomEntry, "judged on the first failed check")
+    }
+
+    static func codesign(_ bundle: URL) throws -> Bool {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
+        process.arguments = ["--force", "--sign", "-", bundle.path]
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try process.runObservingExit().wait()
+        return process.terminationStatus == 0
     }
 
     static func expectSettles(_ message: String, within seconds: Double = 5, _ condition: () -> Bool) async {

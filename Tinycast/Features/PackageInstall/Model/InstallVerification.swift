@@ -6,19 +6,20 @@ enum InstallVerification: Sendable, Equatable {
     struct Observation: Sendable, Equatable {
         let hasCaskroomEntry: Bool
         let missingApps: [String]
-        let unsignedApps: [String]
+        /// Sealed by neither Apple nor a Developer ID.
+        let untrustedApps: [String]
     }
 
     case verified
     case noCaskroomEntry
     case appMissing(String)
-    case appNotDeveloperIDSigned(String)
+    case appUntrusted(String)
 
     /// The first failed check, in the order a user can act on: record, presence, signature.
     static func judge(_ observation: Observation) -> InstallVerification {
         guard observation.hasCaskroomEntry else { return .noCaskroomEntry }
         if let app = observation.missingApps.first { return .appMissing(app) }
-        if let app = observation.unsignedApps.first { return .appNotDeveloperIDSigned(app) }
+        if let app = observation.untrustedApps.first { return .appUntrusted(app) }
         return .verified
     }
 }

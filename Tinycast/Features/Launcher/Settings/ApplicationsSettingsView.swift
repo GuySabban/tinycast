@@ -9,6 +9,8 @@ struct ApplicationsSettingsView: View {
 
             SearchScopesSection()
 
+            PackageInstallSettingsSection()
+
             LauncherItemsSection(
                 kind: .application,
                 anchor: .applicationsApplications,

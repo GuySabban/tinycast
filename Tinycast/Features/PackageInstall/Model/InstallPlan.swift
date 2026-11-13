@@ -5,8 +5,8 @@ enum InstallPlan: Sendable, Equatable {
     struct Facts: Sendable, Equatable {
         /// Nil unless an executable sits at `/opt/homebrew/bin/brew`.
         let brew: URL?
-        /// Tokens with a folder in the Caskroom.
-        let installedCasks: Set<String>
+        /// What Homebrew's Caskroom records, by token.
+        let installedCasks: [String: InstalledCask]
         /// File names of the apps `AppIndex` holds, such as `Blender.app`.
         let presentAppNames: Set<String>
     }
@@ -19,7 +19,9 @@ enum InstallPlan: Sendable, Equatable {
     /// A password or a manual installer step needs a terminal the user can see and answer.
     case terminal(BrewInvocation)
     case homebrewMissing
-    /// `appName` is the bundle to open; nil for a pkg, or when the app was deleted by hand.
+    /// Homebrew lists the cask, but its app is gone: `brew reinstall`, run in Terminal.
+    case reinstall(BrewInvocation, missingApp: String)
+    /// `appName` is the bundle to open; nil for a pkg.
     case alreadyInstalled(appName: String?, byHomebrew: Bool)
     case disabled(CaskRecord.Retirement)
     case invalidToken
@@ -27,8 +29,15 @@ enum InstallPlan: Sendable, Equatable {
     static func make(record: CaskRecord, facts: Facts) -> InstallPlan {
         if let retirement = record.disabled { return .disabled(retirement) }
         let presentApp = record.apps.map(\.installedName).first(where: facts.presentAppNames.contains)
-        if facts.installedCasks.contains(record.token) {
-            return .alreadyInstalled(appName: presentApp, byHomebrew: true)
+        if let installed = facts.installedCasks[record.token] {
+            guard let missing = installed.missingAppName, presentApp == nil else {
+                return .alreadyInstalled(appName: presentApp, byHomebrew: true)
+            }
+            guard let brew = facts.brew else { return .homebrewMissing }
+            guard let invocation = BrewInvocation(brew: brew, token: record.token, verb: .reinstall) else {
+                return .invalidToken
+            }
+            return .reinstall(invocation, missingApp: missing)
         }
         if let presentApp { return .alreadyInstalled(appName: presentApp, byHomebrew: false) }
         guard let brew = facts.brew else { return .homebrewMissing }

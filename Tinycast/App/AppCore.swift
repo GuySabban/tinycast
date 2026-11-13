@@ -49,6 +49,8 @@ final class AppCore {
     let fallbacks = FallbackStore()
     let calcHistory = CalculatorHistoryStore()
     let currencyRates = CurrencyRateStore()
+    let packageInstallSettings = PackageInstallSettingsStore()
+    let caskIndex = CaskIndexStore(cacheURL: AppPaths.caches().appending(path: "cask-index.json"))
     let regionNumberFormat = RegionNumberFormatMonitor()
     let calendarStore = CalendarStore()
     let meetingClock = MeetingClock()
@@ -205,6 +207,10 @@ final class AppCore {
     @ObservationIgnored private(set) lazy var calendarCoordinator = CalendarCoordinator(
         store: calendarStore, clock: meetingClock, appIndex: appIndex, settings: settings,
         paletteCoordinator: paletteCoordinator, core: self)
+    @ObservationIgnored private(set) lazy var packageInstallCoordinator = PackageInstallCoordinator(
+        settings: packageInstallSettings, index: caskIndex, appIndex: appIndex,
+        paletteCoordinator: paletteCoordinator, settingsCoordinator: settingsCoordinator,
+        activationPolicy: activationPolicy, core: self)
     @ObservationIgnored private(set) lazy var fileSearchCoordinator = FileSearchCoordinator(
         settings: settings, appIndex: appIndex, session: fileSearch, indexer: fileIndexer,
         palette: palette, paletteCoordinator: paletteCoordinator,
@@ -343,6 +349,7 @@ final class AppCore {
             appleShortcutCoordinator.applyPresence()
             paletteCoordinator.onLauncherShown = { [weak self] in
                 self?.appleShortcutCoordinator.refresh()
+                self?.packageInstallCoordinator.refreshInstalled()
             }
             paletteCoordinator.onScreenOpening = { [weak self] mode in
                 switch mode {
@@ -357,6 +364,7 @@ final class AppCore {
             Task { await appIndex.refresh() }
             Task { await emojiIndex.load(languages: SystemLanguages.preferred) }
             currencyRates.start()
+            packageInstallCoordinator.applyEnabled()
             updateChecker.onUpdateAvailable = { [weak self] in self?.updateCoordinator.offer($0) }
             updateCoordinator.applyAutomaticChecking()
             supportReminders.onDue = { [weak self] in self?.supportCoordinator.presentIfDue() }

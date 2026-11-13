@@ -12,15 +12,30 @@ enum HomebrewEnvironment {
 
     /// Homebrew writes `.metadata` once an install completes, so a half-done folder is skipped.
     @concurrent
-    nonisolated static func installedCasks(prefix: URL = prefix) async -> Set<String> {
+    nonisolated static func installedCasks(
+        prefix: URL = prefix, home: String = NSHomeDirectory()
+    ) async -> [String: InstalledCask] {
         let caskroom = prefix.appending(path: "Caskroom")
-        guard let tokens = try? FileManager.default.contentsOfDirectory(atPath: caskroom.path) else {
-            return []
+        guard let tokens = try? FileManager.default.contentsOfDirectory(atPath: caskroom.path(percentEncoded: false)) else {
+            return [:]
         }
-        return Set(tokens.filter { token in
-            CaskToken.isValid(token)
-                && FileManager.default.fileExists(
-                    atPath: caskroom.appending(path: "\(token)/.metadata").path(percentEncoded: false))
-        })
+        var installed: [String: InstalledCask] = [:]
+        for token in tokens where CaskToken.isValid(token) {
+            let metadata = caskroom.appending(path: "\(token)/.metadata")
+            guard FileManager.default.fileExists(atPath: metadata.path(percentEncoded: false)) else {
+                continue
+            }
+            let paths = (try? Data(contentsOf: metadata.appending(path: "INSTALL_RECEIPT.json")))
+                .map { receipt in
+                    InstalledCask.appPaths(
+                        receipt: receipt,
+                        config: try? Data(contentsOf: metadata.appending(path: "config.json")),
+                        home: home)
+                } ?? []
+            installed[token] = InstalledCask(
+                token: token, appPaths: paths,
+                missingAppPaths: paths.filter { !FileManager.default.fileExists(atPath: $0) })
+        }
+        return installed
     }
 }

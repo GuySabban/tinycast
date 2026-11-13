@@ -20,6 +20,7 @@ struct LauncherScreen: PaletteScreen {
     private let results: [AppEntry]
     private let calc: CalcResult?
     private let color: ColorValue?
+    private let package: PackageCandidate?
     /// Only the empty query pins favorites — a category shows its sections without one of its own.
     private let pinsFavorites: Bool
     private let pinnedFavorites: [FavoritesStore.Item]
@@ -74,6 +75,9 @@ struct LauncherScreen: PaletteScreen {
             ? CalcMemo.evaluate(vm.query, rates: currencyRates.rates, format: core.calcNumberFormat) : nil
         // After the calculator: `#FF5733` is never arithmetic, so the two can't both answer.
         let color = calc == nil && pinned == nil ? ColorValue.parse(vm.query) : nil
+        let package =
+            calc == nil && color == nil && pinned == nil
+            ? core.packageInstallCoordinator.candidate(for: vm.query) : nil
         let files = pinned == nil ? core.fileSearchCoordinator.launcherFiles(for: vm.query) : []
         let fallbacks = core.fallbackCoordinator.entries(for: vm.query)
         let pinsFavorites = vm.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -92,6 +96,7 @@ struct LauncherScreen: PaletteScreen {
         self.files = files
         self.fallbacks = fallbacks
         self.color = color
+        self.package = package
         self.pinsFavorites = pinsFavorites
         self.pinnedFavorites = pinnedFavorites
         self.meetingCount = pinsFavorites ? ordered.meetingCount : 0
@@ -101,6 +106,8 @@ struct LauncherScreen: PaletteScreen {
             self.rows = [.calc(calc)] + entries
         } else if let color {
             self.rows = [.color(color)] + entries
+        } else if let package {
+            self.rows = [.package(package)] + entries
         } else if let meeting {
             self.rows = [.meeting(meeting)] + entries
         } else {
@@ -113,6 +120,7 @@ struct LauncherScreen: PaletteScreen {
         case calc(CalcResult)
         case meeting(MeetingEvent)
         case color(ColorValue)
+        case package(PackageCandidate)
         case entry(AppEntry)
         /// Prefixed, because an application's entry id is the same bundle path a file hit carries.
         case file(FileSearchResult)
@@ -140,6 +148,7 @@ struct LauncherScreen: PaletteScreen {
             case .calc: return "calc-card"
             case .meeting: return "meeting-card"
             case .color: return "color-card"
+            case .package: return "package-card"
             case .entry(let app): return app.id
             case .file(let result): return "file-" + result.id
             case .fallback(let fallback, _): return "fallback-" + fallback.id
@@ -157,6 +166,7 @@ struct LauncherScreen: PaletteScreen {
         switch row(at: clampedSelection) {
         case .calc: return String(localized: "Copy Answer")
         case .color: return String(localized: "Copy Color")
+        case .package(let candidate): return PackageActionsMenu.primaryTitle(for: candidate)
         case .meeting(let meeting):
             return meeting.link == nil
                 ? String(localized: "Open in Calendar") : String(localized: "Join Meeting")
@@ -220,7 +230,7 @@ struct LauncherScreen: PaletteScreen {
 
     private func isCardSelected(_ selection: Int) -> Bool {
         switch row(at: selection) {
-        case .calc, .meeting, .color: return true
+        case .calc, .meeting, .color, .package: return true
         case .entry, .file, .fallback, nil: return false
         }
     }
@@ -228,11 +238,13 @@ struct LauncherScreen: PaletteScreen {
     private var leadCard: LauncherList.LeadCard? {
         if let calc { return .calc(calc) }
         if let color { return .color(color) }
+        if let package { return .package(package) }
         return meeting.map { .meeting($0, now: now) }
     }
 
     /// An error card is selectable but has no action: it must drive neither the pill nor ⌘K.
     func hasPrimaryAction(at selection: Int) -> Bool {
+        if case .package(let candidate) = row(at: selection) { return candidate.hasAction }
         guard case .calc(let result) = row(at: selection) else { return true }
         return result.isActionable
     }
@@ -243,6 +255,9 @@ struct LauncherScreen: PaletteScreen {
             return result.isActionable ? CalcActionsMenu.content(result: result, core: core) : nil
         case .color(let color):
             return ColorActionsMenu.content(color: color, core: core)
+        case .package(let candidate):
+            return PackageActionsMenu.content(
+                candidate: candidate, coordinator: core.packageInstallCoordinator)
         case .meeting(let meeting):
             return MeetingActionsMenu.content(meeting: meeting, core: core)
         case .entry(let app):
@@ -274,6 +289,7 @@ struct LauncherScreen: PaletteScreen {
         case .color(let color):
             core.clipboardCoordinator.copyColor(color, as: ColorFormat.primary(for: color))
         case .meeting(let meeting): core.calendarCoordinator.activateMeeting(id: meeting.id)
+        case .package(let candidate): core.packageInstallCoordinator.activate(candidate)
         case .entry(let app):
             core.launcherCoordinator.launch(
                 app, searchQuery: vm.query, arguments: core.launcherCoordinator.argumentValues(for: app))

@@ -88,7 +88,7 @@ struct CaskIndexStoreTests {
         store.start()
         expect(store.isFetching, "loading from the first moment, so the card never says unavailable")
         expect(
-            PackageCandidate(requestedName: "blender", index: store.index, isFetchingIndex: store.isFetching)
+            PackageCandidate(requestedName: "blender", index: store.index, isFetchingIndex: store.isFetching, installed: [:])
                 .state == .loadingIndex,
             "the card reads loading while the first fetch runs")
         await expectSettles("the first fetch lands") { store.index != nil && !store.isFetching }
@@ -176,7 +176,7 @@ struct CaskIndexStoreTests {
         await expectSettles("the fetch is tried") { HomebrewFixture.paths.count == 1 && !store.isFetching }
         expect(store.index == nil, "no index")
         expect(
-            PackageCandidate(requestedName: "blender", index: store.index, isFetchingIndex: store.isFetching)
+            PackageCandidate(requestedName: "blender", index: store.index, isFetchingIndex: store.isFetching, installed: [:])
                 .state == .indexUnavailable,
             "the card says unavailable, not loading forever")
         expect(!FileManager.default.fileExists(atPath: cache.path), "no cache file is invented")

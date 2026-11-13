@@ -39,6 +39,9 @@ struct PackageInstallTests {
         recognisesARefusedSudo()
         try resolvesTargetsUnderHome()
         try plansEveryOutcome()
+        readsInstallReceipts()
+        try writesTheApproval()
+        namesEveryRetirementReason()
         judgesEveryVerification()
 
         print("\(passes) passed, \(failures) failed")
@@ -218,7 +221,7 @@ struct PackageInstallTests {
 
     static func resolvesCandidates() throws {
         let index = try index()
-        let ready = PackageCandidate(requestedName: "blender", index: index, isFetchingIndex: false)
+        let ready = PackageCandidate(requestedName: "blender", index: index, isFetchingIndex: false, installed: [:])
         guard case .match(let entry, let alternates) = ready.state else {
             return expect(false, "blender resolves to a match")
         }
@@ -228,18 +231,33 @@ struct PackageInstallTests {
         expect(ready.hasAction, "a match has an action")
         expect(ready.requestedName == "blender", "the typed name is kept for the card")
 
-        let refreshing = PackageCandidate(requestedName: "blender", index: index, isFetchingIndex: true)
+        let refreshing = PackageCandidate(requestedName: "blender", index: index, isFetchingIndex: true, installed: [:])
         expect(refreshing == ready, "a refresh in flight still serves the index in hand")
 
-        let none = PackageCandidate(requestedName: "xqzjv", index: index, isFetchingIndex: false)
+        let none = PackageCandidate(requestedName: "xqzjv", index: index, isFetchingIndex: false, installed: [:])
         expect(none.state == .noMatch, "nothing matches")
         expect(!none.hasAction, "no match has no action")
 
-        let loading = PackageCandidate(requestedName: "blender", index: nil, isFetchingIndex: true)
+        let loading = PackageCandidate(requestedName: "blender", index: nil, isFetchingIndex: true, installed: [:])
         expect(loading.state == .loadingIndex, "no index yet, one on its way")
         expect(!loading.hasAction, "loading has no action")
 
-        let missing = PackageCandidate(requestedName: "blender", index: nil, isFetchingIndex: false)
+        expect(ready.installation == nil, "not in the Caskroom, so the card claims nothing")
+        let byBrew = PackageCandidate(
+            requestedName: "blender", index: index, isFetchingIndex: false,
+            installed: ["blender": installed("blender")])
+        expect(byBrew.installation == .installed, "the card says Homebrew installed it")
+        expect(byBrew.hasAction, "and still acts, to open it")
+        let gone = PackageCandidate(
+            requestedName: "blender", index: index, isFetchingIndex: false,
+            installed: ["blender": installed("blender", missing: "/Applications/Blender.app")])
+        expect(gone.installation == .appMissing("Blender.app"), "the card names the missing app")
+        let other = PackageCandidate(
+            requestedName: "blender", index: index, isFetchingIndex: false,
+            installed: ["zoom": installed("zoom")])
+        expect(other.installation == nil, "another cask's record says nothing about this one")
+
+        let missing = PackageCandidate(requestedName: "blender", index: nil, isFetchingIndex: false, installed: [:])
         expect(missing.state == .indexUnavailable, "no index and none coming")
         expect(!missing.hasAction, "an unavailable index has no action")
     }
@@ -389,11 +407,16 @@ struct PackageInstallTests {
     static func buildsOnlySafeInvocations() {
         let invocation = BrewInvocation(brew: brew, token: "blender")
         expect(invocation?.displayText == "brew install --cask blender", "the dialog's Runs line")
-        expect(invocation?.arguments == ["/opt/homebrew/bin/brew", "blender"], "brew and the token, positional")
+        expect(
+            invocation?.arguments == ["/opt/homebrew/bin/brew", "install", "blender"],
+            "brew, the verb and the token, positional")
+        let reinstall = BrewInvocation(brew: brew, token: "blender", verb: .reinstall)
+        expect(reinstall?.displayText == "brew reinstall --cask blender", "a reinstall says so")
+        expect(reinstall?.arguments == ["/opt/homebrew/bin/brew", "reinstall", "blender"], "and runs so")
         expect(BrewInvocation(brew: brew, token: "x;reboot") == nil, "an unsafe token builds nothing")
         expect(BrewInvocation(brew: brew, token: "--force") == nil, "an option builds nothing")
         let script = BrewInvocation.script
-        expect(script.contains(#"exec "$1" install --cask "$2""#), "the script runs only its positional values")
+        expect(script.contains(#"exec "$1" "$2" --cask "$3""#), "the script runs only its positional values")
         for setting in ["HOMEBREW_NO_SUDO=1", "HOMEBREW_NO_ASK=1", "HOMEBREW_CASK_OPTS=", "HOMEBREW_NO_ANALYTICS=1"] {
             expect(script.contains(setting), "the script sets \(setting)")
         }
@@ -410,6 +433,11 @@ struct PackageInstallTests {
             "the same command, by absolute path, quoted: \(lines.last ?? "")")
         expect(script.contains("brew install --cask zoom"), "it shows the command the dialog named")
         expect(!script.contains("HOMEBREW_NO_SUDO"), "Terminal is where sudo is allowed to ask")
+        let reinstall = BrewInvocation(brew: brew, token: "blender", verb: .reinstall)!.terminalScript
+        expect(
+            reinstall.hasSuffix("exec '/opt/homebrew/bin/brew' reinstall --cask 'blender'"),
+            "a reinstall runs reinstall in Terminal")
+        expect(reinstall.contains("print -r -- 'brew reinstall --cask blender'"), "and shows it")
         let odd = BrewInvocation(brew: URL(fileURLWithPath: "/tmp/it's here/brew"), token: "zoom")!
         expect(
             odd.terminalScript.contains(#"exec '/tmp/it'\''s here/brew' install"#),
@@ -437,11 +465,16 @@ struct PackageInstallTests {
         expect(path("/Applications/$HOMEBREW/A.app") == "/Applications/$HOMEBREW/A.app", "only a leading $HOME")
     }
 
+    static func installed(_ token: String, missing: String? = nil) -> InstalledCask {
+        let path = "/Applications/\(token).app"
+        return InstalledCask(token: token, appPaths: [missing ?? path], missingAppPaths: missing.map { [$0] } ?? [])
+    }
+
     static func plansEveryOutcome() throws {
         let blender = try CaskRecord.decode(fixture("cask-blender"), variation: thisMac)
         let zoom = try CaskRecord.decode(fixture("cask-zoom"), variation: thisMac)
         let alacritty = try CaskRecord.decode(fixture("cask-alacritty"), variation: thisMac)
-        let clean = InstallPlan.Facts(brew: brew, installedCasks: [], presentAppNames: ["Safari.app"])
+        let clean = InstallPlan.Facts(brew: brew, installedCasks: [:], presentAppNames: ["Safari.app"])
         let invocation = BrewInvocation(brew: brew, token: "blender")!
 
         expect(InstallPlan.make(record: blender, facts: clean) == .install(invocation), "a clean install")
@@ -452,42 +485,58 @@ struct PackageInstallTests {
             InstallPlan.make(record: alacritty, facts: clean) == .disabled(alacritty.disabled!),
             "a disabled cask is refused with its reason")
 
-        let noBrew = InstallPlan.Facts(brew: nil, installedCasks: [], presentAppNames: [])
+        let noBrew = InstallPlan.Facts(brew: nil, installedCasks: [:], presentAppNames: [])
         expect(InstallPlan.make(record: blender, facts: noBrew) == .homebrewMissing, "no Homebrew")
         expect(InstallPlan.make(record: zoom, facts: noBrew) == .homebrewMissing, "no Homebrew, pkg too")
 
-        let byHand = InstallPlan.Facts(brew: brew, installedCasks: [], presentAppNames: ["Blender.app"])
+        let byHand = InstallPlan.Facts(brew: brew, installedCasks: [:], presentAppNames: ["Blender.app"])
         expect(
             InstallPlan.make(record: blender, facts: byHand)
                 == .alreadyInstalled(appName: "Blender.app", byHomebrew: false),
             "an app installed by hand is opened, not overwritten")
-        let byHandNoBrew = InstallPlan.Facts(brew: nil, installedCasks: [], presentAppNames: ["Blender.app"])
+        let byHandNoBrew = InstallPlan.Facts(brew: nil, installedCasks: [:], presentAppNames: ["Blender.app"])
         expect(
             InstallPlan.make(record: blender, facts: byHandNoBrew)
                 == .alreadyInstalled(appName: "Blender.app", byHomebrew: false),
             "a present app needs no Homebrew to open")
 
         let byBrew = InstallPlan.Facts(
-            brew: brew, installedCasks: ["blender"], presentAppNames: ["Blender.app"])
+            brew: brew, installedCasks: ["blender": installed("blender")], presentAppNames: ["Blender.app"])
         expect(
             InstallPlan.make(record: blender, facts: byBrew)
                 == .alreadyInstalled(appName: "Blender.app", byHomebrew: true),
             "a cask Homebrew already installed")
-        let pkgByBrew = InstallPlan.Facts(brew: brew, installedCasks: ["zoom"], presentAppNames: [])
+        let pkgByBrew = InstallPlan.Facts(brew: brew, installedCasks: ["zoom": installed("zoom")], presentAppNames: [])
         expect(
             InstallPlan.make(record: zoom, facts: pkgByBrew) == .alreadyInstalled(appName: nil, byHomebrew: true),
             "a pkg is known only by Homebrew's record")
-        let appRemoved = InstallPlan.Facts(brew: brew, installedCasks: ["blender"], presentAppNames: [])
+        let appRemoved = InstallPlan.Facts(
+            brew: brew, installedCasks: ["blender": installed("blender", missing: "/Applications/Blender.app")],
+            presentAppNames: [])
         expect(
-            InstallPlan.make(record: blender, facts: appRemoved) == .alreadyInstalled(appName: nil, byHomebrew: true),
-            "Homebrew's record wins even when the app was deleted by hand")
+            InstallPlan.make(record: blender, facts: appRemoved)
+                == .reinstall(BrewInvocation(brew: brew, token: "blender", verb: .reinstall)!, missingApp: "Blender.app"),
+            "Homebrew lists it but its app was deleted: a reinstall in Terminal, not \"already installed\"")
+        let appRemovedNoBrew = InstallPlan.Facts(
+            brew: nil, installedCasks: ["blender": installed("blender", missing: "/Applications/Blender.app")],
+            presentAppNames: [])
+        expect(
+            InstallPlan.make(record: blender, facts: appRemovedNoBrew) == .homebrewMissing,
+            "a reinstall needs brew too")
+        let appMoved = InstallPlan.Facts(
+            brew: brew, installedCasks: ["blender": installed("blender", missing: "/Applications/Blender.app")],
+            presentAppNames: ["Blender.app"])
+        expect(
+            InstallPlan.make(record: blender, facts: appMoved)
+                == .alreadyInstalled(appName: "Blender.app", byHomebrew: true),
+            "an app moved somewhere the launcher still finds is not missing")
 
         let manual = try record(artifacts: #"{"installer":[{"manual":"Setup.app"}]}"#)
         expect(
             InstallPlan.make(record: manual, facts: clean) == .terminal(BrewInvocation(brew: brew, token: "probe")!),
             "a manual installer goes to Terminal, where Homebrew says what to open")
 
-        let disabledAndPresent = InstallPlan.Facts(brew: brew, installedCasks: [], presentAppNames: ["Alacritty.app"])
+        let disabledAndPresent = InstallPlan.Facts(brew: brew, installedCasks: [:], presentAppNames: ["Alacritty.app"])
         expect(
             InstallPlan.make(record: alacritty, facts: disabledAndPresent) == .disabled(alacritty.disabled!),
             "disabled is decided before presence")
@@ -498,27 +547,96 @@ struct PackageInstallTests {
         expect(InstallPlan.make(record: unsafe, facts: clean) == .invalidToken, "a record built by hand is rechecked")
     }
 
+    // MARK: Receipts and approval
+
+    static func receipt(_ artifacts: String) -> Data {
+        Data(#"{"homebrew_version":"7.0.13","uninstall_artifacts":[\#(artifacts)]}"#.utf8)
+    }
+
+    static func readsInstallReceipts() {
+        let home = "/Users/someone"
+        let plain = InstalledCask.appPaths(
+            receipt: receipt(#"{"app":["Obsidian.app"]},{"zap":[{"trash":"~/x"}]}"#), config: nil, home: home)
+        expect(plain == ["/Applications/Obsidian.app"], "an app goes to /Applications by default")
+        let renamed = InstalledCask.appPaths(
+            receipt: receipt(#"{"app":["Thorium.app",{"target":"Thorium Browser.app"}]}"#), config: nil, home: home)
+        expect(renamed == ["/Applications/Thorium Browser.app"], "a renaming target is where it went")
+        let config = Data(#"{"default":{"appdir":"/Applications"},"env":{},"explicit":{"appdir":"~/Apps"}}"#.utf8)
+        let custom = InstalledCask.appPaths(receipt: receipt(#"{"app":["A.app"]}"#), config: config, home: home)
+        expect(custom == ["/Users/someone/Apps/A.app"], "an explicit app folder from the install wins")
+        let absolute = InstalledCask.appPaths(
+            receipt: receipt(#"{"app":["Box.app",{"target":"~/Library/Box/Box.app"}]}"#), config: config, home: home)
+        expect(absolute == ["/Users/someone/Library/Box/Box.app"], "a target under home is kept whole")
+        let nested = InstalledCask.appPaths(
+            receipt: receipt(#"{"app":["Install X.app/Contents/Resources/X.app"]}"#), config: nil, home: home)
+        expect(nested == ["/Applications/X.app"], "a nested source installs under its own name")
+        expect(InstalledCask.appPaths(receipt: receipt(#"{"pkg":["x.pkg"]}"#), config: nil, home: home).isEmpty, "a pkg")
+        expect(InstalledCask.appPaths(receipt: Data("{}".utf8), config: nil, home: home).isEmpty, "an old receipt")
+        expect(InstalledCask.appPaths(receipt: Data("nope".utf8), config: nil, home: home).isEmpty, "a broken one")
+        let gone = InstalledCask(token: "a", appPaths: ["/Applications/A.app"], missingAppPaths: ["/Applications/A.app"])
+        expect(gone.missingAppName == "A.app", "the missing app's name, for the card")
+    }
+
+    static func writesTheApproval() throws {
+        let blender = try CaskRecord.decode(fixture("cask-blender"), variation: thisMac)
+        let message = InstallApproval.message(record: blender, invocation: BrewInvocation(brew: brew, token: "blender")!)
+        expect(
+            message == """
+                Blender 5.3.0 · 3D creation suite
+                Source: blender.org, Homebrew cask “blender”
+                Download from: download.blender.org
+                Runs: brew install --cask blender
+                Installs to: /Applications/Blender.app
+                """,
+            "every line from the record, and the exact command:\n\(message)")
+        let zoom = try CaskRecord.decode(fixture("cask-zoom"), variation: thisMac)
+        let pkg = InstallApproval.message(record: zoom, invocation: BrewInvocation(brew: brew, token: "zoom")!)
+        expect(!pkg.contains("Installs to"), "a pkg names no app folder")
+        let bare = CaskRecord(
+            token: "bare", names: [], summary: nil, homepage: nil, downloadURL: nil, version: "latest",
+            apps: [], needsPassword: false, hasManualInstaller: false, disabled: nil,
+            deprecated: .init(reason: .discontinued, date: nil, replacementCask: "bare-two"))
+        let sparse = InstallApproval.message(record: bare, invocation: BrewInvocation(brew: brew, token: "bare")!)
+        expect(sparse.hasPrefix("bare\n"), "no version, no description: just the name")
+        expect(sparse.contains("Source: Homebrew cask “bare”"), "no homepage: only the cask")
+        expect(sparse.contains("bare-two"), "a deprecated cask names its replacement")
+    }
+
+    static func namesEveryRetirementReason() {
+        let reasons: [CaskRecord.Retirement.Reason] = [
+            .discontinued, .noLongerAvailable, .noLongerMeetsCriteria, .unmaintained, .unreachable,
+            .failsGatekeeperCheck, .movedToMacAppStore, .stated("requires a login to download"),
+        ]
+        for reason in reasons {
+            expect(!reason.sentence.isEmpty, "\(reason) reads as a sentence")
+        }
+        expect(
+            CaskRecord.Retirement.Reason.stated("requires a login to download").sentence
+                .contains("requires a login to download"),
+            "a cask's own words are kept")
+    }
+
     // MARK: Verification
 
     static func judgesEveryVerification() {
         typealias Observation = InstallVerification.Observation
         expect(
-            InstallVerification.judge(Observation(hasCaskroomEntry: true, missingApps: [], unsignedApps: []))
+            InstallVerification.judge(Observation(hasCaskroomEntry: true, missingApps: [], untrustedApps: []))
                 == .verified,
             "every check passed")
         expect(
             InstallVerification.judge(
-                Observation(hasCaskroomEntry: false, missingApps: ["Blender.app"], unsignedApps: []))
+                Observation(hasCaskroomEntry: false, missingApps: ["Blender.app"], untrustedApps: []))
                 == .noCaskroomEntry,
             "Homebrew's own record is checked first")
         expect(
             InstallVerification.judge(
-                Observation(hasCaskroomEntry: true, missingApps: ["Blender.app"], unsignedApps: ["Blender.app"]))
+                Observation(hasCaskroomEntry: true, missingApps: ["Blender.app"], untrustedApps: ["Blender.app"]))
                 == .appMissing("Blender.app"),
             "a missing app is named before a signature")
         expect(
-            InstallVerification.judge(Observation(hasCaskroomEntry: true, missingApps: [], unsignedApps: ["A.app"]))
-                == .appNotDeveloperIDSigned("A.app"),
-            "an app without a Developer ID seal")
+            InstallVerification.judge(Observation(hasCaskroomEntry: true, missingApps: [], untrustedApps: ["A.app"]))
+                == .appUntrusted("A.app"),
+            "an app sealed by neither Apple nor a Developer ID")
     }
 }
