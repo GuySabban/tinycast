@@ -851,7 +851,7 @@ section 4).
 | `Tinycast/Features/Launcher/UI/LauncherList.swift` | 5 | 0 | `LeadCard` case, two switch arms, one arm in `LeadCardView`. Actual: 5 |
 | `Tinycast/App/AppCore.swift` | 6 | 0 | Two stores, the lazy coordinator, one line in `start()`. Actual: 8, adding one line to `onLauncherShown` for the Caskroom snapshot |
 | `Tinycast/Features/Launcher/Settings/ApplicationsSettingsView.swift` | 1 | 0 | The install section. Actual: 2, with a blank line matching the pane's spacing |
-| `Tinycast/Resources/Localizable.xcstrings` | about 1,300 | 0 | About 25 strings at 52 lines each, inserted in sorted position |
+| `Tinycast/Resources/Localizable.xcstrings` | about 1,300 | 0 | About 25 strings at 52 lines each, inserted in sorted position. Actual: 4,060 added, 0 changed, for 73 strings (two with plural forms), all eight languages |
 | `Scripts/run-tests.sh` | 6 | 0 | Harness entries, kept together at the end of the list |
 
 Not touched in Phase 1: `RootPaletteView.swift`, `AppSettings.swift` and the settings registries,
