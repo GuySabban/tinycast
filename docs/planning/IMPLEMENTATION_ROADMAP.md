@@ -1,8 +1,13 @@
 # Implementation roadmap
 
-Phases in dependency order, MVP first. The design each phase implements is in
+Phases 0 to 7 in dependency order, MVP first. The design each phase implements is in
 `PROPOSED_ARCHITECTURE.md`; what counts as the MVP is in `MVP_SCOPE.md`; risks, open decisions (D1
-to D14), the repository layout and the merge routine are in `RISKS_AND_DECISIONS.md`.
+to D15), the repository layout and the merge routine are in `RISKS_AND_DECISIONS.md`.
+
+Phases U1 to U5 extend the installer beyond Homebrew. They follow the Order bullet below, not their
+place in this file. Their design, threats T14 to T21 and decisions D16 to D31 are in
+`UNIVERSAL_INSTALL.md`. They are a plan under review: none starts before the owner approves that
+document (D28).
 
 ## How to read the estimates
 
@@ -18,7 +23,12 @@ Hours are the owner's own time, given as a range.
   phases are extra: budget one to three hours each until real merges say otherwise.
 - **Not included:** download and build waiting time.
 - **Confidence** falls with distance. Phases 0 to 2 are planned in detail. Phases 3 to 7 are sized
-  from the audit's touch sets and should be re-estimated when reached.
+  from the audit's touch sets and should be re-estimated when reached. U1 and U2 are planned in
+  detail; U3 to U5 are sized from the research behind `UNIVERSAL_INSTALL.md`.
+- **Order.** U1 needs only Phase 1, which is done apart from its feature document (U1 step 2) and
+  the Homebrew-absent check (U1 step 6). U2 needs U1. U3 and U4 each need U2. U5 needs Phase 2, U2
+  and U3, and U4 for packages. The recommended order is U1, U2, U3, U4, with Phase 2 any time before
+  U5 (D27).
 
 | Phase | Delivers | Hours |
 | --- | --- | ---: |
@@ -31,6 +41,11 @@ Hours are the owner's own time, given as a range.
 | 5 | Context actions on files, images and clipboard | 45–100 |
 | 6 | Typed OS actions | 60–130 |
 | 7 | AI answers in the main list (hard-fork checkpoint) | 60–150 |
+| U1 | Trust rules as tested code, and the Homebrew flow pinned by invariants | 21–42 |
+| U2 | Official DMG and ZIP installs: casks without Homebrew, recorded addresses, a pasted address | 59–120 |
+| U3 | Mac App Store: found through Apple, finished in the Store, confirmed afterwards | 26–54 |
+| U4 | Official PKG installers: checked, described, opened in Installer | 28–58 |
+| U5 | AI-assisted source discovery for apps in no catalogue (a hidden page, if built, is a further 15–35) | 50–99 |
 
 ## Phase 0. Foundations
 
@@ -254,6 +269,10 @@ in `PROPOSED_ARCHITECTURE.md` section 5.
 
 1. Create an Exa account and key (the owner). Confirm decision D3 first.
 2. Model, test-first: result, row, failure, request builder, reply decoder with cleaning rules.
+   Give `WebSearchProvider.search` an options parameter with a default (search type, excluded
+   domains), and build `ExaSearchRequest` from it. Phase U5 needs both, and adding the parameter
+   later means changing the protocol. Record the signature in `PROPOSED_ARCHITECTURE.md` section
+   5.2.
 3. `ExaSearchProvider` behind `WebSearchProvider`; `WebSearchSession`.
 4. Settings: `WebSearchSettingsStore`, and `WebSearchSettingsSection` with the switch and the key
    field.
@@ -330,6 +349,333 @@ Sized from the audit's touch sets. Re-plan each when it is next.
 Phase 0, decide between continuing to merge and cutting, and only then design. Sixty to 150 hours if
 it goes ahead, with low confidence.
 
+**Phase 4 and the universal install.** Phase 4's work goes through Homebrew and is unchanged. Two of
+its items gain a case. An app that phase U2 installed natively is, to Homebrew, an app installed by
+hand: `brew install --cask` stops on it, and `brew upgrade` and `brew uninstall` ignore it, until it
+is adopted with `--adopt`. And nothing updates such an app unless it updates itself, so Phase 4 also
+compares natively installed apps against their cask records.
+
+## Universal install: phases U1 to U5
+
+The design is `UNIVERSAL_INSTALL.md`; section and row numbers below refer to it.
+
+- Each phase ends with the checks every phase ends with (harnesses, lint, the Model purity search, a
+  Debug build with no new warnings), a hands-on run, and an upstream merge.
+- **The regression check for the Homebrew flow** is the Install list in `MVP_SCOPE.md`, run with
+  Homebrew present. It is run in U1 step 5 and after every later phase, and must not change. Its
+  line about Homebrew being absent is replaced by U2's acceptance.
+- U1 to U4 are planned on the recommended outcomes of D16, D17, D18, D22, D23, D24, D26 and D29. The
+  owner confirms them with D28. A different choice is re-estimated before the phase that uses it.
+- Every phase that adds a Swift file regenerates `Tinycast.xcodeproj/project.pbxproj` with
+  `xcodegen generate`.
+
+## Phase U1. Trust rules and the Homebrew guard
+
+**Objective.** The rules that decide whether a download may be installed exist as pure, tested code,
+and the Homebrew flow is pinned by written invariants, before anything new can install. Nothing the
+user sees changes.
+
+**Existing files touched.** `Scripts/run-tests.sh` (one entry), `NOTICE.md` (an appended notice),
+the regenerated `project.pbxproj`, and four planning documents: `PROPOSED_ARCHITECTURE.md`,
+`RISKS_AND_DECISIONS.md`, `MVP_SCOPE.md` and `FORK_LEDGER.md`. No existing file under
+`Tinycast/Features/PackageInstall/` changes.
+
+**New files.** In `PackageInstall/Model/`: `ArtifactEvidence.swift`, `SourceTrust.swift`,
+`SourceTrustPolicy.swift`, `DownloadOrigin.swift`, `PublisherPin.swift`, `PublisherName.swift`,
+`HopPolicy.swift`, `TeamAnchors.swift` and `TeamAnchors.generated.swift`. Also
+`Scripts/fork/gen-team-anchors.js`, `Tests/SourceTrustTests.swift` and
+`docs/features/package-install.md`.
+
+### Steps
+
+1. **Planning documents.** Apply section 11: move T14 to T21 and D16 to D31 into
+   `RISKS_AND_DECISIONS.md`, amend T3, T4, T7, T9 and T11, lift the MVP non-goal (D28), and correct
+   the four places where `PROPOSED_ARCHITECTURE.md` no longer matches the code (section 3.6). T1
+   waits for U5.
+2. **Feature document.** `docs/features/package-install.md`, owed since Phase 1, opening with
+   Invariants: the fixed script and the token pattern; no network on a keystroke; the dialog's
+   command is what runs; verification after `brew`; quarantine never cleared; a password only in
+   Terminal or in Installer; and the new one, that no fact from a page, an address or a model sets a
+   download's class.
+3. **Model, test-first.** `DownloadOrigin`, `ArtifactEvidence`, `PublisherPin`,
+   `PublisherName.fold`, `SourceTrust`, `SourceTrustPolicy.classify` and `HopPolicy.judge` (section 5.2), written against
+   the cases in the Tests table below.
+4. **Publisher table.** `gen-team-anchors.js` reads a pinned Installomator commit's label files as
+   text and writes `TeamAnchors.generated.swift`, with a literal download address where a label has
+   one. It prints the Team IDs that changed since the last run. Its `--self-test` mode must pass.
+   Append Installomator's notice to `NOTICE.md`.
+5. **Checks**, then the Install list in `MVP_SCOPE.md` by hand with Homebrew present, to record the
+   flow before any phase touches it.
+6. **Prove how Homebrew is hidden** (row 13). Launch the signed Dev app under a `sandbox-exec`
+   profile that denies all of `/opt/homebrew`, run the Install list's Homebrew-absent line, which
+   has never been run, and record the exact command in `BASELINE.md`. If it does not work, choose
+   another method before U2.
+7. **Merge upstream.**
+
+### Risks
+
+- **The label format moves.** The generator skips what it cannot read and reports the count. A drop
+  of more than a few labels between runs fails the run.
+- **Table names differ from what people type.** The table says "Microsoft Word"; the user types
+  "word". The match is exact after folding, so a miss means "publisher unknown" and never a wrong
+  anchor. Measure the miss rate on the 50 names the install harness already uses (D25).
+- **A recorded address goes stale.** It is only a place to start, so a dead address costs a failed
+  download, not a wrong install.
+- **Hiding Homebrew may not work on the app.** `BASELINE.md` records the profile as tried on a shell
+  only. Step 6 finds out before U2 depends on it.
+
+### Tests
+
+| Harness | Compiles | Covers |
+| --- | --- | --- |
+| `SourceTrustTests` (new) | `PackageInstall/Model/*.swift`, plus `LauncherMatch.swift`, `SearchRelevance.swift` and `ScriptRomanization.swift`, as `PackageInstallTests` does | **Anchors.** A checksum match is anchored; a mismatch is refused; a cask with no checksum and no other anchor is first seen; a pasted or discovered origin never classifies by checksum. A recorded publisher match is anchored; a different Team ID is refused as a publisher change, naming the table. A pin match by bundle identifier; a pin conflict by bundle identifier; a pinned name under a new bundle identifier with a different Team ID is refused. **Names.** A paste with no typed name whose folder is named like a recorded app and signed by another team is refused; a typed name and a bundle name with different entries are both checked; a look-alike spelling in another script folds to the recorded entry; a fuzzy name never anchors; labels sharing a name pool their Team IDs. **Never inputs.** Two different final hosts give the same class; notarized with no anchor is first seen, never anchored. **Gates.** An unsigned or un-notarized build, a `com.apple.` identifier, a name that folds to an Apple app's, an Intel-only build, a version below the cask's, an existing app and a missing quarantine flag are each refused. `HopPolicy`: an `http` hop, a user name, a port, an IP literal, a punycode label and six redirects are each refused by name. |
+| `PackageInstallTests` (unchanged file) | The same sources, which now include the new Model files | That the existing cases still pass with the new files compiled in |
+
+The generator's safety is checked by its own `--self-test`, not by a Swift harness: a label holding
+`$(…)`, a Team ID that is not ten characters, and an address with a `$` or a space each yield
+nothing.
+
+### Acceptance
+
+- Every existing harness passes. Before the upstream merge, `git diff --stat` against the phase's
+  start shows only new files and the files listed under "Existing files touched".
+- Each rule of section 2 has a case that fails when the rule is removed.
+- The generator gives the same file when run twice, and its self-test passes.
+- The feature document exists and opens with Invariants.
+- `BASELINE.md` records the command that hides Homebrew from the app, and what the Homebrew-absent
+  line showed.
+
+### Hours
+
+| Step | Hours |
+| --- | ---: |
+| Planning documents amended | 1–2 |
+| Feature document | 2–4 |
+| Trust model and its harness | 9–18 |
+| Publisher table generator, its self-test, the generated file, the notice | 6–12 |
+| Checks, the regression run, hiding Homebrew, upstream merge | 3–6 |
+| **Total** | **21–42** |
+
+## Phase U2. Official DMG and ZIP installs
+
+**Objective.** A plain app cask installs on a Mac without Homebrew; an app with a recorded download
+address installs with no web search; and `install https://…` downloads, checks and installs a disk
+image or zip. All as specified in sections 4, 5.3 and 5.4. Needs U1.
+
+**Existing files touched.** Fork-owned, all under `Tinycast/Features/PackageInstall/`:
+`Model/CaskRecord.swift` (decode `sha256`, `container`, `url_specs`, `auto_updates` and the macOS
+requirement), `Model/InstallPlan.swift` (`.download`, a second factory),
+`Model/InstallVerification.swift` (one field and one case renamed from "Caskroom" to "install
+record"), `Model/InstallIntent.swift` (an `https` address), `Model/PackageCandidate.swift` (`.link`,
+and an action on no match when the table has an address), `Service/InstallVerifier.swift` (an
+overload that takes app paths; `isTrusted` no longer private), `UI/PackageInstallCoordinator.swift`,
+`UI/PackageInstallCard.swift`, `UI/PackageActionsMenu.swift`, both Settings files, and the four
+harnesses. Upstream-owned: `Tinycast/App/AppCore.swift` (two lines), `Scripts/run-tests.sh`,
+`Tinycast/Resources/Localizable.xcstrings`, and the regenerated `project.pbxproj`.
+`LauncherScreen.swift` and `LauncherList.swift` take no change.
+
+**New files.** Model: `InstallSource`, `DownloadOffer`, `ArtifactKind`, `DiskImageTrailer`,
+`ZipDirectory`, `StagedContents`, `DownloadApproval`. Service: `ArtifactDownloader`,
+`DiskImageService`, `ZipArchiveService`, `BundleInspector`, `AppPlacer`, `PublisherPinStore`.
+`Tests/PackageDownloadTests.swift`, and three more cask fixtures: a disk-image cask with a checksum,
+a zip cask, and one whose checksum is `no_check`.
+
+### Steps
+
+1. **Model, test-first.** The record's new fields; `InstallSource`; `DownloadOffer`; the plan's new
+   case; `ArtifactKind`, `DiskImageTrailer`, `ZipDirectory`, `StagedContents`; `DownloadApproval`
+   with each dialog's text, buttons and default.
+2. **Downloader**, with an in-process protocol stub as its harness. Settles row 8.
+3. **Disk image and zip services**, exercised on scratch files the harness builds itself
+   (`diskutil image create`, `ditto -c -k`). Settles rows 6, 7 and 11.
+4. **Row 5.** Read `diskutil image` in Apple's macOS 26 manual, or run it in a macOS 26 virtual
+   machine. If it is absent there, attach with `hdiutil` under an availability check on 26 only.
+5. **Inspector and placer**, with a `PackageInstall.inspect` signpost around the check. A scratch
+   bundle signed ad hoc must fail; a scratch "Applications" folder stands in for the real one.
+6. **Pins and settings.** `PublisherPinStore`; the unknown-publisher switch under a raw key (D16);
+   buttons that forget one remembered publisher or all of them; the section's title, header and
+   sentence about what leaves the Mac (section 3.6).
+7. **Coordinator.** The native path where the flow shows the Homebrew setup dialog today, kept as a
+   second button; a recorded address on the no-match card; the card for a pasted address; consent,
+   download with progress lines in the output window, checks, the approval for each class, Keep
+   Download, placement, rescan; `lastRun` as an `InstallSource`.
+8. **Strings**, eight languages, `./Scripts/sync-strings.sh`.
+9. **Checks.**
+10. **Hands-on run.**
+    - With the app launched normally and Homebrew present: paste an address for an app with a
+      recorded publisher, one for an app without, and one for an unsigned app. Settle rows 1 to 4,
+      9, 10 and 12 here, because a sandbox profile could change what they show.
+    - With Homebrew hidden as U1 step 6 recorded: install three plain casks natively, one of them
+      with no checksum.
+11. **Feature document, fork ledger, upstream merge.**
+
+### Risks
+
+- **Translocation.** A quarantined app copied by the launcher may run from a randomised path, which
+  stops some apps from updating themselves. Row 1 measures it; D17's recommendation is to leave
+  macOS's behaviour alone and say so in the approval.
+- **`diskutil image attach` on macOS 26.** It is the current tool on 27, where `hdiutil` is
+  deprecated. Step 4 checks 26.
+- **Disk space.** This Mac has run below 1 GB free. The downloader checks free space before it
+  starts and refuses politely.
+- **The seal check on a large app** takes seconds. The output window says "Checking…" while it
+  runs.
+- **The downloader is the hardest new code for the owner**: a delegate, a stream, hashing and
+  cancellation together.
+- **About 35 strings** in eight languages.
+
+### Tests
+
+| Harness | Compiles | Covers |
+| --- | --- | --- |
+| `PackageInstallTests` (extended) | As today | The record's new fields on the fixtures; every new plan outcome; `ArtifactKind` on byte fixtures; each `ZipDirectory` danger; `StagedContents` for one app, two apps, a package, and an `Applications` shortcut; `DownloadApproval` for every class with and without the switch: Install is the default only when anchored, and a first seen dialog never defaults to Install or to a page |
+| `PackageDownloadTests` (new) | The model sources as `PackageInstallTests` lists them, the new services, and upstream's `ToolRunner.swift`, `BundleSignature.swift` and `Quarantine.swift` | Downloader through the stub: a redirect chain followed and recorded, an `http` hop refused, six redirects refused, the cap, a non-200 status, the hash of known bytes, quarantine set on the file, cancel leaving nothing behind. Disk image: build, attach, choose, detach; a licence image is never opened unless its hash matches a cask checksum; an encrypted one refused. Zip: expand; a link that leaves the tree refused. Inspector: ad hoc, unsigned and tampered bundles refused; the declarations read from a scratch `Info.plist`. Placer: an occupied target, a changed hash and a missing quarantine flag each refused. |
+| `PackageInstallCoordinatorTests` (extended) | As today, plus the new sources and stand-ins for the new collaborators | Homebrew missing and a plain cask gives the consent, then the approval; a recorded address gives the same from the no-match card; a pasted address downloads and then asks; Keep Download moves the file and installs nothing; Stop deletes the staging folder; a pasted package is refused as not supported yet; the card's Return contacts only the stub's Homebrew host |
+
+No harness can hold a real notarized app, so the passing case of the signature gate is covered by
+the hands-on run.
+
+### Acceptance
+
+- With Homebrew hidden, `install rectangle` shows the consent, then the approval with the signer,
+  and installs Rectangle. The download's hash equals the cask's, the installed app carries the
+  quarantine attribute, and typing its name finds it without a relaunch.
+- With Homebrew hidden, a cask with no checksum whose publisher is not on record ends in the first
+  seen dialog, not an install.
+- With Homebrew present, the Install list in `MVP_SCOPE.md` passes unchanged, and the `brew`
+  processes the app starts are the same as before.
+- A pasted address for an app with a recorded publisher installs after its approval. For an app
+  without one, the dialog says the publisher is unknown, its default is Cancel, and Keep Download
+  leaves the checked file in `~/Downloads`, still quarantined. With the switch off there is no
+  Install Anyway.
+- An unsigned app, a zip with an escaping link, an image with two apps and an `http` hop are each
+  refused with their own message, and the staging folder is gone. An app that is signed but not
+  notarized is refused too: by a real download if step 10 finds one, otherwise shown through a
+  captured evidence value in the harness.
+- Stop during a download ends the transfer within a second and leaves no file.
+- No existing app is ever replaced.
+- The staged app check takes under 3 s at the 95th percentile for apps under 500 MB.
+- Resident memory stays under 100 MB at the four points and during a 500 MB download. The publisher
+  table adds under 0.5 MB.
+- Lines changed in upstream-owned files are within 20% of section 9's budget.
+
+### Hours
+
+| Step | Hours |
+| --- | ---: |
+| Record additions, plan case, dialog text, harness cases | 5–10 |
+| Downloader and its harness | 8–16 |
+| Disk image, zip and contents rules, with the scratch-file harness | 10–20 |
+| The macOS 26 check for `diskutil image` | 1–3 |
+| Inspector and placer, with harness | 9–18 |
+| Pins, the unknown-publisher switch, settings | 4–8 |
+| Coordinator: three sources, two dialogs, progress, Stop, Keep Download | 10–20 |
+| Strings and lint | 3–6 |
+| Hands-on run and fixes | 8–16 |
+| Feature document and upstream merge | 1–3 |
+| **Total** | **59–120** |
+
+## Phases U3 and U4
+
+Sized from the research. Re-plan each when it is next. Both need U2; they can be done in either
+order.
+
+| | Phase U3. Mac App Store | Phase U4. Official PKG installers |
+| --- | --- | --- |
+| Objective | When no cask matches and the publisher list has no address, Return asks Apple. A listing opens the Store on the product page, and the launcher confirms the app once it arrives (section 5.5). | A notarized Developer ID package is checked, described truthfully and opened in Installer: a package cask without Homebrew, a package inside a disk image, a pasted address (section 5.6). |
+| Existing files touched | Fork-owned: `PackageCandidate.swift` (`hasAction` on every no match), `PackageInstallCard.swift`, `PackageActionsMenu.swift`, `PackageInstallCoordinator.swift`, `InstallPlan.swift` (`.openAppStore`), `InstallSource.swift`, `InstallVerifier.swift` (the Store requirement). Upstream-owned: `Scripts/run-tests.sh`, `Localizable.xcstrings`, the regenerated `project.pbxproj`. | Fork-owned: `CaskRecord.swift` (the package artifact), `InstallPlan.swift` (`.openInstaller`), `StagedContents.swift`, `DownloadApproval.swift`, `PackageInstallCoordinator.swift`. Upstream-owned: `Scripts/run-tests.sh`, `Localizable.xcstrings`, the regenerated `project.pbxproj`. |
+| New files | `AppStoreListing`, `AppStoreAPI`, `AppStoreArrivalMonitor`, `Tests/AppStoreTests.swift`, three captured search replies | `PackageSummary`, `PackageSignature`, `PackageInspector`, `InstallerHandoff`, `Tests/PackageInspectionTests.swift`, captured `Distribution`, `PackageInfo`, `pkgutil` and `spctl` output |
+| Steps | Model against captured replies. The search service behind a stub, with a `PackageInstall.storeLookup` signpost. The no-match card, the listing dialog with up to three choices, Open in App Store. The monitor and the Store signature check. One more button on the "moved to the Mac App Store" notice. A hands-on run that settles rows 14 to 17: a free app never obtained, a paid app, and the Store signed out. | A hands-on run first, to capture real output (rows 18 and 19). Model against the captured files. The inspector on scratch packages from `pkgbuild`. The package dialog and the hand-off, with the hash compared just before it. The receipt check afterwards. |
+| Main risk | Name search misses real apps ("xcode" does not return Xcode) and ranks copycats, so nothing is chosen without an exact name match. The storefront may be wrong (row 14). | The signature can only be read from two tools' text output. The Team ID is taken from the end of the leaf's line, both tools must agree, and whatever does not parse is refused. |
+| Tests | `AppStoreTests`: decoding; the exact-match rule; a copycat never auto-chosen; free and paid; a reply edited to need macOS 99 is stopped with the reason; the link's form; an ID that is not digits rejected. The service through a stub. Coordinator: Return on no match sends one request, to Apple's host only; a new flow stops the monitor. | `PackageInspectionTests`: flags from each fixture; a legal name that contains a parenthesised ten-character group does not fool the parser; the two tools disagreeing is a refusal; an unsigned scratch package refused; captured output edited to drop the notarization line refused; a first seen package offers no Open Installer; no `installer` or `sudo` process ever started. |
+| Acceptance | Return to the listing dialog in under 1.5 s at the median. Open in App Store lands on the product page. After the user clicks Get, the launcher confirms within 10 s of the app appearing, having checked the Store signature and the bundle identifier. A paid app shows its price and nothing attempts to buy it. | With Homebrew hidden, `install zoom` shows the signer, Team ID, identifiers, locations and the scripts line, and Open Installer opens Installer on the package. After it finishes, the launcher confirms from the receipt. An unsigned package is refused. With Homebrew present, package casks behave as today. |
+| Hours | 26–54 | 28–58 |
+
+## Phase U5. AI-assisted source discovery
+
+**Objective.** For an app in no catalogue, the choice "Search the Web for a Download" finds the
+vendor's own download and hands it to U2's executor, as specified in section 6. Needs Phase 2, U2
+and U3, and U4 for packages.
+
+**Existing files touched.** Fork-owned: `PackageInstallCoordinator.swift`,
+`PackageActionsMenu.swift`, the Settings section, and Phase 2's `WebSearchProvider` if it lacks the
+options parameter. Upstream-owned: `Tinycast/App/AppCore.swift` (one or two changed lines),
+`Scripts/run-tests.sh`, `Localizable.xcstrings`, the regenerated `project.pbxproj`. Nothing under
+`Tinycast/Features/AI` changes.
+
+**New files.** Model: `LinkExtractor`, `DownloadCandidate`, `CandidateScorer`, `PageWall`,
+`PickPrompt`. Service: `PageFetcher`, `SourceDiscovery`, `DownloadLinkPicker` (the only file that
+imports `FoundationModels`). `Tests/SourceDiscoveryTests.swift` and `Tests/discovery-fixtures/`.
+
+### Steps
+
+1. Phase 2's provider options, if they are not already there.
+2. Save 20 vendor download pages as fixtures. Choose apps the publisher table lists and Homebrew
+   lacks, so "the right download" can be checked by Team ID.
+3. Model, test-first, against the fixtures.
+4. The page fetcher and the GitHub releases reader, behind a stub.
+5. The on-device picker, sized to the model's reported window, with the error types under an
+   availability check (row 23).
+6. The flow, with a `PackageInstall.discover` signpost: the choice, the candidate dialog, Try Next
+   Result, the hand-over to the executor.
+7. Strings and checks.
+8. A live run on the 20 apps.
+9. If the live run finds fewer than 15 of the 20 with no model, run the hidden-page spike by section
+   6.5's criteria (D21).
+10. The feature document, the T1 amendment, upstream merge.
+
+### Risks
+
+- Vendor pages change, so fixtures go stale and the live run is the real measure.
+- The on-device model may pick no better than the scorer. Measure both, and keep the model only if
+  it adds hits.
+- Search results for small apps may be poor.
+- The page helper's memory is outside the app's own footprint.
+
+### Tests
+
+`SourceDiscoveryTests` compiles the model sources and covers:
+
+- links extracted from each fixture; `data:`, `javascript:` and `file:` links and a hostile base
+  address dropped; the 200-link cap;
+- the scorer's choice on each fixture, and that a host containing the app's name earns nothing;
+- every seeded sign-in, payment and CAPTCHA page detected;
+- the prompt holds only the built list and no page body; a reply that is not a position is "none";
+- the same class with and without a model's pick.
+
+`PackageInstallCoordinatorTests` adds: the card's Return sends nothing to the search provider or a
+vendor; one discovery choice sends exactly one search and reads at most two pages; a refusal waits
+for Try Next Result.
+
+### Acceptance
+
+- On the 20 apps: the right download for at least 15 with no model, and at least 18 with the
+  on-device tie-break, or the model is left out.
+- No build is installed whose Team ID differs from the table's.
+- Every seeded wall is detected and nothing is filled in.
+- With AI off, the flow completes with the person choosing.
+- The choice to the candidate dialog takes under 8 s at the median.
+- The app's own footprint stays under 100 MB. The page helpers, if built, stay under 150 MB together
+  and are gone afterwards.
+
+### Hours
+
+| Step | Hours |
+| --- | ---: |
+| Phase 2's provider options, if not already there | 1–3 |
+| Extractor, scorer, wall detector, pick prompt, with the page fixtures | 10–20 |
+| Page fetcher, releases reader, harness | 5–10 |
+| On-device picker | 5–12 |
+| The flow, the candidate dialog, the hand-over | 8–16 |
+| Strings and lint | 3–6 |
+| Live run on 20 apps, and fixes | 8–16 |
+| Hidden-page spike, only if step 9 calls for it | 8–12 |
+| Feature document, T1 amendment, upstream merge | 2–4 |
+| **Total** | **50–99** |
+
+Without the spike the total is 42 to 87. Neither figure covers building the hidden page. If the
+spike says go, that is a further 15 to 35 hours, with low confidence.
+
 ## Performance targets
 
 These are targets. None has been measured. Upstream states one hard number that applies here,
@@ -348,6 +694,11 @@ resident memory under 100 MB; its other numeric budgets are per-feature benchmar
 | Time to first AI token | 1.5 s on device, 4 s through the Claude CLI | No signpost exists. Time ten asks from a screen recording. |
 | AI cancel | Streaming stops within 100 ms of Return or Cmd-period | Screen recording |
 | Install stop | Process gone within 2.5 s | The output window's final status; existing behaviour |
+| Download stop (U2) | Transfer ended and staging deleted within 1 s | The output window's final status and the staging folder |
+| Staged app check (U2) | 3 s at the 95th percentile for apps under 500 MB | A new `PackageInstall.inspect` signpost |
+| No match to the App Store dialog (U3) | 1.5 s median | A new `PackageInstall.storeLookup` signpost |
+| Discovery choice to candidate dialog (U5) | 8 s median | A new `PackageInstall.discover` signpost |
+| Memory during discovery (U5) | The app under 100 MB; the page helpers, if built, under 150 MB together and gone after the run | `footprint` on each process |
 
 All signposts use subsystem `com.tinycast.perf`. In Instruments, open the `os_signpost` instrument and
 filter to it; nothing needs recompiling. New signposts wrap the work in `Signposts.interval`, which
