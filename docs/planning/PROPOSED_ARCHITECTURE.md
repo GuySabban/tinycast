@@ -150,6 +150,8 @@ Scope for the first version: Homebrew casks only, on Apple silicon, with Homebre
 | `CaskRecord` | Model | `Sendable` value | The decoded part of one cask record | None |
 | `InstallPlan` | Model | pure | Decide what approval should offer, from a record and facts about the Mac | None |
 | `InstallVerification` | Model | pure | Decide whether an install succeeded, from observed facts | None |
+| `InstalledCask` | Model | `Sendable` value | One Caskroom entry and the app paths its install receipt records | None |
+| `InstallApproval` | Model | pure | The approval dialog's message, every line from the record | None |
 | `CaskIndexStore` | Service | `@MainActor @Observable` | Download, cache and refresh the index | `AppPaths` |
 | `CaskAPI` | Service | `@concurrent` statics | Fetch one cask record | None |
 | `HomebrewEnvironment` | Service | nonisolated and `@concurrent` statics | Find `brew`; read the Caskroom | None |
@@ -231,23 +233,45 @@ struct CaskRecord: Sendable, Equatable {
 
 // Model/BrewInvocation.swift
 struct BrewInvocation: Sendable, Equatable {
-    /// The fixed script in section 4.3; `arguments` are its `$1` and `$2`.
+    enum Verb: String, Sendable { case install, reinstall }
+    /// The fixed script in section 4.3, now `exec "$1" "$2" --cask "$3"`: brew, verb, token.
     static let script: String
     let brew: URL
     let token: String
+    let verb: Verb
     /// Nil unless `token` passes `CaskToken.isValid`.
-    init?(brew: URL, token: String)
-    /// What the dialog shows; `CaskInstaller` runs exactly this command.
-    var displayText: String { "brew install --cask \(token)" }
+    init?(brew: URL, token: String, verb: Verb = .install)
+    /// What the dialog shows, `brew install --cask TOKEN`; it is exactly what runs.
+    var displayText: String { get }
     var arguments: [String] { get }
+    /// The `.command` file `TerminalHandoff` writes (section 4.7).
+    var terminalScript: String { get }
+    /// Homebrew's "sudo is disabled by HOMEBREW_NO_SUDO." anywhere in a run's output.
+    static func refusedSudo(in output: String) -> Bool
+}
+
+// Model/InstalledCask.swift
+struct InstalledCask: Sendable, Equatable {
+    let token: String
+    let appPaths: [String]
+    /// Filled by `HomebrewEnvironment`, which checked each path on disk.
+    let missingAppPaths: [String]
+    var missingAppName: String? { get }
+    /// From `INSTALL_RECEIPT.json`'s `uninstall_artifacts` and `config.json`'s `appdir`.
+    static func appPaths(receipt: Data, config: Data?, home: String) -> [String]
+}
+
+// Model/InstallApproval.swift
+enum InstallApproval {
+    static func message(record: CaskRecord, invocation: BrewInvocation) -> String
 }
 
 // Model/InstallPlan.swift
 enum InstallPlan: Sendable, Equatable {
     struct Facts: Sendable, Equatable {
         let brew: URL?
-        /// Tokens with a Caskroom folder; versions are not needed until upgrades (Phase 4).
-        let installedCasks: Set<String>
+        /// The Caskroom by token, with any app its receipt records but the disk lacks.
+        let installedCasks: [String: InstalledCask]
         let presentAppNames: Set<String>
     }
     static let homebrewSetupCommand: String
@@ -256,7 +280,9 @@ enum InstallPlan: Sendable, Equatable {
     /// A password or a manual installer step.
     case terminal(BrewInvocation)
     case homebrewMissing
-    /// Nil `appName` for a pkg, or a cask Homebrew lists whose app was deleted by hand.
+    /// Homebrew lists the cask but its app was deleted: `brew reinstall`, offered in Terminal.
+    case reinstall(BrewInvocation, missingApp: String)
+    /// Nil `appName` for a pkg.
     case alreadyInstalled(appName: String?, byHomebrew: Bool)
     /// Typed, so the dialog localizes the reason rather than showing Homebrew's symbol.
     case disabled(CaskRecord.Retirement)
@@ -271,12 +297,13 @@ enum InstallVerification: Sendable, Equatable {
     struct Observation: Sendable, Equatable {
         let hasCaskroomEntry: Bool
         let missingApps: [String]
-        let unsignedApps: [String]
+        /// Sealed by neither Apple nor a Developer ID.
+        let untrustedApps: [String]
     }
     case verified
     case noCaskroomEntry
     case appMissing(String)
-    case appNotDeveloperIDSigned(String)
+    case appUntrusted(String)
 
     static func judge(_ observation: Observation) -> InstallVerification
 }
@@ -290,11 +317,15 @@ struct PackageCandidate: Sendable, Equatable {
         case noMatch
         case match(CaskIndex.Entry, alternates: [CaskIndex.Entry])
     }
+    /// What the Caskroom snapshot says about the match, shown on the card itself.
+    enum Installation: Sendable, Equatable { case installed, appMissing(String) }
     static let alternateLimit = 4
     let requestedName: String
     let state: State
+    let installation: Installation?
     /// An index in hand is used even while a refresh runs.
-    init(requestedName: String, index: CaskIndex?, isFetchingIndex: Bool)
+    init(requestedName: String, index: CaskIndex?, isFetchingIndex: Bool,
+         installed: [String: InstalledCask])
     var hasAction: Bool { get }
 }
 ```
@@ -370,17 +401,30 @@ enum TerminalHandoff {
 // Settings/PackageInstallSettingsStore.swift
 @MainActor @Observable
 final class PackageInstallSettingsStore {
+    /// Raw key `packageInstallEnabled`; on by default.
     var isEnabled: Bool
     init(defaults: UserDefaults = .standard)
 }
 
 // UI/PackageInstallCoordinator.swift
-@MainActor
+@MainActor @Observable
 final class PackageInstallCoordinator {
+    let settings: PackageInstallSettingsStore
+    /// The Caskroom snapshot; observed, so the card updates when it changes.
+    private(set) var installed: [String: InstalledCask]
     func applyEnabled()
-    /// Read by `LauncherScreen.init`; touches memory only.
+    /// The settings section's switch writes through this, so turning it on starts the store.
+    func setEnabled(_ enabled: Bool)
+    /// Called from `PaletteCoordinator.onLauncherShown`: one Caskroom read per show, ~16 ms.
+    func refreshInstalled()
+    /// Read by `LauncherScreen.init`; touches memory only. One-deep memo keyed by the name,
+    /// the index revision, whether a fetch runs, and the snapshot.
     func candidate(for query: String) -> PackageCandidate?
     func activate(_ candidate: PackageCandidate)
+    /// The flow, for the card's cask or an alternate from the ⌘K menu.
+    func install(token: String)
+    func copyInstallCommand(token: String)
+    func openHomebrewPage(token: String)
 }
 ```
 
@@ -442,7 +486,16 @@ Cask records carry no bundle identifier, so presence is decided from two facts:
    is false, it was installed some other way.
 
 A pkg cask has no `app` artifact, so only fact 1 applies to it. When the app is present outside
-Homebrew, the flow offers to open it and does not install. Homebrew's own answer in that case is an
+Homebrew, the flow offers to open it and does not install.
+
+A third fact comes from the Caskroom itself. Homebrew's local `Casks/TOKEN.json` copy is empty for
+casks loaded from the API, but `.metadata/INSTALL_RECEIPT.json` lists the `app` artifacts it
+installed (with any renaming target), and `.metadata/config.json` says which `appdir` it used.
+`HomebrewEnvironment.installedCasks` reads both for every cask on each launcher show (about 16 ms on
+the owner's Mac) and checks each recorded app on disk. When the Caskroom records a cask whose app is
+gone, the card says so ("Prowlarr.app is missing · Reinstall"), and Return offers
+`brew reinstall --cask TOKEN` through the Terminal hand-off rather than "already installed". If the
+launcher still finds an app of that name somewhere else, the cask counts as installed. Homebrew's own answer in that case is an
 error ("It seems there is already an App at …"), and its `--adopt` option is left for later.
 
 ### 4.5 Approval flow
@@ -458,6 +511,7 @@ flowchart TD
     C -->|yes| C1[Blocked notice with Homebrew's reason]
     C -->|no| D{App already present?}
     D -->|yes| D1[Offer to open it]
+    C -->|no, Homebrew lists it but its app is gone| R[Dialog: brew reinstall, Reinstall in Terminal, Copy Command]
     D -->|no| E{brew at /opt/homebrew/bin?}
     E -->|no| E1[Dialog: setup command, Copy and Open Terminal]
     E -->|yes| F{Record needs a password?}
@@ -500,16 +554,17 @@ dialog cannot list them (threat T3 in `RISKS_AND_DECISIONS.md`).
   frame, and upstream's Dock-click handler brings forward only the custom-command window.
 - **Verify.** `InstallVerifier` gathers three facts off the main actor: the token now has a Caskroom
   entry with `.metadata`; each `app` artifact exists at its target, with Homebrew's `/$HOME/` resolved;
-  and `BundleSignature.trustedHash(of:releaseSigned: true)` returns a value, which means the bundle
-  is sealed and Developer ID signed. `InstallVerification` turns the facts into pass or a named
-  failure. Measured on 2026-11-13 against the casks already installed on the owner's Mac: six app
+  and the bundle passes the same strict, nested seal check `BundleSignature` uses, against the
+  requirement `anchor apple or (<BundleSignature.developerID>)`: Apple's own signature or any
+  Developer ID. An ad-hoc or broken seal fails. `InstallVerification` turns the facts into pass or a
+  named failure. Measured on 2026-11-13 against the casks already installed on the owner's Mac: six app
   casks passed (ChatGPT Classic, MiddleClick, noTunes, Obsidian, Tinycast, Unity Hub). The strict
   nested check took up to 1.8 s (Obsidian), so the confirmation waits that long after `brew` exits.
   Two consequences:
-  - An app signed by Apple rather than with a Developer ID fails the check (Calculator does in the
-    harness), so a cask shipping one would be reported as unverified.
+  - A cask shipping an app signed by Apple rather than with a Developer ID now passes (Calculator
+    does in the harness); an ad-hoc-signed probe bundle fails.
   - A Caskroom entry outlives an app deleted by hand (Prowlarr and Wine Stable on the owner's Mac),
-    which is why `InstallPlan` lets Homebrew's record win.
+    which is why `InstallPlan` checks the receipt and offers a reinstall (section 4.4).
 - **Rescan.** On pass the coordinator awaits `AppIndex.refresh()` and then shows a message. The new
   app is searchable at once, and for five minutes it also appears in Suggestions on the empty
   launcher (`LauncherSuggestions`, existing).
@@ -781,10 +836,10 @@ section 4).
 
 | File | Added | Changed | Why |
 | --- | ---: | ---: | --- |
-| `Tinycast/Features/Launcher/UI/LauncherScreen.swift` | 17 | 2 | Stored candidate, one line in `init`, the `Row` case, one arm in each of five exhaustive switches, `leadCard`, `hasPrimaryAction` |
-| `Tinycast/Features/Launcher/UI/LauncherList.swift` | 5 | 0 | `LeadCard` case, two switch arms, one arm in `LeadCardView` |
-| `Tinycast/App/AppCore.swift` | 6 | 0 | Two stores, the lazy coordinator, one line in `start()` |
-| `Tinycast/Features/Launcher/Settings/ApplicationsSettingsView.swift` | 1 | 0 | The install section |
+| `Tinycast/Features/Launcher/UI/LauncherScreen.swift` | 17 | 2 | Stored candidate, one line in `init`, the `Row` case, one arm in each of five exhaustive switches, `leadCard`, `hasPrimaryAction`. Actual: 18 added, 1 changed |
+| `Tinycast/Features/Launcher/UI/LauncherList.swift` | 5 | 0 | `LeadCard` case, two switch arms, one arm in `LeadCardView`. Actual: 5 |
+| `Tinycast/App/AppCore.swift` | 6 | 0 | Two stores, the lazy coordinator, one line in `start()`. Actual: 8, adding one line to `onLauncherShown` for the Caskroom snapshot |
+| `Tinycast/Features/Launcher/Settings/ApplicationsSettingsView.swift` | 1 | 0 | The install section. Actual: 2, with a blank line matching the pane's spacing |
 | `Tinycast/Resources/Localizable.xcstrings` | about 1,300 | 0 | About 25 strings at 52 lines each, inserted in sorted position |
 | `Scripts/run-tests.sh` | 6 | 0 | Harness entries, kept together at the end of the list |
 
