@@ -474,6 +474,8 @@ struct PackageInstallTests {
             + " exited with 1. Here's the output:\nsudo is disabled by HOMEBREW_NO_SUDO.\n"
         expect(BrewInvocation.refusedSudo(in: log), "Homebrew's own message, mid-log")
         expect(BrewInvocation.refusedSudo(in: "sudo is disabled by HOMEBREW_NO_SUDO.\r\n"), "with a pty's line end")
+        let check = "Error: blackhole-2ch: blackhole-2ch: The pkg artifact requires sudo, but HOMEBREW_NO_SUDO is set.\r\n"
+        expect(BrewInvocation.refusedSudo(in: check), "the requirement check Homebrew 7.0.13 runs before downloading")
         expect(!BrewInvocation.refusedSudo(in: "Error: Download failed"), "another failure")
         expect(!BrewInvocation.refusedSudo(in: ""), "no output")
     }

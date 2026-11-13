@@ -31,6 +31,7 @@ before resolving it. New files the fork owns (`Scripts/fork/`, `docs/planning/`)
 | P1.5 | `Tinycast/App/AppCore.swift` | lazy coordinators | Added `packageInstallCoordinator` before `fileSearchCoordinator` | The feature's action surface |
 | P1.5 | `Tinycast/App/AppCore.swift` | `start()` | Added `packageInstallCoordinator.applyEnabled()` after `currencyRates.start()`, and `packageInstallCoordinator.refreshInstalled()` inside the existing `onLauncherShown` closure | Starts the index store; keeps the card's installed and missing states current per show |
 | P1.5 | `Tinycast/Features/Launcher/Settings/ApplicationsSettingsView.swift` | `body` | Added `PackageInstallSettingsSection()` after `SearchScopesSection()` | The feature's switch (decision D7) |
+| P1.8 | `Tinycast/Windows/HUD/HUDPresenter.swift` | `dismiss()`, `scheduleDismissal()`, new `fadeAway(_:)` | Both fade-outs now go through `fadeAway`, which sets `panel.contentView = nil` once the panel is ordered out | An ordered-out panel kept its SwiftUI view, so the progress pill's spinner kept animating unseen: about 50 MB of graphics memory and 6.6% idle CPU until the next message replaced it (`BASELINE.md`, step 8). Every install lookup shows that pill. An upstream bug, also reachable through Quick Actions and clipboard OCR; worth offering upstream |
 
 `Tinycast.xcodeproj/project.pbxproj` is regenerated from `project.yml` by `xcodegen generate` and is
 never edited by hand.

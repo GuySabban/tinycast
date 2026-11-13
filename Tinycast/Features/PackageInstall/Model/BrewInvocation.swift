@@ -39,9 +39,10 @@ struct BrewInvocation: Sendable, Equatable {
         """
     }
 
-    /// Homebrew's words when a step needs `sudo` and `HOMEBREW_NO_SUDO` forbids it.
+    /// Homebrew refuses in two places: its pre-download requirement check, and a sudo step later.
     static func refusedSudo(in output: String) -> Bool {
-        output.contains("sudo is disabled by HOMEBREW_NO_SUDO")
+        output.contains("requires sudo, but HOMEBREW_NO_SUDO is set")
+            || output.contains("sudo is disabled by HOMEBREW_NO_SUDO")
     }
 
     private static func quoted(_ text: String) -> String {

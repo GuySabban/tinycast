@@ -248,7 +248,8 @@ struct BrewInvocation: Sendable, Equatable {
     var arguments: [String] { get }
     /// The `.command` file `TerminalHandoff` writes (section 4.7).
     var terminalScript: String { get }
-    /// Homebrew's "sudo is disabled by HOMEBREW_NO_SUDO." anywhere in a run's output.
+    /// Either of Homebrew's refusals anywhere in a run's output: "requires sudo, but
+    /// HOMEBREW_NO_SUDO is set" (before the download) or "sudo is disabled by HOMEBREW_NO_SUDO."
     static func refusedSudo(in output: String) -> Bool
 }
 
@@ -374,8 +375,12 @@ enum CaskAPI {
 enum HomebrewEnvironment {
     nonisolated static let prefix = URL(fileURLWithPath: "/opt/homebrew")
     nonisolated static func brew(prefix: URL = prefix) -> URL?
-    /// Tokens whose Caskroom folder has `.metadata`, which Homebrew writes once an install completes.
-    @concurrent nonisolated static func installedCasks(prefix: URL = prefix) async -> Set<String>
+    /// The Caskroom by token, keeping only casks `hasInstallRecord` accepts.
+    @concurrent nonisolated static func installedCasks(prefix: URL = prefix, home: String)
+        async -> [String: InstalledCask]
+    /// Homebrew's own `installed?`: the newest `.metadata/VERSION/TIMESTAMP` holds
+    /// `Casks/TOKEN.json`. An install stopped at the password prompt leaves the folder without it.
+    nonisolated static func hasInstallRecord(metadata: URL, token: String) -> Bool
 }
 
 // Service/CaskInstaller.swift
@@ -459,7 +464,7 @@ HOMEBREW_NO_ENV_HINTS=1 HOMEBREW_NO_INSTALL_CLEANUP=1 \
 
 | Setting | Why |
 | --- | --- |
-| `HOMEBREW_NO_SUDO=1` | `brew` never prompts for a password. When a step first needs `sudo`, Homebrew fails it with "sudo is disabled by HOMEBREW_NO_SUDO." (`system_command.rb`, Homebrew 7.0.13). For a pkg that is after the download, when `installer` runs, not before it. `CaskRecord.needsPassword` sends such casks to Terminal beforehand, so this message is the fallback, detected by `BrewInvocation.refusedSudo(in:)`. |
+| `HOMEBREW_NO_SUDO=1` | `brew` never prompts for a password. Homebrew 7.0.13 refuses in two places (measured 2026-11-13). Its requirement check stops a cask before the download when any artifact's `requires_sudo?` is true (a pkg, a keyboard layout, an installer script or install step marked sudo), with "The pkg artifact requires sudo, but HOMEBREW_NO_SUDO is set." (`cask/installer.rb`). A sudo step it did not flag fails when it runs, with "sudo is disabled by HOMEBREW_NO_SUDO." (`system_command.rb`). `CaskRecord.needsPassword` sends such casks to Terminal beforehand, so both messages are the fallback, detected by `BrewInvocation.refusedSudo(in:)`. |
 | `HOMEBREW_NO_ASK=1` | Homebrew 7 asks for confirmation by default and skips asking only "without a TTY" (`cmd/install.rb`). The runner's pseudo-terminal is a TTY whose input nobody writes, so a question would wait forever. |
 | `HOMEBREW_CASK_OPTS=` (empty) | The runner always starts a login shell, so the user's `~/.zprofile` runs first. A custom install folder set there would make the dialog's "Installs to" line wrong. |
 | `HOMEBREW_NO_ANALYTICS=1` | Installs started by the launcher are not reported to Homebrew's analytics. |
@@ -563,8 +568,8 @@ dialog cannot list them (threat T3 in `RISKS_AND_DECISIONS.md`).
   seconds later (existing behaviour). Run Again starts the whole flow again, including approval.
 - **Two known rough edges.** The second presenter shares the first one's window title and saved
   frame, and upstream's Dock-click handler brings forward only the custom-command window.
-- **Verify.** `InstallVerifier` gathers three facts off the main actor: the token now has a Caskroom
-  entry with `.metadata`; each `app` artifact exists at its target, with Homebrew's `/$HOME/` resolved;
+- **Verify.** `InstallVerifier` gathers three facts off the main actor: the token now has Homebrew's
+  install record (`HomebrewEnvironment.hasInstallRecord`); each `app` artifact exists at its target, with Homebrew's `/$HOME/` resolved;
   and the bundle passes the same strict, nested seal check `BundleSignature` uses, against the
   requirement `anchor apple or (<BundleSignature.developerID>)`: Apple's own signature or any
   Developer ID. An ad-hoc or broken seal fails. `InstallVerification` turns the facts into pass or a
@@ -853,6 +858,7 @@ section 4).
 | `Tinycast/Features/Launcher/Settings/ApplicationsSettingsView.swift` | 1 | 0 | The install section. Actual: 2, with a blank line matching the pane's spacing |
 | `Tinycast/Resources/Localizable.xcstrings` | about 1,300 | 0 | About 25 strings at 52 lines each, inserted in sorted position. Actual: 4,060 added, 0 changed, for 73 strings (two with plural forms), all eight languages |
 | `Scripts/run-tests.sh` | 6 | 0 | Harness entries, kept together at the end of the list |
+| `Tinycast/Windows/HUD/HUDPresenter.swift` | 0 | 0 | Not planned. Actual: 8 added, 2 changed and 1 removed in step 8, so a hidden progress pill stops animating and frees its memory (fork ledger P1.8) |
 
 Not touched in Phase 1: `RootPaletteView.swift`, `AppSettings.swift` and the settings registries,
 `SettingsTab.swift`, `CommandID.swift`, `Fallback.swift`, `PaletteMode.swift`.
@@ -916,12 +922,12 @@ measure.
 | # | Assumption | How it is settled |
 | --- | --- | --- |
 | 1 | A locally written `.command` file opens in Terminal and runs without a Gatekeeper prompt on macOS 27 | **Settled 2026-11-13: it does** (section 4.7) |
-| 2 | With `HOMEBREW_NO_SUDO=1`, `brew` fails a password step and exits non-zero under the pseudo-terminal. Homebrew's source says the message is "sudo is disabled by HOMEBREW_NO_SUDO.", raised when the step runs, not before the download. | Install a pkg cask in a Debug build |
-| 3 | `brew` does not wait for input under the pseudo-terminal once `HOMEBREW_NO_ASK=1` is set. The source confirms ask mode is on whenever there is a TTY, so the setting is needed. | Same run |
-| 4 | Token matching finds the intended cask for common app names | A list of 50 names checked in a harness against a captured copy of the analytics file |
-| 5 | The cask index adds under 2 MB of resident memory | `footprint` before and after loading |
-| 6 | A fresh install passes the Developer ID check | **Settled for installed casks on 2026-11-13:** six app casks pass (section 4.6). A fresh install is checked in the Phase 1 hands-on run. |
-| 7 | Homebrew warns about App Management permission only when replacing an existing app | Reinstall one cask from the app |
+| 2 | With `HOMEBREW_NO_SUDO=1`, `brew` fails a password step and exits non-zero under the pseudo-terminal | **Settled 2026-11-13, with a correction:** `blackhole-2ch` exited 1 in 2.8 s and downloaded nothing. The refusal comes from the requirement check before the download, worded differently from the run-time one (section 4.3); `refusedSudo` now matches both |
+| 3 | `brew` does not wait for input under the pseudo-terminal once `HOMEBREW_NO_ASK=1` is set | **Settled 2026-11-13:** both in-app installs ran to the end. Homebrew asks only when the plan adds dependencies (`ask_prompt_needed?`), so the setting matters for those |
+| 4 | Token matching finds the intended cask for common app names | **Settled 2026-11-13:** 49 of the harness's 50 names, also on that day's live file; "github desktop" is the known miss (decision D4) |
+| 5 | The cask index adds under 2 MB of resident memory | **Settled 2026-11-13:** 0.5 MB of footprint when switched on in a running app; 984 KB of live heap |
+| 6 | A fresh install passes the Developer ID check | **Settled 2026-11-13:** six installed app casks (section 4.6), then fresh installs of Itsycal and Blender |
+| 7 | Homebrew warns about App Management permission only when replacing an existing app | **Settled 2026-11-13:** a fresh install makes no App Management request. Replacing an app from Tinycast is refused by macOS without a prompt and leaves a denied entry for the app in System Settings; Homebrew prints no warning (that needs an undocumented variable) and deletes and copies the app instead. The MVP never replaces an app in-app. Details in `BASELINE.md` |
 | 8 | Exa's `lite` search returns in about a second | Time ten searches |
 
 Rows 1 to 7 concern install and are settled in Phase 1. Row 8 is settled in Phase 2.

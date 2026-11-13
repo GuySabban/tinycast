@@ -44,7 +44,7 @@ final class HUDPresenter {
     func dismiss() {
         dismissal?.cancel()
         guard let panel, panel.isVisible else { return }
-        panel.fadeOut(duration: Theme.Duration.exit)
+        fadeAway(panel)
     }
 
     /// Re-arms the dismissal, so a repeat extends the dwell rather than replaying it.
@@ -60,9 +60,14 @@ final class HUDPresenter {
         dismissal?.cancel()
         dismissal = Task { [weak self, dwell] in
             try? await Task.sleep(for: .seconds(dwell))
-            guard !Task.isCancelled else { return }
-            self?.panel?.fadeOut(duration: Theme.Duration.exit)
+            guard !Task.isCancelled, let self, let panel = self.panel else { return }
+            self.fadeAway(panel)
         }
+    }
+
+    /// A hidden panel keeps its view live, so a spinner would animate unseen and hold GPU memory.
+    private func fadeAway(_ panel: HUDPanel) {
+        panel.fadeOut(duration: Theme.Duration.exit) { panel.contentView = nil }
     }
 
     private func make(acceptsMouseEvents: Bool) -> HUDPanel {

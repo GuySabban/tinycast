@@ -136,6 +136,93 @@ Run 2026-11-13 on `scratch/trial-merge`, cut from `universal-launcher` at `cdb5b
 Done on the Dev build: Settings, AI, Enable AI; Manage, enable Claude; then Claude Opus 5.5 at medium
 effort chosen as the default. Row 13 confirms the route works.
 
+## Phase 1 step 8: hands-on run (2026-11-13)
+
+The signed Dev build of `universal-launcher` at `09696f68`, driven by the owner, with every `brew`
+process logged at 50 ms, the `com.tinycast.perf` signposts streamed and `footprint` sampled every
+2 s. Each real install was approved by the owner first. Logs are in `build/p1s8-*.log`.
+
+### The Install list in `MVP_SCOPE.md`
+
+| Check | Result |
+| --- | --- |
+| `install blender` shows the card first | **Pass** |
+| Return shows the approval dialog within about a second | **Pass.** `PackageInstall.lookup` median 163 ms, p95 311 ms, max 351 ms, n=15 |
+| The dialog's command is what runs | **Pass.** The dialog said `Runs: brew install --cask blender`; the processes the app started were `brew.sh install --cask itsycal` and `… blender` (brew re-executes itself through `brew.sh`). The environment prefix in section 4.3 of the architecture is not shown |
+| Installed, verified, found without a relaunch | **Pass.** `itsycal` 0.28.0 installed in about 4.5 s, and the owner found it by typing `itsycal`. Blender 5.3.0 also installed and verified (the run after Stop and Run Again) |
+| A password cask never starts in the app; Terminal works | **Pass.** `blackhole-2ch` offered only "Install BlackHole 2ch in Terminal?". Open in Terminal ran `brew install --cask blackhole-2ch` there, and the owner pressed Ctrl-C at the password prompt. The abort left a Caskroom folder; see the fixes |
+| Homebrew absent shows the setup command | **Not run.** The owner declined renaming `brew`. A `sandbox-exec` profile denying `file-read*` and `file-test-existence` on `/opt/homebrew/bin/brew` hides it from one process without touching Homebrew; it was tried on a shell, not on the app |
+| An app already present is offered for opening | **Pass.** `maccy` (installed by hand) and `obsidian` (by Homebrew) both offered Open |
+| A disabled cask is refused with Homebrew's reason | **Pass.** `affinity-photo` (discontinued, "Try affinity") and `prowlarr` (fails Gatekeeper check, its app missing) |
+| Cancelling leaves nothing running | **Pass** for Cancel in a dialog (no `brew` started) and for Stop: 65 s into Blender's 360 MB download, `curl` and `brew` were both gone within one 50 ms poll. Run Again reopened the approval. Cancelling the lookup pill was not tried: it is up for about 0.2 s |
+
+### Rows 2 to 7 of `PROPOSED_ARCHITECTURE.md` section 9
+
+| Row | Result |
+| --- | --- |
+| 2 | **Settled, with a correction.** `blackhole-2ch` (a pkg) run through the shipped `CaskInstaller` with `HOMEBREW_NO_SUDO=1` exited 1 in 2.8 s under the pseudo-terminal, and downloaded nothing. Homebrew 7.0.13 refuses at its requirement check, before the download, with "The pkg artifact requires sudo, but HOMEBREW_NO_SUDO is set." (`cask/installer.rb`, for every artifact whose `requires_sudo?` is true). "sudo is disabled by HOMEBREW_NO_SUDO." is only for a sudo step it did not flag in advance. `refusedSudo` knew only the second |
+| 3 | **Settled.** Nothing waited: both in-app installs ran to the end. Homebrew 7.0.13 asks only when the plan adds names the user did not request, that is dependencies (`install.rb`, `ask_prompt_needed?`), so `HOMEBREW_NO_ASK=1` matters for casks with dependencies |
+| 4 | **Settled.** The harness's 50 names hit 49 (the known miss is "github desktop"), and the same 49 hit on the live file of 2026-11-13 (6,043 tokens) |
+| 5 | **Settled.** Switching Install on in a running Dev app added 0.5 MB (36.3 to 36.8 MB). On its own the decoded index holds 984 KB of live heap |
+| 6 | **Settled for fresh installs.** Itsycal (team `HFT3T55WND`) and Blender (`68UA947AUU`) pass `anchor apple or (<BundleSignature.developerID>)` with `codesign --strict --deep` |
+| 7 | **Settled.** Neither fresh install made an App Management request (TCC log). The owner then replaced the installed Itsycal from the app: `brew reinstall --cask itsycal` with the installer's environment, through Run Shell Command. Homebrew's test write inside the bundle reached `tccd`, which refused Tinycast Dev without a prompt ("does not allow prompting for unentitled binaries") and added a denied App Management entry for `com.tinycast.app.dev`. Homebrew printed nothing, since its warning needs the undocumented `HOMEBREW_NO_APP_MANAGEMENT_PERMISSIONS_PROMPT`, and fell back to deleting and copying the app. The reinstall succeeded. The MVP's in-app runs are all fresh installs, and its reinstall goes to Terminal; an in-app upgrade (Phase 4) will meet this |
+
+### Summon time and the other signposts
+
+| Signpost | This run | Baseline |
+| --- | --- | --- |
+| `PaletteWindowController.show`, 22 hotkey summons | Median 21.5 ms, p95 26.1 ms, max 29.0 ms | Median 23 ms, p95 42 ms, n=12 |
+| The same, every summon of the session | Median 20.8 ms, p95 26.3 ms, n=41 | |
+| `AppIndex.rank` | Median 3.1 ms, p95 5.6 ms, n=233 | Median 2 ms, p95 7 ms |
+| `AppIndex.scan` | Median 29.6 ms, p95 36.5 ms, n=44 | Median 38 ms, p95 46 ms |
+| `PackageInstall.match` (Debug) | Median 2.7 ms, p95 10.2 ms, n=100 | Target is 2 ms p95 in a Release build, not measured here |
+
+The show that runs once at launch (60 to 128 ms) is left out, as in the baseline.
+
+### Memory and CPU: a leaked progress pill
+
+During the run, footprint went from 36 MB to 153 MB at the first Return on a card and settled at
+167 MB. A temporary launch probe (not committed) isolated it: the progress pill
+(`MessageHUDController.showProgress`, which the lookup shows) added 53 MB, of which 46 MB was graphics
+memory, and kept it after hiding, with the idle app at 6.6% CPU. A message pill added 1 MB.
+`HUDPresenter` orders the panel out but kept its SwiftUI view, so the spinner's `variableColor`
+effect went on animating unseen until the next message replaced it. After the fix the same probe
+drops back to 38 MB once the pill hides, at 0.0% CPU. While the spinner is on screen it still costs
+about 53 MB; the lookup shows it for about 0.2 s, but Quick Actions show it for seconds.
+
+Also measured on the Dev build: a hotkey summon adds nothing measurable (35 MB with Install off,
+45.5 MB with it on), a deep-link consent dialog adds 1.4 MB, and the Settings window adds 29 MB while
+open. The four points of upstream's rule were not measured again after the fix. In the run, between
+the two leaks, the app sat at 106 to 110 MB with the Settings window and the output windows open.
+
+### Fixes from this run
+
+- **`BrewInvocation.refusedSudo`** also matches "requires sudo, but HOMEBREW_NO_SUDO is set" (row 2).
+  `PackageInstallTests` carries the real line.
+- **`HUDPresenter`** drops the panel's content once it is ordered out, as above. Fork ledger P1.8.
+- **`HomebrewEnvironment.hasInstallRecord`**: a Caskroom entry counts only when the newest
+  `.metadata/VERSION/TIMESTAMP` holds `Casks/TOKEN.json`, which is Homebrew's own `installed?`. Ctrl-C
+  at the password prompt left `blackhole-2ch` with that folder but an empty `Casks/`, so Homebrew
+  would install it again while the card would have said "already installed". `InstallVerifier` uses
+  the same test. `PackageInstallServiceTests` lays out the interrupted folder, and fails without the
+  fix.
+
+### Left open
+
+- The Homebrew-missing dialog, and cancelling during the lookup pill, have not been seen by hand.
+- After Blender.app went to the Trash (the Uninstall command's scanner ran at 18:24:54), a
+  `brew reinstall --cask blender` started outside the app at 18:25:09 and ended about 3 s later. That
+  is what the card's Reinstall in Terminal runs. Blender did not come back, and what Terminal printed
+  was not captured.
+- Re-measure the four memory points on a session with an install, now that the leak is fixed.
+- The `tinycast-dev` scheme is registered to an older Dev build in
+  `~/Library/Developer/Xcode/DerivedData`, so `open tinycast-dev://…` reaches that copy. Use
+  `open -a "<the build>" "<link>"` when testing links.
+
+Cleanup: `itsycal`, `blender` and `blackhole-2ch` were uninstalled with `brew uninstall --cask` and
+sudo disabled, leaving the 14 casks there were before, and their cached downloads were deleted.
+Blender.app is still in the owner's Trash, and the denied App Management entry from row 7 remains.
+
 ## Repository
 
 On 2026-11-13 the clone was arranged as `RISKS_AND_DECISIONS.md` section 4 describes. `upstream` is

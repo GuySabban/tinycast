@@ -107,7 +107,9 @@ struct PackageInstallCoordinatorTests {
                 ("obsidian", "Obsidian.app", true),
             ] {
                 let metadata = prefix.appending(path: "Caskroom/\(cask)/.metadata")
-                try FileManager.default.createDirectory(at: metadata, withIntermediateDirectories: true)
+                let record = metadata.appending(path: "1.0/20261113162214.367/Casks")
+                try FileManager.default.createDirectory(at: record, withIntermediateDirectories: true)
+                try Data("{}".utf8).write(to: record.appending(path: "\(cask).json"))
                 try Data(#"{"uninstall_artifacts":[{"app":["\#(app)"]}]}"#.utf8)
                     .write(to: metadata.appending(path: "INSTALL_RECEIPT.json"))
                 try config.write(to: metadata.appending(path: "config.json"))

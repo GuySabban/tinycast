@@ -11,7 +11,7 @@ enum InstallVerifier {
     nonisolated static func observe(
         record: CaskRecord, prefix: URL = HomebrewEnvironment.prefix, home: String = NSHomeDirectory()
     ) async -> InstallVerification.Observation {
-        let caskroomEntry = prefix.appending(path: "Caskroom/\(record.token)/.metadata")
+        let metadata = prefix.appending(path: "Caskroom/\(record.token)/.metadata")
         var missing: [String] = []
         var untrusted: [String] = []
         for app in record.apps {
@@ -23,7 +23,7 @@ enum InstallVerifier {
             if !isTrusted(URL(fileURLWithPath: path)) { untrusted.append(app.installedName) }
         }
         return InstallVerification.Observation(
-            hasCaskroomEntry: FileManager.default.fileExists(atPath: caskroomEntry.path(percentEncoded: false)),
+            hasCaskroomEntry: HomebrewEnvironment.hasInstallRecord(metadata: metadata, token: record.token),
             missingApps: missing, untrustedApps: untrusted)
     }
 

@@ -120,10 +120,22 @@ struct PackageInstallServiceTests {
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: brew.path)
         }
         for cask in casks {
-            try FileManager.default.createDirectory(
-                at: prefix.appending(path: "Caskroom/\(cask)/.metadata/1.0"), withIntermediateDirectories: true)
+            let record = prefix.appending(path: "Caskroom/\(cask)/.metadata/1.0/20261113162214.367/Casks")
+            try FileManager.default.createDirectory(at: record, withIntermediateDirectories: true)
+            try Data("{}".utf8).write(to: record.appending(path: "\(cask).json"))
         }
         return prefix
+    }
+
+    /// Ctrl-C at Terminal's password prompt left blackhole-2ch like this on 2026-11-13.
+    static func interruptInstall(_ cask: String, in prefix: URL) throws {
+        let caskroom = prefix.appending(path: "Caskroom/\(cask)")
+        try FileManager.default.createDirectory(
+            at: caskroom.appending(path: ".metadata/0.7.1/20261113162056.399/Casks"),
+            withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(
+            at: caskroom.appending(path: "0.7.1"), withIntermediateDirectories: true)
+        try Data().write(to: caskroom.appending(path: "0.7.1/Driver.pkg"))
     }
 
     static func receipt(_ app: String) -> Data {
@@ -162,10 +174,11 @@ struct PackageInstallServiceTests {
         try FileManager.default.createDirectory(
             at: full.appending(path: "Caskroom/half-done/1.0"), withIntermediateDirectories: true)
         try Data().write(to: full.appending(path: "Caskroom/.DS_Store"))
+        try interruptInstall("blackhole-2ch", in: full)
         let installed = await HomebrewEnvironment.installedCasks(prefix: full, home: "/nowhere")
         expect(
             Set(installed.keys) == ["blender", "zoom"],
-            "a cask counts once Homebrew wrote its metadata, and stray files never do")
+            "a cask counts once Homebrew recorded it; an interrupted install and stray files never do")
 
         let unexecutable = try prefix(brewScript: "#!/bin/sh\n")
         try FileManager.default.setAttributes(
@@ -264,6 +277,10 @@ struct PackageInstallServiceTests {
         let missing = await InstallVerifier.observe(
             record: record(target: "/$HOME/Applications/Probe.app"), prefix: installed, home: home.path)
         expect(missing.hasCaskroomEntry, "Homebrew's record is seen")
+        try interruptInstall("probe", in: bare)
+        let interrupted = await InstallVerifier.observe(
+            record: record(target: "/$HOME/Applications/Probe.app"), prefix: bare, home: home.path)
+        expect(!interrupted.hasCaskroomEntry, "an interrupted install's folder is no record")
         expect(missing.missingApps == ["Probe.app"], "an app that is not at its target is missing")
 
         let app = home.appending(path: "Applications/Probe.app/Contents")

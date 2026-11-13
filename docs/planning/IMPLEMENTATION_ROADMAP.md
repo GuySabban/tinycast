@@ -176,8 +176,9 @@ upstream requires.
   it works with no prompt (decision D5).
 - **Token matching misses common names.** Measured by the 50-name harness case. Fallback: the full
   catalogue (decision D4).
-- **`brew` behaves differently under the pseudo-terminal** than its documentation suggests. Found in
-  step 8; the flow already treats any non-zero exit as a failure with the log kept.
+- **`brew` behaves differently under the pseudo-terminal** than its documentation suggests. Settled
+  on 2026-11-13 in step 8: nothing waited for input, but Homebrew refuses a sudo cask before the
+  download, with a second message that `refusedSudo` now also recognises (`BASELINE.md`).
 - **SwiftUI and Swift 6 concurrency are new to the owner.** The largest uncertainty in the estimate.
 
 ### Tests
