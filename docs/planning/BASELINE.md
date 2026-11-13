@@ -49,6 +49,17 @@ which removed the onboarding UI harness (`Tests/onboarding-test.swift`, an `excl
 commit left 122 entries with 114 runnable at 121 with 113. The audit section 1.12 figure is
 stale; the 121-entry total is right.
 
+### FormInputTests needs Dark mode
+
+`FormInputTests` passes only while macOS is in Dark mode, so it is pre-existing and not a fork bug.
+Its windows take the system appearance, and `inkBounds` counts only pixels whose red component is
+above 0.2, so the theme's dark text in Light mode measures as no text at all (eight failures, starting
+with "the placeholder rendering test captures visible text"). The baseline ran around midnight while
+this Mac's Auto appearance was Dark. On 2026-11-13 at 08:46, in Light, it failed both with and without
+the Task 3 changes, and passed with Task 3 applied once the owner switched to Dark. A
+`-AppleInterfaceStyle Dark` launch argument does not change the harness's appearance. Run the suite
+in Dark mode.
+
 ### Build log noise
 
 Each `xcodebuild` run logs a non-fatal `DVTCoreDeviceCore` plug-in load failure ("Symbol not
