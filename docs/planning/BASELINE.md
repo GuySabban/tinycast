@@ -311,6 +311,21 @@ approved by the owner, uninstalled afterwards). `footprint` was sampled every 15
   53 MB, which puts the app at about 100 MB.
 - **The remaining fix** is the spinner's symbol effect in upstream's `MessageHUDView`.
 
+## Spotcast 0.1.0 for daily use (2026-11-13)
+
+`Scripts/fork/build-dmg.sh` built `build/Spotcast-0.1.0.dmg` (10.4 MB) from `cf077ca8` in 257 s,
+for the owner's own use. The DMG is not committed.
+
+- **Identity and signature.** `io.github.guysabban.spotcast`, signed with the hardened runtime. The
+  designated requirement is unchanged since Phase 0 (`certificate leaf = H"91cd17d3…"`), so
+  permissions granted to Spotcast survive rebuilds. `codesign --verify --deep --strict` passes on the
+  built app and on the DMG's copy.
+- **URL schemes:** `spotcast`, `raycast` and `com.raycast`. Upstream's Tinycast, still in
+  `/Applications`, also claims `raycast` and `com.raycast`, so with both installed macOS picks one for
+  extension links.
+- **Disk.** The data volume dropped to 360 MB free during the build, mostly swap. Deleting the
+  Release intermediates and the harness binaries brought it back to 691 MB.
+
 ## Phase 1 step 9: upstream merge (2026-11-13)
 
 The routine in `RISKS_AND_DECISIONS.md` section 4, with `rerere.enabled`.
