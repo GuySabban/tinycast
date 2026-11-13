@@ -188,8 +188,10 @@ struct CaskIndex: Sendable, Equatable {
     let generatedAt: Date
 
     static func decode(analytics data: Data, now: Date) throws -> CaskIndex
-    /// Exact token first, then match quality, then install count.
-    func matches(_ name: String, limit: Int) -> [Entry]
+    func contains(token: String) -> Bool
+    /// Exact token first, then whole words by install count, then partial hits by score.
+    /// `extra` adds tokens the file lacks (installed casks, from the Caskroom snapshot).
+    func matches(_ name: String, limit: Int, including extra: [Entry] = []) -> [Entry]
 }
 
 // Model/CaskRecord.swift
@@ -495,7 +497,16 @@ installed (with any renaming target), and `.metadata/config.json` says which `ap
 the owner's Mac) and checks each recorded app on disk. When the Caskroom records a cask whose app is
 gone, the card says so ("Prowlarr.app is missing · Reinstall"), and Return offers
 `brew reinstall --cask TOKEN` through the Terminal hand-off rather than "already installed". If the
-launcher still finds an app of that name somewhere else, the cask counts as installed. Homebrew's own answer in that case is an
+launcher still finds an app of that name somewhere else, the cask counts as installed.
+
+**An installed cask can be missing from the install-count file.** The file lists only casks with
+installs in its 30-day window, and a cask Homebrew has disabled stops being installed. On 2026-11-13
+prowlarr (disabled 2026-09-01, "fails Gatekeeper check") had no row, so `install prowlarr` showed
+"No cask matches" even though the Caskroom recorded it. `PackageCandidate` now passes every Caskroom
+token the index lacks to `CaskIndex.matches` as an extra entry with zero installs, so a cask on this
+Mac is always matchable. wine-stable, disabled the same day, still had a row. Both are disabled, so
+Return on either shows the disabled notice, which adds that the app is missing and that Homebrew
+won't reinstall a disabled cask; the card's badge says only that the app is missing. Homebrew's own answer in that case is an
 error ("It seems there is already an App at …"), and its `--adopt` option is left for later.
 
 ### 4.5 Approval flow

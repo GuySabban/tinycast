@@ -188,8 +188,10 @@ upstream requires.
 | `CaskIndexStoreTests` | The store and the model | First fetch, cached start, offline keeps the cache, a malformed reply is ignored. Served by an in-process `URLProtocol`, as `DictationWorkerTests` does. |
 
 `LauncherScreen` and `LauncherList` have no harness upstream, so the card's wiring is covered by the
-hands-on run. A coordinator harness in the style of `UninstallCoordinatorTests` is worth adding only
-if the flow proves fragile.
+hands-on run. `PackageInstallServiceTests` covers the services, and `PackageInstallCoordinatorTests`
+was added after a gap the plan-level cases missed (prowlarr, step 5): it drives
+`PackageInstallCoordinator.candidate(for:)` end to end over a real store, a scratch Caskroom and
+stand-ins for the app's own collaborators, in the style of `UninstallCoordinatorTests`.
 
 ### Acceptance
 
