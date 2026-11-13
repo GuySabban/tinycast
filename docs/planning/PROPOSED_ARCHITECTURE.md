@@ -163,11 +163,15 @@ Scope for the first version: Homebrew casks only, on Apple silicon, with Homebre
 
 ### 4.2 Interfaces
 
-Sketches, not final code. Names follow upstream's suffix table.
+Sketches, not final code. Names follow upstream's suffix table. The Model sketches were revised on
+2026-11-13 against the code written in Phase 1 step 1 and Homebrew's real replies; `CaskToken`
+(the token pattern) was added there too.
 
 ```swift
 // Model/InstallIntent.swift
 enum InstallIntent {
+    /// One letter matches hundreds of casks, so a shorter name shows no card at all.
+    static let minimumLetters = 2
     /// "install blender" gives "blender"; nil unless the query is an install request.
     static func name(in query: String) -> String?
 }
@@ -189,8 +193,19 @@ struct CaskIndex: Sendable, Equatable {
 // Model/CaskRecord.swift
 struct CaskRecord: Sendable, Equatable {
     struct AppArtifact: Sendable, Equatable {
-        let fileName: String
+        let source: String
+        /// Resolved by Homebrew, such as `/Applications/Blender.app`.
         let target: String
+        /// The target's last component: `Thorium.app` installs as `Thorium Browser.app`.
+        var installedName: String { get }
+    }
+    struct Retirement: Sendable, Equatable {
+        /// Homebrew's symbols (`fails_gatekeeper_check`, `discontinued`, ...) as cases,
+        /// or `.stated(String)` for a cask's own sentence. Never shown raw.
+        enum Reason: Sendable, Equatable { /* … */ }
+        let reason: Reason?
+        let date: String?
+        let replacementCask: String?
     }
     let token: String
     let names: [String]
@@ -199,62 +214,88 @@ struct CaskRecord: Sendable, Equatable {
     let downloadURL: URL?
     let version: String
     let apps: [AppArtifact]
-    /// True for a pkg or keyboard_layout artifact, or any step marked sudo.
+    /// A pkg; a `sudo` of `true` or `"if_needed"` in an install-time step (not uninstall or
+    /// zap); or a target under `/Library`, `/usr` or `/System`.
     let needsPassword: Bool
-    let isDisabled: Bool
-    let disableReason: String?
-    let isDeprecated: Bool
+    /// An `installer manual:` step: Homebrew only stages an installer the user must open.
+    let hasManualInstaller: Bool
+    let disabled: Retirement?
+    let deprecated: Retirement?
 
-    static func decode(_ data: Data) throws -> CaskRecord
+    /// `variation` is this Mac's key in the record's `variations`, from
+    /// `variation(macOSMajorVersion:)`: `arm64_tahoe` on 26, `arm64_golden_gate` on 27.
+    /// The base record describes the newest release; the entry overlays its top-level fields.
+    static func variation(macOSMajorVersion: Int) -> String?
+    static func decode(_ data: Data, variation: String?) throws -> CaskRecord
+}
+
+// Model/BrewInvocation.swift
+struct BrewInvocation: Sendable, Equatable {
+    /// The fixed script in section 4.3; `arguments` are its `$1` and `$2`.
+    static let script: String
+    let brew: URL
+    let token: String
+    /// Nil unless `token` passes `CaskToken.isValid`.
+    init?(brew: URL, token: String)
+    /// What the dialog shows; `CaskInstaller` runs exactly this command.
+    var displayText: String { "brew install --cask \(token)" }
+    var arguments: [String] { get }
 }
 
 // Model/InstallPlan.swift
-struct InstallFacts: Sendable, Equatable {
-    let brew: URL?
-    let installedCasks: [String: String]
-    let presentAppFileNames: Set<String>
-}
-
-struct BrewInvocation: Sendable, Equatable {
-    let brew: URL
-    let token: String
-    /// What the dialog shows; `CaskInstaller` runs exactly this command.
-    var displayText: String { "brew install --cask \(token)" }
-}
-
 enum InstallPlan: Sendable, Equatable {
-    case install(BrewInvocation)
-    case terminal(BrewInvocation)
-    case homebrewMissing(setupCommand: String)
-    case alreadyInstalled(appFileName: String, byHomebrew: Bool)
-    case blocked(reason: String)
+    struct Facts: Sendable, Equatable {
+        let brew: URL?
+        /// Tokens with a Caskroom folder; versions are not needed until upgrades (Phase 4).
+        let installedCasks: Set<String>
+        let presentAppNames: Set<String>
+    }
+    static let homebrewSetupCommand: String
 
-    static func make(record: CaskRecord, facts: InstallFacts) -> InstallPlan
+    case install(BrewInvocation)
+    /// A password or a manual installer step.
+    case terminal(BrewInvocation)
+    case homebrewMissing
+    /// Nil `appName` for a pkg, or a cask Homebrew lists whose app was deleted by hand.
+    case alreadyInstalled(appName: String?, byHomebrew: Bool)
+    /// Typed, so the dialog localizes the reason rather than showing Homebrew's symbol.
+    case disabled(CaskRecord.Retirement)
+    /// A record whose token fails `CaskToken.isValid`; the decoder already refuses one.
+    case invalidToken
+
+    static func make(record: CaskRecord, facts: Facts) -> InstallPlan
 }
 
 // Model/InstallVerification.swift
-struct InstallObservation: Sendable, Equatable {
-    let hasCaskroomEntry: Bool
-    let missingApps: [String]
-    let unsignedApps: [String]
-}
-
 enum InstallVerification: Sendable, Equatable {
+    struct Observation: Sendable, Equatable {
+        let hasCaskroomEntry: Bool
+        let missingApps: [String]
+        let unsignedApps: [String]
+    }
     case verified
-    case failed(reason: String)
+    case noCaskroomEntry
+    case appMissing(String)
+    case appNotDeveloperIDSigned(String)
 
-    static func judge(_ observation: InstallObservation) -> InstallVerification
+    static func judge(_ observation: Observation) -> InstallVerification
 }
 
 // Model/PackageCandidate.swift
 struct PackageCandidate: Sendable, Equatable {
     enum State: Sendable, Equatable {
         case loadingIndex
+        /// No index in memory or on disk and no fetch running: offline on a first launch.
+        case indexUnavailable
         case noMatch
         case match(CaskIndex.Entry, alternates: [CaskIndex.Entry])
     }
+    static let alternateLimit = 4
     let requestedName: String
     let state: State
+    /// An index in hand is used even while a refresh runs.
+    init(requestedName: String, index: CaskIndex?, isFetchingIndex: Bool)
+    var hasAction: Bool { get }
 }
 ```
 
@@ -371,9 +412,11 @@ Cask records carry no bundle identifier, so presence is decided from two facts:
 
 1. **Homebrew's record.** The token has a folder under the Caskroom. The cask is installed by
    Homebrew.
-2. **The app artifact's file name.** The record's `app` artifact names a file such as `Blender.app`.
-   If `AppIndex.apps` holds an application entry whose `url.lastPathComponent` equals it, the app is
-   present. If fact 1 is false, it was installed some other way.
+2. **The app artifact's installed name.** The record's `app` artifact carries the target Homebrew
+   resolved, such as `/Applications/Blender.app`; its last component is the installed name, which
+   can differ from the source (`Thorium.app` installs as `Thorium Browser.app`). If `AppIndex.apps`
+   holds an application entry whose `url.lastPathComponent` equals it, the app is present. If fact 1
+   is false, it was installed some other way.
 
 A pkg cask has no `app` artifact, so only fact 1 applies to it. When the app is present outside
 Homebrew, the flow offers to open it and does not install. Homebrew's own answer in that case is an

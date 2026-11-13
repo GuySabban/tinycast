@@ -195,7 +195,8 @@ if the flow proves fragile.
 
 What the user sees is the Install list in `MVP_SCOPE.md`. This phase adds the measured criteria:
 
-- Matching takes under 2 ms at the 95th percentile (`PackageInstall.match` signpost).
+- Matching takes under 2 ms at the 95th percentile in a Release build (`PackageInstall.match`
+  signpost). A Debug build runs `LauncherMatch` unoptimised and is about ten times slower.
 - Return to approval dialog takes under one second at the median (`PackageInstall.lookup` signpost).
 - Stop during a download ends the process within about two seconds.
 - Resident memory is under 100 MB at the four pull-request-template points.
@@ -335,7 +336,7 @@ resident memory under 100 MB; its other numeric budgets are per-feature benchmar
 | --- | --- | --- |
 | Hotkey to visible panel | 100 ms at the 95th percentile | The existing `PaletteWindowController.show` signpost for the show itself; a 120 fps screen recording for the whole path |
 | Keystroke to local rows | 16 ms at the 95th percentile | The existing `AppIndex.rank` signpost |
-| Install card match | 2 ms at the 95th percentile | A new `Signposts.interval("PackageInstall.match")` |
+| Install card match | 2 ms at the 95th percentile, Release build | A new `Signposts.interval("PackageInstall.match")` |
 | Return to approval dialog | 1 s median | A new `PackageInstall.lookup` signpost |
 | Trigger to web results | 1.5 s median, 3 s at the 95th percentile | A new `WebSearch.fetch` signpost |
 | Idle CPU, panel hidden | Under 0.5% averaged over 60 s | `top -pid` for one minute; Instruments Time Profiler if it is higher |
