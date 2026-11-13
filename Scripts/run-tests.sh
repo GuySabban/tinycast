@@ -948,6 +948,14 @@ run PackageInstallServiceTests $L/SearchRelevance.swift $L/ScriptRomanization.sw
                            $PI/Service/InstallVerifier.swift Tinycast/Features/Updates/Service/BundleSignature.swift \
                            Tinycast/Platform/PseudoTerminal.swift Tinycast/Platform/ProcessExit.swift \
                            Tinycast/Features/CustomCommands/Service/ShellCommandRunner.swift
+run PackageInstallCoordinatorTests $L/SearchRelevance.swift $L/ScriptRomanization.swift \
+                           $L/LauncherMatch.swift $PI/Model/*.swift $PI/Service/CaskAPI.swift \
+                           $PI/Service/CaskIndexStore.swift $PI/Service/HomebrewEnvironment.swift \
+                           $PI/Service/CaskInstaller.swift $PI/Service/InstallVerifier.swift \
+                           $PI/Settings/PackageInstallSettingsStore.swift $PI/UI/PackageInstallCoordinator.swift \
+                           Tinycast/Features/Updates/Service/BundleSignature.swift Tinycast/Platform/Signposts.swift \
+                           Tinycast/Platform/PseudoTerminal.swift Tinycast/Platform/ProcessExit.swift \
+                           Tinycast/Features/CustomCommands/Service/ShellCommandRunner.swift
 
 if [ "$emit_db" -eq 1 ]; then
     printf ']\n' >> "$DB"

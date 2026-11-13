@@ -91,26 +91,37 @@ struct CaskIndex: Sendable, Codable {
         }
     }
 
-    func matches(_ name: String, limit: Int) -> [Entry] {
+    func contains(token: String) -> Bool { positions[token] != nil }
+
+    /// `extra` adds tokens the file lacks; on a tie they rank after its own, never doubled.
+    func matches(_ name: String, limit: Int, including extra: [Entry] = []) -> [Entry] {
         let query = SearchText(name, transliterated: false)
         let words = query.units.split(whereSeparator: LauncherMatch.isSeparator)
-        guard limit > 0, !words.isEmpty else { return [] }
+        guard limit > 0, !words.isEmpty, let wanted = Self.letterMask(query.units) else { return [] }
         let dashed = words.map { String(decoding: $0, as: UTF16.self) }.joined(separator: "-")
-        let exact = positions[dashed]
-        guard let wanted = Self.letterMask(query.units) else { return [] }
+        var seen = Set<String>()
+        let extra = extra.filter { !contains(token: $0.token) && seen.insert($0.token).inserted }
+        let extraTexts = extra.map { SearchText($0.token, transliterated: false) }
 
+        let exact = positions[dashed] ?? extra.firstIndex { $0.token == dashed }.map { entries.count + $0 }
         var ranked: [Ranked] = exact.map { [Ranked(tier: .exact, score: .max, position: $0)] } ?? []
-        for position in texts.indices where position != exact {
-            guard letterMasks[position] & wanted == wanted else { continue }
-            let text = texts[position]
-            guard let outcome = LauncherMatch.match(query, in: text),
+        func rank(_ position: Int, _ text: SearchText, mask: UInt64) {
+            guard position != exact, mask & wanted == wanted, let outcome = LauncherMatch.match(query, in: text),
                 SearchSensitivity.medium.accepts(outcome, queryLength: query.units.count)
-            else { continue }
+            else { return }
             let tier: Tier = Self.holdsWhole(words, text.units) ? .wholeWords : .partial
             ranked.append(Ranked(tier: tier, score: outcome.value, position: position))
         }
+        for position in entries.indices {
+            rank(position, texts[position], mask: letterMasks[position])
+        }
+        for (offset, text) in extraTexts.enumerated() {
+            rank(entries.count + offset, text, mask: Self.letterMask(text.units) ?? 0)
+        }
         ranked.sort { $0.precedes($1) }
-        return ranked.prefix(limit).map { entries[$0.position] }
+        return ranked.prefix(limit).map { ranked in
+            ranked.position < entries.count ? entries[ranked.position] : extra[ranked.position - entries.count]
+        }
     }
 
     /// A token lacking a typed letter costs one AND; nil when no token could hold the text.

@@ -22,7 +22,7 @@ struct PackageCandidate: Sendable, Equatable {
     let state: State
     let installation: Installation?
 
-    /// A refresh in flight never hides an index already in hand.
+    /// Keeps the index in hand during a refresh, and matches installed casks the counts lack.
     init(
         requestedName: String, index: CaskIndex?, isFetchingIndex: Bool,
         installed: [String: InstalledCask]
@@ -33,7 +33,10 @@ struct PackageCandidate: Sendable, Equatable {
             installation = nil
             return
         }
-        let found = index.matches(requestedName, limit: 1 + Self.alternateLimit)
+        let unlisted = installed.keys.filter { !index.contains(token: $0) }.sorted()
+        let found = index.matches(
+            requestedName, limit: 1 + Self.alternateLimit,
+            including: unlisted.map { CaskIndex.Entry(token: $0, installs: 0) })
         guard let best = found.first else {
             state = .noMatch
             installation = nil

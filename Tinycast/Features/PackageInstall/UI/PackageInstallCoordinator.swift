@@ -12,6 +12,9 @@ final class PackageInstallCoordinator {
     private let paletteCoordinator: PaletteCoordinator
     private let settingsCoordinator: SettingsCoordinator
     private let activationPolicy: ActivationPolicy
+    /// Parameters so a harness can point the flow at a scratch Caskroom.
+    private let prefix: URL
+    private let home: String
     /// Dialog and message-HUD presentation only — never for state this type owns.
     private unowned let core: AppCore
     @ObservationIgnored private let session = CaskAPI.session()
@@ -39,7 +42,8 @@ final class PackageInstallCoordinator {
     init(
         settings: PackageInstallSettingsStore, index: CaskIndexStore, appIndex: AppIndex,
         paletteCoordinator: PaletteCoordinator, settingsCoordinator: SettingsCoordinator,
-        activationPolicy: ActivationPolicy, core: AppCore
+        activationPolicy: ActivationPolicy, core: AppCore,
+        prefix: URL = HomebrewEnvironment.prefix, home: String = NSHomeDirectory()
     ) {
         self.settings = settings
         self.index = index
@@ -48,6 +52,8 @@ final class PackageInstallCoordinator {
         self.settingsCoordinator = settingsCoordinator
         self.activationPolicy = activationPolicy
         self.core = core
+        self.prefix = prefix
+        self.home = home
     }
 
     // MARK: - Lifecycle
@@ -70,8 +76,8 @@ final class PackageInstallCoordinator {
     /// Run on every launcher show, so the card's "installed" and "missing" stay current.
     func refreshInstalled() {
         guard settings.isEnabled else { return }
-        Task { [weak self] in
-            let installed = await HomebrewEnvironment.installedCasks()
+        Task { [prefix, home, weak self] in
+            let installed = await HomebrewEnvironment.installedCasks(prefix: prefix, home: home)
             guard let self, self.settings.isEnabled, installed != self.installed else { return }
             self.installed = installed
         }
@@ -146,7 +152,8 @@ final class PackageInstallCoordinator {
         let facts: InstallPlan.Facts
         do {
             let present = Set(appIndex.apps.filter { $0.kind == .application }.map(\.url.lastPathComponent))
-            (record, facts) = try await Self.lookUp(token, presentAppNames: present, session: session)
+            (record, facts) = try await Self.lookUp(
+                token, presentAppNames: present, prefix: prefix, home: home, session: session)
         } catch is CancellationError {
             return
         } catch {
@@ -164,15 +171,15 @@ final class PackageInstallCoordinator {
     /// The record and the Caskroom are read together; the signpost spans Return to the dialog.
     @concurrent
     private nonisolated static func lookUp(
-        _ token: String, presentAppNames: Set<String>, session: URLSession
+        _ token: String, presentAppNames: Set<String>, prefix: URL, home: String, session: URLSession
     ) async throws -> (CaskRecord, InstallPlan.Facts) {
         try await Signposts.interval("PackageInstall.lookup") {
             let release = ProcessInfo.processInfo.operatingSystemVersion.majorVersion
             async let record = CaskAPI.record(
                 token: token, variation: CaskRecord.variation(macOSMajorVersion: release), session: session)
-            async let installed = HomebrewEnvironment.installedCasks()
+            async let installed = HomebrewEnvironment.installedCasks(prefix: prefix, home: home)
             let facts = InstallPlan.Facts(
-                brew: HomebrewEnvironment.brew(), installedCasks: await installed,
+                brew: HomebrewEnvironment.brew(prefix: prefix), installedCasks: await installed,
                 presentAppNames: presentAppNames)
             return (try await record, facts)
         }
@@ -232,6 +239,9 @@ final class PackageInstallCoordinator {
             await offerOpen(name: name, appName: appName, byHomebrew: byHomebrew)
         case .disabled(let retirement):
             var lines = [retirement.reason?.sentence].compactMap(\.self)
+            if let missingApp = installed[record.token]?.missingAppName {
+                lines.append(String(localized: "\(missingApp) is missing, and Homebrew won't reinstall a disabled cask."))
+            }
             if let replacement = retirement.replacementCask {
                 lines.append(String(localized: "Try “\(replacement)” instead."))
             }
@@ -365,7 +375,7 @@ final class PackageInstallCoordinator {
                 : String(localized: "Homebrew exited with status \(status).")
             conclude(runID, summary, false)
         case .exited:
-            let observation = await InstallVerifier.observe(record: record)
+            let observation = await InstallVerifier.observe(record: record, prefix: prefix, home: home)
             switch InstallVerification.judge(observation) {
             case .verified:
                 await appIndex.refresh()

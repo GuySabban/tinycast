@@ -212,6 +212,16 @@ struct PackageInstallTests {
         expect(small.matches("   ", limit: 5).isEmpty, "a blank name matches nothing")
         expect(small.matches("qqqq", limit: 5).isEmpty, "a name nothing contains")
 
+        let extra = [CaskIndex.Entry(token: "arc-extra", installs: 0), CaskIndex.Entry(token: "arc", installs: 0)]
+        let withExtra = small.matches("arc", limit: 5, including: extra).map(\.token)
+        expect(withExtra.first == "arc", "the index's own exact token still leads")
+        expect(withExtra.filter { $0 == "arc" }.count == 1, "an extra the index already holds is not doubled")
+        expect(withExtra.contains("arc-extra"), "an extra token is matched like any other")
+        expect(
+            small.matches("arc extra", limit: 1, including: extra).first?.token == "arc-extra",
+            "an extra token can be the exact match")
+        expect(small.contains(token: "arc") && !small.contains(token: "arc-extra"), "contains is the index's own")
+
         let index = try index()
         expect(index.matches("xqzjv", limit: 5).isEmpty, "no stray hit across the whole file")
         let vscode = index.matches("vscode", limit: 5).map(\.token)
@@ -256,6 +266,21 @@ struct PackageInstallTests {
             requestedName: "blender", index: index, isFetchingIndex: false,
             installed: ["zoom": installed("zoom")])
         expect(other.installation == nil, "another cask's record says nothing about this one")
+
+        // prowlarr is disabled, so the 30-day file has no row for it; the Caskroom still does.
+        expect(!index.contains(token: "prowlarr"), "the captured file has no prowlarr")
+        let prowlarr = PackageCandidate(
+            requestedName: "prowlarr", index: index, isFetchingIndex: false,
+            installed: ["prowlarr": installed("prowlarr", missing: "/Applications/Prowlarr.app")])
+        guard case .match(let found, _) = prowlarr.state else {
+            return expect(false, "an installed cask absent from the counts still matches")
+        }
+        expect(found == CaskIndex.Entry(token: "prowlarr", installs: 0), "with no install count of its own")
+        expect(prowlarr.installation == .appMissing("Prowlarr.app"), "and the card says its app is missing")
+        let partial = PackageCandidate(
+            requestedName: "prowl", index: index, isFetchingIndex: false,
+            installed: ["prowlarr": installed("prowlarr")])
+        expect(partial.state != .noMatch, "a partial name reaches it too")
 
         let missing = PackageCandidate(requestedName: "blender", index: nil, isFetchingIndex: false, installed: [:])
         expect(missing.state == .indexUnavailable, "no index and none coming")

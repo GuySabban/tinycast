@@ -37,7 +37,7 @@ struct PackageInstallCard: View {
     private func status(of entry: CaskIndex.Entry) -> String {
         switch candidate.installation {
         case .installed: String(localized: "Installed with Homebrew")
-        case .appMissing(let app): String(localized: "\(app) is missing · Reinstall")
+        case .appMissing(let app): String(localized: "\(app) is missing")
         case nil:
             String(localized: "\(entry.installs.formatted()) installs this month")
         }
