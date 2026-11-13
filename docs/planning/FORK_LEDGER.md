@@ -36,6 +36,21 @@ before resolving it. New files the fork owns (`Scripts/fork/`, `docs/planning/`)
 `Tinycast.xcodeproj/project.pbxproj` is regenerated from `project.yml` by `xcodegen generate` and is
 never edited by hand.
 
+## Merges
+
+Each upstream merge, with what conflicted and how long it took (routine step 7). Details are in
+`BASELINE.md`.
+
+| Date | Upstream | Kept | Conflicts | Time |
+| --- | --- | --- | --- | --- |
+| 2026-11-13 | `upstream/main` `ede02bf3` (Phase 0 trial) | No | None | Seconds |
+| 2026-11-13 | `v0.12.11`, the newest stable tag (Phase 1 step 9) | Nothing to merge | None: already an ancestor | 0 |
+| 2026-11-13 | `upstream/main` `6fa8ba12`, eight commits (Phase 1 step 9 trial) | No | `project.pbxproj` only, resolved by the routine | About a minute |
+
+At the next stable tag, upstream's move to `com.abueammar.tinycast` arrives. The Task 2
+`AppIndex` note above then needs rewording, since `ownBundlePrefix` will match the Dev build's new
+id. The fork must also never build or ship `TinycastHandoff`, which carries `com.tinycast.app`.
+
 ## Upstream doc errata
 
 Upstream docs the fork knows are wrong. They are left unedited to keep merges clean.

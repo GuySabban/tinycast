@@ -192,8 +192,8 @@ about 53 MB; the lookup shows it for about 0.2 s, but Quick Actions show it for 
 
 Also measured on the Dev build: a hotkey summon adds nothing measurable (35 MB with Install off,
 45.5 MB with it on), a deep-link consent dialog adds 1.4 MB, and the Settings window adds 29 MB while
-open. The four points of upstream's rule were not measured again after the fix. In the run, between
-the two leaks, the app sat at 106 to 110 MB with the Settings window and the output windows open.
+open. In the run, between the two leaks, the app sat at 106 to 110 MB with the Settings window and
+the output windows open. The four points measured after the fix are under "Phase 1 follow-up" below.
 
 ### Fixes from this run
 
@@ -210,11 +210,9 @@ the two leaks, the app sat at 106 to 110 MB with the Settings window and the out
 ### Left open
 
 - The Homebrew-missing dialog, and cancelling during the lookup pill, have not been seen by hand.
-- After Blender.app went to the Trash (the Uninstall command's scanner ran at 18:24:54), a
-  `brew reinstall --cask blender` started outside the app at 18:25:09 and ended about 3 s later. That
-  is what the card's Reinstall in Terminal runs. Blender did not come back, and what Terminal printed
-  was not captured.
-- Re-measure the four memory points on a session with an install, now that the leak is fixed.
+- After Blender.app went to the Trash (the Uninstall command's scanner ran at 18:24:54), the card's
+  Reinstall in Terminal ran `brew reinstall --cask blender` at 18:25:09, and Blender did not come
+  back. Followed up below: the hand-off works, and Homebrew stopped before fetching.
 - The `tinycast-dev` scheme is registered to an older Dev build in
   `~/Library/Developer/Xcode/DerivedData`, so `open tinycast-dev://…` reaches that copy. Use
   `open -a "<the build>" "<link>"` when testing links.
@@ -223,9 +221,122 @@ Cleanup: `itsycal`, `blender` and `blackhole-2ch` were uninstalled with `brew un
 sudo disabled, leaving the 14 casks there were before, and their cached downloads were deleted.
 Blender.app is still in the owner's Trash, and the denied App Management entry from row 7 remains.
 
+## Phase 1 follow-up: the reinstall hand-off and memory (2026-11-13)
+
+The Dev build of `universal-launcher` at `9f680740`, rebuilt first. The owner approved each real
+install of `rectangle` (2.0.4, a 5 MB disk-image cask with one app and no password), and it was
+uninstalled afterwards with its download and the Trash copies.
+
+### The Blender reinstall
+
+**Reproduced with `rectangle`: the hand-off works.** It was installed from the card, Rectangle.app
+was dragged to the Trash, and the "Rectangle.app is missing" dialog's Reinstall in Terminal was
+chosen. Terminal printed `Uninstalling Cask rectangle`, `Moving App 'Rectangle.app' to
+'/Applications/Rectangle.app'` and `rectangle was successfully installed!`. The app was back after
+2.7 s: a curl 0.7 s in, then `hdiutil`, `ditto`, and LaunchServices registering the app.
+
+**Blender's run stopped inside Homebrew before fetching.** Step 8's 50 ms process log shows
+`brew reinstall --cask blender` from 18:25:09.3 to 18:25:12.1 with no child process at all. The
+system log agrees: after `defaults read -g AppleLanguages`, which Homebrew runs while loading a cask,
+there is no curl, no `hdiutil` and no registration of Blender.app. The later
+`brew uninstall --cask blender` printed no "Removing App" line, so the app never came back.
+
+What Homebrew printed is lost: the window was closed, and Homebrew keeps no log for casks.
+
+- **Ruled out.** Homebrew's pre-fetch steps for `blender` pass today: `Cask::Installer#prelude` and the
+  reinstall plan. No `blender` artifact needs sudo. Tinycast's part of the run is the same for both
+  casks: the `.command` file, Terminal and the `brew` arguments.
+- **Not ruled out:** something in that moment's state, in the minute after the stopped-then-resumed
+  install. Checking it needs Blender itself, a 400 MB download.
+
+Nothing points at Tinycast, so nothing was changed.
+
+### Memory at upstream's four points, after the leak fix
+
+`footprint` once a second. The PR template's four points are the rows below, plus idle CPU. Three
+passes:
+
+- **Run 1.** A fresh launch, then a hotkey summon, `install rectangle`, Return and Install. Then the
+  output window and the palette were closed.
+- **Run 2.** A fresh launch: summon, then close. Its memory sampler wrote nothing; only its CPU
+  samples were kept.
+- **Run 3.** A fresh launch with Rectangle still installed. The palette was opened with
+  `tinycast-dev://search` and closed by bringing Finder forward.
+
+| Point | Result | Phase 0 baseline |
+| --- | --- | --- |
+| Idle after launch, 45 s | 39.2 MB (run 3) | 36 MB |
+| Palette open | 39.5 MB empty (run 3). 46 to 47 MB with `install rectangle` typed and the card shown (run 1) | About 48 MB |
+| Feature in use (peak) | **102.9 MB**: one sample at Return on the card, with the lookup's progress pill on screen. The next sample was 57.4 MB. 58.1 MB was the peak during the `brew` run itself, with the output window open | 65 MB |
+| Palette closed, 60 s settled | 54.3 MB after the install session (run 1). 40.1 MB after the palette alone (run 3) | 63 MB, not back to idle |
+| Idle CPU after closing, 60 s | 0.0% in 12 of 13 five-second samples, max 0.2% (run 1). Max 0.6% (run 2) | Under 0.1% |
+
+The pill is the one point over 100 MB, so Phase 1's memory criterion fails at its peak.
+
+- **The cause.** The pill's spinner is upstream's `progress.indicator` with a repeating
+  `variableColor` symbol effect. `MessageHUDView` chose it because a `ProgressView` ignores tint.
+  Step 8's probe measured it at 53 MB, 46 MB of it graphics memory, while it is on screen. Added to
+  the open palette's 47 to 50 MB, that crosses 100 MB for the 0.2 s a lookup takes.
+- **The leak fix holds.** Memory now falls back within a second, where before it stayed.
+- **Two possible fixes, neither made yet:**
+  - Show the lookup's pill only once the lookup has run past a short delay. This is fork code.
+  - Draw the spinner without the symbol effect. This changes upstream's file and the pill's look.
+
+## Phase 1 step 9: upstream merge (2026-11-13)
+
+The routine in `RISKS_AND_DECISIONS.md` section 4, with `rerere.enabled`.
+
+**Fetch.** `upstream` was fetched with its tags. `main` was fast-forwarded from `ede02bf3` to
+`6fa8ba12` and pushed.
+
+**Newest stable tag: nothing to merge.** It is still `v0.12.11`, which `universal-launcher`
+already contains. Upstream has tagged only betas since (`v0.12.12-beta.139` to
+`v0.12.15-beta.142`), and D11 merges stable tags only.
+
+### Trial merge of `upstream/main`
+
+`6fa8ba12` (eight commits) was merged on `scratch/trial-merge-p1`, in a separate worktree. The
+branch was deleted afterwards.
+
+- **Conflicts.** One, in the generated `project.pbxproj`. The routine resolves it by taking
+  upstream's copy and running `xcodegen generate`, which took about a minute. `project.yml`,
+  `AppIndex.swift`, `Localizable.xcstrings` and `run-tests.sh` merged on their own.
+- **The fork's lines.** Every ledger line survived.
+- **Checks:**
+  - Debug build with no warnings (83 s).
+  - 118 of 118 harnesses pass.
+  - Lint clean, with the same 78 warnings as `universal-launcher`.
+  - The Model purity search finds nothing.
+  - The first harness run died with "No space left on device": the data volume had 376 MB free. It
+    passed after the trial build was deleted.
+- **Hosts and entitlements.** No new outbound host in app code; the only new URLs are github.com
+  links in templates and a plist DTD. No new entitlement or usage string.
+- **Not run:** the hands-on checklist, since nothing was merged.
+
+### What the next stable tag brings
+
+Upstream moved to the bundle id `com.abueammar.tinycast` (#1910, #1912).
+
+- **Spotcast (Release) is untouched.** It keeps `io.github.guysabban.spotcast`.
+  - `ReleaseChannel` still treats it as a development build, so it is never offered upstream's
+    release.
+  - `BundleIdentifierMigration` runs only for an id under `com.abueammar.tinycast`, so Spotcast never
+    moves or repoints the installed Tinycast's data.
+- **The Dev build moves.** It becomes `com.abueammar.tinycast.dev`, and the migration moves its
+  preferences and folders from `com.tinycast.app.dev`. Expect macOS to ask for its permissions again,
+  since TCC grants are kept per bundle id.
+- **The handoff target must never ship from the fork.** `TINYCAST_LEGACY_BUNDLE_IDENTIFIER` stays
+  `com.tinycast.app` in the fork's Release, and only the `TinycastHandoff` target uses it. Only
+  upstream's release workflow builds that target, and Actions are off on the fork. Shipping it would
+  put upstream's old id inside Spotcast.
+- **One ledger note goes stale.** `AppIndex.ownBundlePrefix` becomes `com.abueammar.tinycast`. The
+  fork's added `bundleID != Bundle.main.bundleIdentifier` filter is still what keeps Spotcast out of
+  its own Suggestions, but the ledger's note on the prefix needs rewording then.
+
 ## Repository
 
 On 2026-11-13 the clone was arranged as `RISKS_AND_DECISIONS.md` section 4 describes. `upstream` is
 `abue-ammar/tinycast`, with its push URL set to an invalid value so a push cannot reach it. `origin`
 is `guysabban/tinycast`. Actions are disabled on the fork. `main` was fast-forwarded to
-`upstream/main` (`ede02bf3`), and `main` and `universal-launcher` are pushed to `origin`.
+`upstream/main` (`ede02bf3`, then `6fa8ba12` in Phase 1 step 9), and `main` and
+`universal-launcher` are pushed to `origin`.
