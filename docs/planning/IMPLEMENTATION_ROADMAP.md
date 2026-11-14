@@ -6,8 +6,8 @@ to D15), the repository layout and the merge routine are in `RISKS_AND_DECISIONS
 
 Phases U1 to U5 extend the installer beyond Homebrew. They follow the Order bullet below, not their
 place in this file. Their design, threats T14 to T21 and decisions D16 to D31 are in
-`UNIVERSAL_INSTALL.md`. They are a plan under review: none starts before the owner approves that
-document (D28).
+`UNIVERSAL_INSTALL.md`. The owner approved the start on 2026-11-14 by settling D28, together with
+D16, D29 and D30.
 
 ## How to read the estimates
 
@@ -364,8 +364,9 @@ The design is `UNIVERSAL_INSTALL.md`; section and row numbers below refer to it.
 - **The regression check for the Homebrew flow** is the Install list in `MVP_SCOPE.md`, run with
   Homebrew present. It is run in U1 step 5 and after every later phase, and must not change. Its
   line about Homebrew being absent is replaced by U2's acceptance.
-- U1 to U4 are planned on the recommended outcomes of D16, D17, D18, D22, D23, D24, D26 and D29. The
-  owner confirms them with D28. A different choice is re-estimated before the phase that uses it.
+- **Decisions.** D16, D28, D29 and D30 were settled on 2026-11-14 and the phases below follow
+  them. U1 to U4 are otherwise planned on the recommended outcomes of D17, D18, D22, D23, D24 and
+  D26. A different choice is re-estimated before the phase that uses it.
 - Every phase that adds a Swift file regenerates `Tinycast.xcodeproj/project.pbxproj` with
   `xcodegen generate`.
 
@@ -492,13 +493,15 @@ a zip cask, and one whose checksum is `no_check`.
    machine. If it is absent there, attach with `hdiutil` under an availability check on 26 only.
 5. **Inspector and placer**, with a `PackageInstall.inspect` signpost around the check. A scratch
    bundle signed ad hoc must fail; a scratch "Applications" folder stands in for the real one.
-6. **Pins and settings.** `PublisherPinStore`; the unknown-publisher switch under a raw key (D16);
-   buttons that forget one remembered publisher or all of them; the section's title, header and
-   sentence about what leaves the Mac (section 3.6).
+6. **Pins and settings.** `PublisherPinStore`; the unknown-publisher switch as the raw key
+   `packageInstallAllowsUnknownPublishers`, with no row in Settings (D16); buttons that forget one
+   remembered publisher or all of them; the section's title, header and sentence about what leaves
+   the Mac (section 3.6).
 7. **Coordinator.** The native path where the flow shows the Homebrew setup dialog today, kept as a
    second button; a recorded address on the no-match card; the card for a pasted address; consent,
    download with progress lines in the output window, checks, the approval for each class, Keep
-   Download, placement, rescan; `lastRun` as an `InstallSource`.
+   Download, placement, rescan; `lastRun` as an `InstallSource`. A checksum-matched app gets one
+   dialog and a completion message that names the signer (D29).
 8. **Strings**, eight languages, `./Scripts/sync-strings.sh`.
 9. **Checks.**
 10. **Hands-on run.**
@@ -513,7 +516,7 @@ a zip cask, and one whose checksum is `no_check`.
 
 - **Translocation.** A quarantined app copied by the launcher may run from a randomised path, which
   stops some apps from updating themselves. Row 1 measures it; D17's recommendation is to leave
-  macOS's behaviour alone and say so in the approval.
+  macOS's behaviour alone and say so in the approval or the completion message.
 - **`diskutil image attach` on macOS 26.** It is the current tool on 27, where `hdiutil` is
   deprecated. Step 4 checks 26.
 - **Disk space.** This Mac has run below 1 GB free. The downloader checks free space before it
@@ -528,18 +531,18 @@ a zip cask, and one whose checksum is `no_check`.
 
 | Harness | Compiles | Covers |
 | --- | --- | --- |
-| `PackageInstallTests` (extended) | As today | The record's new fields on the fixtures; every new plan outcome; `ArtifactKind` on byte fixtures; each `ZipDirectory` danger; `StagedContents` for one app, two apps, a package, and an `Applications` shortcut; `DownloadApproval` for every class with and without the switch: Install is the default only when anchored, and a first seen dialog never defaults to Install or to a page |
+| `PackageInstallTests` (extended) | As today | The record's new fields on the fixtures; every new plan outcome; `ArtifactKind` on byte fixtures; each `ZipDirectory` danger; `StagedContents` for one app, two apps, a package, and an `Applications` shortcut; `DownloadApproval` for every class with and without the switch: after a check, Install is the default only when anchored; a first seen dialog never defaults to Install or to a page; before a download, only the one dialog of a plain app cask with a checksum defaults to Install; an app's checksum match needs no second dialog; the completion message names the signer and lists what the app declares |
 | `PackageDownloadTests` (new) | The model sources as `PackageInstallTests` lists them, the new services, and upstream's `ToolRunner.swift`, `BundleSignature.swift` and `Quarantine.swift` | Downloader through the stub: a redirect chain followed and recorded, an `http` hop refused, six redirects refused, the cap, a non-200 status, the hash of known bytes, quarantine set on the file, cancel leaving nothing behind. Disk image: build, attach, choose, detach; a licence image is never opened unless its hash matches a cask checksum; an encrypted one refused. Zip: expand; a link that leaves the tree refused. Inspector: ad hoc, unsigned and tampered bundles refused; the declarations read from a scratch `Info.plist`. Placer: an occupied target, a changed hash and a missing quarantine flag each refused. |
-| `PackageInstallCoordinatorTests` (extended) | As today, plus the new sources and stand-ins for the new collaborators | Homebrew missing and a plain cask gives the consent, then the approval; a recorded address gives the same from the no-match card; a pasted address downloads and then asks; Keep Download moves the file and installs nothing; Stop deletes the staging folder; a pasted package is refused as not supported yet; the card's Return contacts only the stub's Homebrew host |
+| `PackageInstallCoordinatorTests` (extended) | As today, plus the new sources and stand-ins for the new collaborators | Homebrew missing and a plain cask with a checksum gives one dialog and then installs; one without a checksum gives the consent, then the approval; a recorded address gives the same two from the no-match card; a pasted address downloads and then asks; Keep Download moves the file and installs nothing; a checksum-matched install writes one pin, with the signer the completion message names, and a refused or stopped one writes none; a checksum-matched licence image gets its own dialog and is never placed; Stop deletes the staging folder; a pasted package is refused as not supported yet; the card's Return contacts only the stub's Homebrew host |
 
 No harness can hold a real notarized app, so the passing case of the signature gate is covered by
 the hands-on run.
 
 ### Acceptance
 
-- With Homebrew hidden, `install rectangle` shows the consent, then the approval with the signer,
-  and installs Rectangle. The download's hash equals the cask's, the installed app carries the
-  quarantine attribute, and typing its name finds it without a relaunch.
+- With Homebrew hidden, `install rectangle` shows one dialog and installs Rectangle, and the
+  completion message names the signer (D29). The download's hash equals the cask's, the installed
+  app carries the quarantine attribute, and typing its name finds it without a relaunch.
 - With Homebrew hidden, a cask with no checksum whose publisher is not on record ends in the first
   seen dialog, not an install.
 - With Homebrew present, the Install list in `MVP_SCOPE.md` passes unchanged, and the `brew`
@@ -547,7 +550,7 @@ the hands-on run.
 - A pasted address for an app with a recorded publisher installs after its approval. For an app
   without one, the dialog says the publisher is unknown, its default is Cancel, and Keep Download
   leaves the checked file in `~/Downloads`, still quarantined. With the switch off there is no
-  Install Anyway.
+  Install Anyway, and Settings has no row for the switch (D16).
 - An unsigned app, a zip with an escaping link, an image with two apps and an `http` hop are each
   refused with their own message, and the staging folder is gone. An app that is signed but not
   notarized is refused too: by a real download if step 10 finds one, otherwise shown through a
@@ -587,7 +590,7 @@ order.
 | New files | `AppStoreListing`, `AppStoreAPI`, `AppStoreArrivalMonitor`, `Tests/AppStoreTests.swift`, three captured search replies | `PackageSummary`, `PackageSignature`, `PackageInspector`, `InstallerHandoff`, `Tests/PackageInspectionTests.swift`, captured `Distribution`, `PackageInfo`, `pkgutil` and `spctl` output |
 | Steps | Model against captured replies. The search service behind a stub, with a `PackageInstall.storeLookup` signpost. The no-match card, the listing dialog with up to three choices, Open in App Store. The monitor and the Store signature check. One more button on the "moved to the Mac App Store" notice. A hands-on run that settles rows 14 to 17: a free app never obtained, a paid app, and the Store signed out. | A hands-on run first, to capture real output (rows 18 and 19). Model against the captured files. The inspector on scratch packages from `pkgbuild`. The package dialog and the hand-off, with the hash compared just before it. The receipt check afterwards. |
 | Main risk | Name search misses real apps ("xcode" does not return Xcode) and ranks copycats, so nothing is chosen without an exact name match. The storefront may be wrong (row 14). | The signature can only be read from two tools' text output. The Team ID is taken from the end of the leaf's line, both tools must agree, and whatever does not parse is refused. |
-| Tests | `AppStoreTests`: decoding; the exact-match rule; a copycat never auto-chosen; free and paid; a reply edited to need macOS 99 is stopped with the reason; the link's form; an ID that is not digits rejected. The service through a stub. Coordinator: Return on no match sends one request, to Apple's host only; a new flow stops the monitor. | `PackageInspectionTests`: flags from each fixture; a legal name that contains a parenthesised ten-character group does not fool the parser; the two tools disagreeing is a refusal; an unsigned scratch package refused; captured output edited to drop the notarization line refused; a first seen package offers no Open Installer; no `installer` or `sudo` process ever started. |
+| Tests | `AppStoreTests`: decoding; the exact-match rule; a copycat never auto-chosen; free and paid; a reply edited to need macOS 99 is stopped with the reason; the link's form; an ID that is not digits rejected. The service through a stub. Coordinator: Return on no match sends one request, to Apple's host only; a new flow stops the monitor. | `PackageInspectionTests`: flags from each fixture; a legal name that contains a parenthesised ten-character group does not fool the parser; the two tools disagreeing is a refusal; an unsigned scratch package refused; captured output edited to drop the notarization line refused; a package cask whose bytes match the checksum still gets the consent and then the package dialog; a first seen package offers no Open Installer; no `installer` or `sudo` process ever started. |
 | Acceptance | Return to the listing dialog in under 1.5 s at the median. Open in App Store lands on the product page. After the user clicks Get, the launcher confirms within 10 s of the app appearing, having checked the Store signature and the bundle identifier. A paid app shows its price and nothing attempts to buy it. | With Homebrew hidden, `install zoom` shows the signer, Team ID, identifiers, locations and the scripts line, and Open Installer opens Installer on the package. After it finishes, the launcher confirms from the receipt. An unsigned package is refused. With Homebrew present, package casks behave as today. |
 | Hours | 26–54 | 28–58 |
 

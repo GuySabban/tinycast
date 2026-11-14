@@ -3,8 +3,9 @@
 How the launcher installs an app that Homebrew lacks, or installs a Homebrew app on a Mac without
 Homebrew, without weakening the installer that already works.
 
-- **Status:** a plan for review. No source file has changed. The working Homebrew flow is not
-  touched until this is approved.
+- **Status:** approved to start. On 2026-11-14 the owner settled D16, D28, D29 and D30 (section 8).
+  The other decisions stand on their recommendations until he changes them. No source file has
+  changed yet.
 - **Basis:** the fork at `9e5fc31b`, and six research passes on 2026-11-13: the installer's source,
   the AI layer, the Mac App Store, macOS's own tools on this Mac (macOS 27.2), Homebrew's and
   Installomator's sources and data, and a red-team review of the first trust design. Four reviewers
@@ -15,7 +16,7 @@ Homebrew, without weakening the installer that already works.
 - **Related documents:** the installer this extends is `PROPOSED_ARCHITECTURE.md` section 4, its
   measured behaviour is in `BASELINE.md`, and the phases, steps and hours are in
   `IMPLEMENTATION_ROADMAP.md` (phases U1 to U5). Threats T14 to T21 and decisions D16 to D31 below
-  continue the numbering of `RISKS_AND_DECISIONS.md` and move there once this plan is approved.
+  continue the numbering of `RISKS_AND_DECISIONS.md` and move there in U1 step 1.
 
 ## 1. The plan in brief
 
@@ -39,7 +40,8 @@ supplies a link, a command, a path or a script.
 | The app is… | What happens | Returns |
 | --- | --- | --- |
 | A Homebrew cask, Homebrew installed | Today's flow, unchanged | 1 |
-| A plain app cask in a disk image or zip, no Homebrew (3,049 casks; 364 have no checksum) | Downloaded and checked, against Homebrew's checksum where it has one. The result is shown, then installed natively. | 2 |
+| A plain app cask with a checksum, no Homebrew (2,685 casks) | Approved once, downloaded, checked against Homebrew's checksum and installed natively. The completion message names the signer. | 1 |
+| A plain app cask with no checksum, no Homebrew (364 casks) | Downloaded and checked. The signer is shown. Installed if the publisher is on record or pinned; otherwise as "publisher unknown" below. | 2 |
 | A package cask, no Homebrew (up to 657 casks) | Downloaded, checked, described, opened in Installer. The user finishes there. | 2, then Installer |
 | Any other cask, no Homebrew | Today's Homebrew setup dialog | – |
 | On the Mac App Store | The Store opens on the product. The user clicks Get. The launcher confirms it arrived. | 1, then the Store |
@@ -61,8 +63,8 @@ publishes it. It stops short of placing the app, not of obtaining it. Section 2 
 last step cannot be automated honestly.
 
 Two limits apply to friends in particular. Discovery needs a web search key, so without one only
-the catalogue sources work (D30). And the unknown-publisher switch is off unless its owner turns it
-on (D16).
+the catalogue sources work (D30). And the unknown-publisher switch is the owner's: it is off, and
+it has no place in Settings (D16).
 
 ### Terms
 
@@ -116,7 +118,7 @@ Every download ends in exactly one class, decided by a pure function
 
 | Class | When | What the user gets |
 | --- | --- | --- |
-| **Anchored** | Every gate passes; the bytes match the cask's checksum, or the Team ID is the recorded publisher's, or it is the pinned one; and no anchor disagrees | Install is the default button |
+| **Anchored** | Every gate passes; the bytes match the cask's checksum, or the Team ID is the recorded publisher's, or it is the pinned one; and no anchor disagrees | An app whose bytes match the checksum is installed with no second dialog (D29). Otherwise Install is the default button. |
 | **First seen** | Every gate passes, no anchor exists, and none disagrees | The dialog says the publisher is unknown and shows the signer's legal name and Team ID. Cancel is the default. The user can keep the checked download or open the page it came from. Install Anyway exists only when the owner's switch is on (D16). |
 | **Refused** | A gate fails; or any anchor names a different Team ID; or a checksum is present and differs | No install button, and the file is deleted. A publisher conflict offers no page. |
 
@@ -339,7 +341,7 @@ flowchart TD
     A[Return on the install card] --> B{Card state}
     B -->|a cask matched| C{Homebrew installed?}
     C -->|yes| C1[Today's flow, unchanged]
-    C -->|no, plain app or package cask| D[Consent: the record's facts, Download and Check]
+    C -->|no, plain app or package cask| D[Dialog: the record's facts]
     C -->|no, anything else| C2[Today's Homebrew setup dialog]
     B -->|a pasted https address| J
     B -->|no cask matched| F{Publisher list has an address for this name?}
@@ -354,29 +356,37 @@ flowchart TD
     J --> K[Gates 1 to 5 on the staged copy]
     K -->|a gate fails| R[Refused, with the reason; the file is deleted]
     K --> L{Anchor comparison}
-    L -->|an anchor disagrees| R
-    L -->|anchored| N[Approval: what the bytes say; Install is the default]
+    L -->|the checksum differs, or an anchor disagrees| R
+    L -->|an app whose bytes match the cask's checksum| M
+    K -->|a licence image, checksum matches| X[Dialog: cannot be checked; Open in Finder]
+    L -->|anchored otherwise| N[Approval: what the bytes say; Install is the default]
     L -->|first seen| O[Approval: publisher unknown; Cancel is the default]
-    N -->|app| M[Place, re-check, rescan, confirm]
+    N -->|app| M[Place, re-check, rescan, pin, confirm with the signer]
     N -->|package| P[Open in Installer]
     O -->|Keep Download| O1[The checked file moves to Downloads, still quarantined]
     O -->|Install Anyway, owner's switch, apps only| M
 ```
 
-Four rules shape it.
+Five rules shape it.
 
-- **Every native install has two moments.** Before the download, a consent that shows what a
-  catalogue says, or for a pasted address the card itself. After the check, an approval that shows
-  what the bytes say: the signer, the class, where it installs and what it needs. Nothing is
-  installed, and Installer is never opened, before that approval. Nothing is fetched after it.
+- **A native install has two moments, with one exception.** Before the download, a consent that
+  shows what a catalogue says, or for a pasted address the card itself. After the check, an approval
+  that shows what the bytes say: the signer, the class, where it installs and what it needs. Nothing
+  is fetched after it.
+- **The exception (D29).** For a plain app cask with a checksum, the first dialog is the approval.
+  The app is installed as soon as the bytes match the checksum and every gate passes, and the
+  completion message names the signer and what the app declares. The checksum fixed the bytes before
+  they were fetched, so what was approved cannot differ from what is installed. A mismatch, a failed
+  gate or a disagreeing anchor still refuses, with no install and no pin. Two cases leave the
+  exception. A package always gets the consent and then its own dialog, because that is the only
+  place its scripts and background items are listed. A disk image with a licence agreement cannot be
+  checked inside, so it gets its own dialog after the download (section 5.3).
 - **The first Return contacts only Homebrew and Apple.** A vendor's server is contacted only after
-  the consent. A web search and a visit to an unknown site happen only after a further, labelled
-  choice (D30).
+  that first dialog. A web search and a visit to an unknown site happen only after a further,
+  labelled choice (D30).
 - **A failure never becomes a silent fallback.** A refused download does not quietly try the next
   source. In discovery, the refusal offers "Try Next Result" and waits.
 - **Homebrew's own flow keeps its single approval.** It is unchanged.
-
-Whether the second moment may be skipped when the bytes match Homebrew's checksum is D29.
 
 ## 5. Components and interfaces
 
@@ -581,9 +591,14 @@ enum DownloadApproval {
         let buttons: [Button]
         let defaultIndex: Int
     }
-    static func consent(for offer: DownloadOffer, record: CaskRecord?) -> Dialog
+    /// The one dialog of a plain app cask with a checksum (D29), or the consent before any other
+    /// download, a package cask included.
+    static func beforeDownload(for offer: DownloadOffer, record: CaskRecord?) -> Dialog
+    /// Nil only when an app's bytes matched the cask's checksum: no second dialog is needed.
     static func approval(_ evidence: ArtifactEvidence, trust: SourceTrust, offer: DownloadOffer,
-        allowsUnknownPublishers: Bool) -> Dialog
+        allowsUnknownPublishers: Bool) -> Dialog?
+    /// Names the signer, then what the app declares.
+    static func completion(_ evidence: ArtifactEvidence, declares: [String]) -> String
 }
 ```
 
@@ -673,9 +688,11 @@ Details that the sketches do not show:
   of the app inside. `DiskImageTrailer` reads the image's trailer before mounting. An encrypted
   image is refused, and so is one with more than one volume.
 - **A disk image with a licence agreement** cannot be attached without accepting it, so its contents
-  cannot be checked. If its bytes match a cask checksum, it is handed to Finder, which shows the
-  agreement itself. Otherwise it is refused, with the reason. The launcher never strips or
-  auto-accepts an agreement (D22).
+  cannot be checked. If its bytes do not match a cask checksum, it is refused, with the reason. If
+  they do, the launcher asks in its own dialog: the image has a licence agreement, the app inside
+  could not be checked, open it in Finder? The buttons are Open in Finder and Cancel, which is the
+  default. Finder then shows the agreement itself. Nothing is placed and no pin is written. The
+  launcher never strips or auto-accepts an agreement (D22).
 - **Zips.** `ZipDirectory` bounds the entry count and total size first. `ditto -x -k` then expands
   into a new private folder. On this Mac it kept `../` entries inside the target, but it restores
   symbolic links faithfully, so the expanded tree is walked with `lstat` and refused if it holds an
@@ -688,42 +705,61 @@ Details that the sketches do not show:
 - **Keep Download.** For a First seen result, the checked file can be moved, still quarantined, to
   `~/Downloads` and shown in Finder. The user then opens it as they would a browser download, and
   Gatekeeper checks it as usual. Nothing is placed in `/Applications`.
-- **After placing.** The existing rescan and confirmation run. A pin is written only after an
-  approval that showed the signer.
+- **After placing.** The existing rescan and confirmation run, and the confirmation names the
+  signer. A pin is written after an approval that showed the signer, or after a checksum-matched
+  install, with the signer its completion message names. A refused or stopped install writes none.
 - **Updates.** Nothing updates an app the launcher installed natively unless the app updates itself.
   About half of the plain casks do (1,586 of 3,166 are marked `auto_updates`). The approval says
-  which is the case.
+  which is the case, and so does the one dialog of a checksum cask.
 - **Packages before U4.** A pasted package, or an image holding only a package, is refused in U2
   with "Installer packages are not supported yet".
 
 ### 5.4 The dialogs
 
 One plain message each, as `DialogView` draws them. Every value comes from a catalogue record, the
-checked bytes, or the recorded transfer (the hosts). None comes from page text. The Blender and
+checked bytes, or the recorded transfer (the hosts). None comes from page text. The Rectangle and
 Obsidian values below are real; "Example" names are invented for illustration.
 
-**Consent**, before the download, for a cask on a Mac without Homebrew:
+**The one dialog** for a plain app cask with a checksum, on a Mac without Homebrew (D29):
 
 ```text
-Download Blender to check it?
+Install Rectangle?
 
-Blender 5.3.0 · 3D creation suite
-Source: blender.org, listed by Homebrew as "blender"
-Download from: download.blender.org
-Will be checked against: Homebrew's SHA-256
+Rectangle 2.0.4 · Move and resize windows using keyboard shortcuts or snap areas
+Source: rectangleapp.com, listed by Homebrew as "rectangle"
+Download from: github.com
+Installed only if it matches Homebrew's SHA-256 and passes the signature checks.
+Installs to: /Applications/Rectangle.app, nothing replaced
+Needs: no password. Updates itself. macOS checks the app when you first open it.
+```
+
+Buttons: Install (default), Set Up Homebrew Instead, Cancel. When the install finishes, the message
+and the output window's last line take the form "<App> is installed. Signed by <legal name> (<Team
+ID>).", followed by the app's "May ask for" and "Adds" lines, and a note if the app will run from a
+randomised path (D17).
+
+**Consent**, before any other download. For a cask with no checksum, or any package cask:
+
+```text
+Download Example Notes to check it?
+
+Example Notes 1.2.0 · Notes in plain text
+Source: example.com, listed by Homebrew as "example-notes"
+Download from: dl.example.com
+Homebrew publishes no checksum for it, so the signer decides.
 Nothing is installed until you approve the result.
 ```
 
-Buttons: Download and Check, Set Up Homebrew Instead, Cancel. For a cask with no checksum the fourth
-line reads "Homebrew publishes no checksum for it, so the signer decides". For a recorded address
-the source line reads "from the publisher list (Installomator)".
+Buttons: Download and Check, Set Up Homebrew Instead, Cancel. For a recorded address the source
+line reads "from the publisher list (Installomator)".
 
-**Approval**, after the check, anchored:
+**Approval**, after the check, anchored by its publisher. Here the download came from a recorded
+address:
 
 ```text
 Install Obsidian?
 
-The download matches Homebrew's checksum for "obsidian".
+Signed by the publisher on record for Obsidian (Installomator's list).
 Signed by: Dynalist Inc. (6JSW4SJWN9), notarized by Apple
 md.obsidian 1.15.1, Apple silicon
 Downloaded from: release-assets.githubusercontent.com, via github.com
@@ -732,9 +768,8 @@ Needs: no password. May ask for: automation, audio capture, Bluetooth, calendars
 Updates itself. macOS checks the app when you first open it.
 ```
 
-Buttons: Install (default), Cancel. The second line names the anchor: the checksum, "Signed by the
-publisher on record for Obsidian (Installomator's list)", or "The same publisher as your install on
-2 November".
+Buttons: Install (default), Cancel. The second line names the anchor: the recorded publisher, or
+"The same publisher as your install on 2 November".
 
 **Approval**, first seen:
 
@@ -749,8 +784,9 @@ Would install to: /Applications/Example Notes.app, nothing replaced
 May ask for: screen recording. Adds: a login item.
 ```
 
-Buttons, in order: Install Anyway (only with the owner's switch), Keep Download, Open example.com,
-Cancel (default). The page button names the host. For a pasted address there is no page button.
+Buttons, in order: Install Anyway (only with the owner's hidden switch, D16), Keep Download, Open
+example.com, Cancel (default). The page button names the host. For a pasted address there is no
+page button.
 
 **Refused** for a publisher conflict:
 
@@ -766,8 +802,10 @@ The file was deleted.
 The table holds Team IDs, not legal names, so only the downloaded signer has a name here. In
 discovery the buttons are Try Next Result and OK; otherwise one button. No page is offered.
 
-`DownloadApproval` returns the buttons and the default for a class, so a harness can pin "Install is
-the default only when anchored" and "a first seen dialog never defaults to Install or to a page".
+`DownloadApproval` returns the buttons and the default, so a harness can pin three things. After a
+check, Install is the default only when anchored. A first seen dialog never defaults to Install or
+to a page. Before a download, only the one dialog of a plain app cask with a checksum defaults to
+Install.
 
 The "May ask for" and "Adds" lines list what the app itself declares. They are not a promise about
 what it does.
@@ -873,7 +911,8 @@ A package can run scripts as administrator, so it gets the most caution and the 
 An unsigned or un-notarized package is refused. That is stricter than Homebrew, which installs
 unsigned packages.
 
-**The package dialog** is shown after the checks, for every package, from `PackageSummary`:
+**The package dialog** is shown after the checks, for every package, from `PackageSummary`. D29's
+exception does not apply to packages:
 
 ```text
 Open the Example Tools installer?
@@ -1119,9 +1158,9 @@ friends have.
 3. Plain-text mode ("answer with only the number", parsed as digits) works through upstream's runner
    as it stands. Turning the owner's hooks off for that call does not: it needs new runner
    arguments, which is an edit under `Features/AI` that this plan avoids in every phase.
-4. A Claude turn started by the app appears to load the owner's own `~/.claude` hooks, so untrusted
-   page text would reach them. This is read from the CLI's documentation and the app's arguments and
-   has not been run (section 10, row 24). It also applies to Quick AI today.
+4. A Claude turn started by the app runs the owner's own `~/.claude` hooks and loads his
+   `CLAUDE.md`, so untrusted page text would reach them. Measured on 2026-11-14 (section 10, row
+   24). It applies to Quick AI today, whenever the Claude route is enabled.
 
 If it is wanted later, the conditions are: an explicit owner setting; only search titles and hosts
 are sent; no tools and no hooks; the reply is parsed as digits and checked against the list.
@@ -1211,19 +1250,19 @@ In the form of `RISKS_AND_DECISIONS.md` section 1.
 | T14 | An impostor download: a fake site, a poisoned search result, a pasted phishing link | Classes and gates of section 2. Host, address and rank are never inputs. U1 for the rules, U2 for the gates. |
 | T15 | Notarized malware | Notarization is a gate that adds no trust; anchors, online revocation, quarantine kept, pins. U2. |
 | T16 | A redirect to a hostile or abandoned host | `HopPolicy` for transport; the class ignores the host and the address. U1 and U2. |
-| T17 | Hostile contents: zip paths and links, a disk image's shortcuts, a licence image that cannot be inspected, an Apple look-alike bundle, a package's scripts | Shape rules; an uninspected image is never opened for the user; nothing from a download is ever run; packages go to Installer with a listing, and only when anchored. U2 and U4. |
+| T17 | Hostile contents: zip paths and links, a disk image's shortcuts, a licence image that cannot be inspected, an Apple look-alike bundle, a package's scripts | Shape rules; an uninspected image is opened for the user only when its bytes match a cask checksum, and only after its own dialog; nothing from a download is ever run; packages go to Installer with a listing, and only when anchored. U2 and U4. |
 | T18 | Text on a page steering the model | Section 6.4. U5. |
-| T19 | Discovery reveals what the user is looking for | The first Return contacts Homebrew and Apple only. A vendor is contacted after a consent. A web search and site visits need a further, labelled choice. Pages are read with no cookies. The model is on-device. U2, U3 and U5. |
+| T19 | Discovery reveals what the user is looking for | The first Return contacts Homebrew and Apple only. A vendor is contacted only after the first dialog. A web search and site visits need a further, labelled choice. Pages are read with no cookies. The model is on-device. U2, U3 and U5. |
 | T20 | A poisoned publisher table or pin store | The table is generated from a pinned commit as text, with changed Team IDs printed for review. Pins grant trust, so they stay out of backups and `settings.json`. U1 and U2. |
-| T21 | The file changes between the check and the install | One staged copy; every approval follows the check; an app's seal hash is compared again after the move, and a package's SHA-256 immediately before Installer opens it. U2 and U4. |
+| T21 | The file changes between the check and the install | One staged copy; an approval either follows the check or rests on a checksum that fixed the bytes beforehand; an app's seal hash is compared again after the move, and a package's SHA-256 immediately before Installer opens it. U2 and U4. |
 
 Amended, not new:
 
 - **T1** changes when U5 ships (section 6.4).
-- **T3** gains a second, native path for casks, and the approval names what the download was checked
+- **T3** gains a second, native path for casks, and the dialog names what the download is checked
   against.
 - **T7** gains destinations: Apple's search API on the first Return; a vendor's server after the
-  consent; Exa and vendor sites on the discovery choice.
+  first dialog; Exa and vendor sites on the discovery choice.
 - **T9**: no password is ever relayed. One is typed only into Terminal or into macOS's own Installer
   dialog.
 - **T11**: Stop deletes the launcher's own staging folder, and an install renames a bundle into
@@ -1231,13 +1270,14 @@ Amended, not new:
 
 ## 8. Decisions
 
-Each has a recommendation. D28 blocks the start. The roadmap's phases are planned on the
-recommended outcomes; a different choice is re-estimated before the phase that uses it.
+The owner settled D16, D28, D29 and D30 on 2026-11-14, so the phases can start. Each other
+decision has a recommendation, and the roadmap's phases are planned on it; a different choice is
+re-estimated before the phase that uses it.
 
 | # | Decision | Alternatives | Recommendation |
 | --- | --- | --- | --- |
-| D16 | Installing an app whose publisher is unknown | Never in-app; behind an owner's switch that is off by default | The switch, off by default, under a raw key outside backups. Turn it on for the owner's Mac once U2's run has settled rows 1 to 3 of section 10 and row 25 is answered. Friends keep it off. Packages are never covered. |
-| D17 | The quarantine bit that stops app translocation | Leave it unset; set bit `0x0100` as Homebrew does, through an undocumented attribute format | Leave it unset. Translocation is a macOS protection, and the brief says to preserve those. Run row 1 first. If an app then cannot update itself, say so in the approval. Matching Homebrew is an exception the owner would have to approve by name. |
+| D16 | Installing an app whose publisher is unknown | Never in-app; behind an owner's switch that is off by default | **Settled 2026-11-14:** keep the switch, for the owner only, off by default. To keep it the owner's, it has no row in Settings: it is the raw key `packageInstallAllowsUnknownPublishers`, set with `defaults write` on the build's own bundle identifier, outside backups and `settings.json`. It is hidden, not locked: anyone who knows the key can set it. Before turning it on, settle rows 1 to 3 of section 10 and answer row 25. Packages are never covered. |
+| D17 | The quarantine bit that stops app translocation | Leave it unset; set bit `0x0100` as Homebrew does, through an undocumented attribute format | Leave it unset. Translocation is a macOS protection, and the brief says to preserve those. Run row 1 first. If an app then cannot update itself, say so in the approval, or for a checksum-matched app in the completion message. Matching Homebrew is an exception the owner would have to approve by name. |
 | D18 | mas | Never; a Terminal hand-off when mas is installed | Never, in the first version. It needs root, depends on private frameworks, works around a restriction Apple added on purpose, and cannot buy. |
 | D19 | The model for discovery | On-device only; also the Claude route | On-device only (section 6.3) |
 | D20 | Who reads the vendor's page | The launcher; Exa's contents API | The launcher. Exa's terms then never touch what is kept, and whether Exa's link lists come from a rendered page is not documented. |
@@ -1248,9 +1288,9 @@ recommended outcomes; a different choice is re-estimated before the phase that u
 | D25 | Sources for the publisher table | Installomator only; AutoPkg recipes too | Installomator first. Add AutoPkg if more than a fifth of the 50 names in the install harness miss the table. |
 | D26 | How the Store is shown | Open the App Store app; an in-app Store sheet (`SKStoreProductViewController`) | Open the App Store. The sheet is system-drawn inside the launcher, and whether it works outside a Store app is not known. |
 | D27 | Order | See the roadmap's Order bullet | U1, U2, then U3 and U4 in the brief's order, with Phase 2 any time before U5 |
-| D28 | The MVP's non-goal "Installing anything that is not a Homebrew cask" | Keep it; lift it for the four additions here | The owner's call. This plan is the case for lifting it. "No AI-written install commands or download scripts" stays, and this plan depends on it. |
-| D29 | One dialog or two for a native install | Always consent, then approval; skip the approval when the bytes match Homebrew's checksum | Always two, at first. The brief asks that the publisher be shown before proceeding, and only the approval can show it. Revisit after a week of use. |
-| D30 | Web discovery after no match | Behind a further, labelled choice; automatic. And: with no search key, not offered | The labelled choice, so the first Return never reaches a site the user did not choose. The owner may make it automatic for himself under a raw key. Friends without a key get the catalogue sources only. |
+| D28 | The MVP's non-goal "Installing anything that is not a Homebrew cask" | Keep it; lift it for the four additions here | **Settled 2026-11-14:** lifted. "No AI-written install commands or download scripts" stays, and this plan depends on it. |
+| D29 | One dialog or two for a native install | Always consent, then approval; skip the approval when the bytes match Homebrew's checksum | **Settled 2026-11-14:** skip the approval when a plain app cask's bytes match Homebrew's checksum, and name the signer in the completion message. Every other app download keeps its approval after the check, and a package always keeps its own dialog. This departs from the brief's ask that the publisher be shown before proceeding: for these installs Homebrew's reviewed checksum stands in for it and the signer is shown afterwards. The owner chose this. |
+| D30 | Web discovery after no match | Behind a further, labelled choice; automatic. And: with no search key, not offered | **Settled 2026-11-14:** it stays behind its own labelled choice, with no automatic mode. Friends without a search key get the catalogue sources only. |
 | D31 | The App Store's "Install Application" shortcut action | Ignore it; investigate | Investigate in U3 (row 17). If it takes a product number, it may replace the hand-off for free apps. |
 
 ## 9. Seam budget
@@ -1302,12 +1342,12 @@ change in any phase.
 | 21 | The hidden page works in the signed, hardened build with no new entitlement | The spike | U5 |
 | 22 | A Mac on the smaller on-device model reports a usable window | Not blocking: the list is trimmed to the reported window. Check on a friend's Mac. | U5 |
 | 23 | The on-device error types compile with no deprecation warning on both macOS 26 and 27 | Build against the macOS 27 SDK with an availability check | U5 |
-| 24 | A Claude turn started by the app runs the owner's `~/.claude` hooks | Ask Quick AI one question with a hook that logs | Before any use of the Claude route |
+| 24 | A Claude turn started by the app runs the owner's `~/.claude` hooks | **Settled 2026-11-14: it does.** One Quick AI turn on the Dev build, with only the Claude route enabled, fired both of the owner's hooks (the brain hook and the menu-bar status hook) on session start, on the prompt and on stop, and the model quoted the brain hook's injected text back. The model-list and title calls fire them on session start too. From a shell, the app's exact command carried 5,216 tokens of context; with `--setting-sources ""` it carried about 750, fired no hook, loaded no `CLAUDE.md`, and kept the sign-in, the title, the model list and an MCP server working. `--safe-mode` drops the app's MCP servers, `disableAllHooks` alone still loads `CLAUDE.md`, and `--bare` loses the sign-in. Upstream leaves the user's settings in on purpose, so that their environment, proxy and `apiKeyHelper` keep working (`docs/features/mcp.md`); the flag turns those off too, and such values would move to the app's own Environment setting. A clean exclusion needs Claude Code 2.1.314 or later. The fix is proposed and not made: one shared constant under `Features/AI/Model`, used in the two Claude argument lists, one stale comment removed, one harness assertion. | Done |
 | 25 | Whether Apple refuses a Developer ID for a company name nearly identical to an existing one | Apple's documentation or developer support | Before D16's switch is turned on |
 
 ## 11. What this changes in the other planning documents
 
-Phase U1's first step applies these, once the plan is approved:
+Phase U1's first step applies these, now that D28 is settled:
 
 - `MVP_SCOPE.md`: the non-goal "Installing anything that is not a Homebrew cask" (D28); the
   definition-of-done line about Homebrew being absent, which U2 replaces; the later-work list.
@@ -1341,4 +1381,5 @@ repository.
   on KeRanger (2016).
 - **Exa.** `docs.exa.ai` search and contents references; `exa.ai/pricing`; terms section 4.2(a).
 - **Claude Code.** `claude --help` at 2.1.325; the headless and tools references at
-  `code.claude.com/docs`.
+  `code.claude.com/docs`; the changelog in `anthropics/claude-code`. Row 24 was measured on
+  2026-11-14, on the Dev build and from a shell.
