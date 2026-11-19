@@ -1,7 +1,7 @@
 import Foundation
 import Synchronization
 
-/// The coordinator over a real settings store, Keychain scope, session and provider, with Exa faked.
+/// The coordinator over a real settings store, Keychain scope, session and provider; Exa faked.
 @main
 @MainActor
 struct WebSearchCoordinatorTests {
@@ -72,7 +72,7 @@ struct WebSearchCoordinatorTests {
         init(_ value: Value) { self.value = value }
     }
 
-    /// AppCore's own wiring, against a fresh defaults suite and Keychain scope removed when the case ends.
+    /// AppCore's own wiring, over a fresh defaults suite and a Keychain scope removed afterwards.
     static func world(
         _ name: String, key: String? = "exa-key-123",
         readKey: (@MainActor (WebSearchSettingsStore) async throws -> String?)? = nil,

@@ -34,16 +34,9 @@ struct WebSearchRowView: View {
     }
 
     @ViewBuilder private var icon: some View {
-        switch row {
-        case .failure:
-            Image(systemName: "exclamationmark.triangle")
-                .resizable().scaledToFit().padding(metrics.spacing.xs)
-                .foregroundStyle(.secondary)
-        default:
-            Image(systemName: "globe")
-                .resizable().scaledToFit().padding(metrics.spacing.xs)
-                .foregroundStyle(.secondary)
-        }
+        let name = if case .failure = row { "exclamationmark.triangle" } else { "globe" }
+        SymbolImage(name: name, size: metrics.size.resultRowIcon - metrics.spacing.xs * 2, monochrome: true)
+            .foregroundStyle(.secondary)
     }
 
     @ViewBuilder private var content: some View {

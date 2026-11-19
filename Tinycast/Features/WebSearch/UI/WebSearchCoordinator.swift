@@ -1,6 +1,6 @@
 import Foundation
 
-/// The web results' action surface: the trigger, the launcher's rows, and where a row's Return goes.
+/// The web results' action surface: the trigger, the launcher's rows, and where Return goes.
 @MainActor
 final class WebSearchCoordinator {
     static let resultLimit = 5
