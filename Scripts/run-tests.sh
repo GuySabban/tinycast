@@ -958,6 +958,7 @@ run PackageInstallCoordinatorTests $L/SearchRelevance.swift $L/ScriptRomanizatio
                            Tinycast/Features/CustomCommands/Service/ShellCommandRunner.swift
 WS=Tinycast/Features/WebSearch
 run WebSearchTests         $WS/Model/*.swift $WS/Service/WebSearchProvider.swift
+run WebSearchSessionTests  $WS/Model/*.swift $WS/Service/*.swift Tinycast/Platform/Signposts.swift
 
 if [ "$emit_db" -eq 1 ]; then
     printf ']\n' >> "$DB"

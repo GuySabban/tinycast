@@ -755,8 +755,11 @@ extension WebSearchProvider {
 }
 
 struct ExaSearchProvider: WebSearchProvider {
-    init(key: String, baseURL: URL, protocolClasses: [AnyClass]? = nil)
-    func search(
+    static let base: URL  // https://api.exa.ai/
+    /// A nil `protocolClasses` shares one ephemeral, cacheless session across every provider.
+    init(key: String, baseURL: URL = base, protocolClasses: [AnyClass]? = nil)
+    /// An empty key throws `missingKey`; a blank query returns no results without a request.
+    @concurrent func search(
         _ query: String, limit: Int, options: WebSearchOptions
     ) async throws(WebSearchFailure) -> [WebSearchResult]
 }
@@ -768,10 +771,16 @@ final class WebSearchSession {
         case searching(query: String)
         case failed(query: String, WebSearchFailure)
     }
+    static let memoryLimit = 20
     private(set) var state: State = .idle
-    /// The last 20 searched queries and their results, in memory only.
+    /// The last 20 searched queries and their results, in memory only, keyed by `key(for:)`.
     private(set) var results: [String: [WebSearchResult]] = [:]
-    func search(_ query: String)
+    /// Asked for the provider on each search, so storing or removing a key applies at once.
+    init(limit: Int, provider: @escaping @MainActor () -> (any WebSearchProvider)?)
+    nonisolated static func key(for query: String) -> String  // the query, trimmed
+    func results(for query: String) -> [WebSearchResult]?
+    /// A query in memory answers from there without a request; `again` (Search Again) forces one.
+    func search(_ query: String, again: Bool = false)
     func cancel()
 }
 
