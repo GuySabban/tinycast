@@ -720,7 +720,10 @@ enum WebSearchRow: Sendable, Equatable, Identifiable {
 
 /// Phase U5 reuses the provider with other options, so they are a parameter from the start.
 struct WebSearchOptions: Sendable, Equatable {
-    enum SearchType: String, Sendable, CaseIterable { case auto, lite, fast, instant, deep }
+    enum SearchType: String, Sendable, CaseIterable {
+        case auto, lite, deep
+        case deepLite = "deep-lite"
+    }
     static let rows = WebSearchOptions()
     var searchType: SearchType = .lite
     var excludedDomains: [String] = []

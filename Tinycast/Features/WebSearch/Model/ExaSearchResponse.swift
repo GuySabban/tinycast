@@ -11,7 +11,7 @@ enum ExaSearchResponse {
         for item in items {
             guard results.count < limit else { break }
             guard let fields = item as? [String: Any], let result = result(from: fields),
-                seen.insert(result.id).inserted
+                seen.insert(sameness(of: result.url)).inserted
             else { continue }
             results.append(result)
         }
@@ -30,6 +30,18 @@ enum ExaSearchResponse {
         Date.ISO8601FormatStyle(),
         Date.ISO8601FormatStyle().year().month().day(),
     ]
+
+    /// Scheme and host case, a fragment and a bare trailing slash do not make a different page.
+    private static func sameness(of url: URL) -> String {
+        guard var parts = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return url.absoluteString
+        }
+        parts.scheme = parts.scheme?.lowercased()
+        parts.host = parts.host?.lowercased()
+        parts.fragment = nil
+        if parts.path.isEmpty { parts.path = "/" }
+        return parts.string ?? url.absoluteString
+    }
 
     private static func result(from fields: [String: Any]) -> WebSearchResult? {
         guard let link = fields["url"] as? String, let url = WebSearchResult.webLink(link) else {

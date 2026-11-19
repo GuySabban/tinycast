@@ -5,11 +5,11 @@ enum WebSearchFailure: Error, Sendable, Equatable {
     /// Not shown to the user; the session drops it.
     case cancelled
 
-    /// Nil for a success; a status the reply does not explain is the provider's fault.
+    /// Nil for a success. Exa's 403 is a blocked team or a disabled feature, not a bad key.
     init?(status: Int) {
         switch status {
         case 200...299: return nil
-        case 401, 403: self = .unauthorized
+        case 401: self = .unauthorized
         case 402: self = .outOfCredit
         case 429: self = .rateLimited
         default: self = .server

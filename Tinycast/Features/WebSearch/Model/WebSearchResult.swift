@@ -18,34 +18,64 @@ struct WebSearchResult: Sendable, Equatable, Identifiable {
     static func webLink(_ text: String) -> URL? {
         guard text.count <= urlLimit, let url = URL(string: text),
             let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
-            let host = url.host(), !host.isEmpty, url.user() == nil, url.password() == nil
+            let host = url.host(percentEncoded: false), !host.isEmpty, url.user() == nil, url.password() == nil
         else { return nil }
         return url
     }
 
+    /// Punycode, not Unicode: a look-alike letter in another alphabet stays visibly foreign.
     static func displayHost(of url: URL) -> String {
-        let host = (url.host() ?? "").lowercased()
-        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+        let host = (url.host(percentEncoded: false) ?? "").lowercased()
+        return host.hasPrefix("www.") && host.count > 4 ? String(host.dropFirst(4)) : host
     }
+
+    /// A few marks per character covers every script; thousands on one letter is a layout attack.
+    static let marksPerCharacter = 4
+    /// Bounds a single character too: one emoji sequence can chain thousands of joined scalars.
+    static let scalarsPerCharacter = 16
 
     /// Whitespace runs become one space; controls go, and so do invisible formats bar the emoji joiner.
     static func cleaned(_ text: String, limit: Int) -> String {
+        guard limit > 0 else { return "" }
+        let budget = limit * scalarsPerCharacter
         var scalars = String.UnicodeScalarView()
+        var kept = 0
+        var marks = 0
         var pendingSpace = false
+        var cutShort = false
         for scalar in text.unicodeScalars {
+            guard kept < budget else {
+                cutShort = true
+                break
+            }
             if scalar.properties.isWhitespace {
-                pendingSpace = !scalars.isEmpty
+                pendingSpace = kept > 0
+                marks = 0
                 continue
             }
             guard isVisible(scalar) else { continue }
-            if pendingSpace { scalars.append(" ") }
+            marks = isMark(scalar) ? marks + 1 : 0
+            guard marks <= marksPerCharacter else { continue }
+            if pendingSpace {
+                scalars.append(" ")
+                kept += 1
+            }
             pendingSpace = false
             scalars.append(scalar)
+            kept += 1
         }
         let flat = String(scalars)
-        guard flat.count > limit else { return flat }
-        let kept = flat.prefix(max(limit - 1, 0)).trimmingCharacters(in: .whitespaces)
-        return kept + "…"
+        guard cutShort || flat.count > limit else { return flat }
+        let room = flat.count > limit ? limit - 1 : flat.count
+        let shortened = flat.prefix(room).trimmingCharacters(in: .whitespaces)
+        return String(shortened.prefix(limit - 1)) + "…"
+    }
+
+    private static func isMark(_ scalar: Unicode.Scalar) -> Bool {
+        switch scalar.properties.generalCategory {
+        case .nonspacingMark, .spacingMark, .enclosingMark: true
+        default: false
+        }
     }
 
     private static let zeroWidthJoiner: Unicode.Scalar = "\u{200D}"

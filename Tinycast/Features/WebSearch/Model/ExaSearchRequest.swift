@@ -4,6 +4,8 @@ import Foundation
 struct ExaSearchRequest: Sendable, Equatable {
     static let timeout: TimeInterval = 10
     static let maximumResults = 100
+    /// Exa refuses a longer `excludeDomains` list outright.
+    static let maximumExcludedDomains = 1_200
 
     let query: String
     let limit: Int
@@ -41,9 +43,17 @@ struct ExaSearchRequest: Sendable, Equatable {
 
     static func excluded(_ domains: [String]) -> [String] {
         var seen = Set<String>()
-        return domains
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+        let cleaned = domains
+            .map { bareDomain($0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()) }
             .filter { !$0.isEmpty && seen.insert($0).inserted }
+        return Array(cleaned.prefix(maximumExcludedDomains))
+    }
+
+    private static func bareDomain(_ entry: String) -> String {
+        for scheme in ["https://", "http://"] where entry.hasPrefix(scheme) {
+            return String(entry.dropFirst(scheme.count))
+        }
+        return entry
     }
 
     private struct Body: Encodable {

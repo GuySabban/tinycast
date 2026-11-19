@@ -30,6 +30,10 @@ struct WebSearchTests {
         try keepsOnlyWebLinks()
         try fallsBackToTheHost()
         try respectsTheLimit()
+        boundsHostileCharacters()
+        showsHostsAsPunycode()
+        treatsLinkVariantsAsOne()
+        boundsExcludedDomains()
         rejectsMalformedReplies()
         mapsStatusesAndTransportErrors()
         rowIdentitiesAreDistinct()
@@ -60,6 +64,20 @@ struct WebSearchTests {
             print("  decode failed: \(error)")
             return []
         }
+    }
+
+    static func decoded(json: String, limit: Int = 10) -> [WebSearchResult] {
+        do {
+            return try ExaSearchResponse.results(from: Data(json.utf8), limit: limit)
+        } catch {
+            print("  decode failed: \(error)")
+            return []
+        }
+    }
+
+    static func reply(_ links: [String]) -> String {
+        let items = links.map { #"{"title":"","url":"\#($0)"}"# }
+        return #"{"results":["# + items.joined(separator: ",") + "]}"
     }
 
     static func failure(decoding data: Data) -> WebSearchFailure? {
@@ -141,14 +159,14 @@ struct WebSearchTests {
         let provider = RecordingProvider()
         do {
             _ = try await provider.search("q", limit: 5)
-            let tuned = WebSearchOptions(searchType: .fast, excludedDomains: ["a.com"])
+            let tuned = WebSearchOptions(searchType: .deep, excludedDomains: ["a.com"])
             _ = try await provider.search("q", limit: 5, options: tuned)
         } catch {
             expect(false, "recording provider never throws: \(error)")
         }
         let seen = await provider.recorder.options
         expect(seen.first == .rows, "a caller that omits options gets the rows defaults")
-        expect(seen.last?.searchType == .fast, "a caller's options pass through")
+        expect(seen.last?.searchType == .deep, "a caller's options pass through")
         expect(seen.count == 2, "both calls reached the provider")
     }
 
@@ -246,6 +264,52 @@ struct WebSearchTests {
         expect(try decoded("search-lite.json", limit: 0).isEmpty, "a zero limit keeps nothing")
     }
 
+    static func boundsHostileCharacters() {
+        let accent = "\u{301}"
+        let flood = String(repeating: "a" + String(repeating: accent, count: 5_000), count: 120)
+        let title = WebSearchResult.cleaned(flood, limit: WebSearchResult.titleLimit)
+        let ceiling = WebSearchResult.titleLimit * WebSearchResult.scalarsPerCharacter
+        expect(title.unicodeScalars.count <= ceiling, "a mark flood is bounded: \(title.unicodeScalars.count)")
+        expect(title.utf8.count < 10_000, "a mark flood stays small: \(title.utf8.count) bytes")
+        let stacked = "e" + String(repeating: accent, count: 6)
+        let kept = "e" + String(repeating: accent, count: WebSearchResult.marksPerCharacter)
+        expect(WebSearchResult.cleaned(stacked, limit: 10) == kept, "marks past the cap are dropped")
+        expect(WebSearchResult.cleaned("1\u{FE0F}\u{20E3}", limit: 10) == "1\u{FE0F}\u{20E3}", "a keycap is kept")
+        expect(WebSearchResult.cleaned("नमस्ते", limit: 10) == "नमस्ते", "Devanagari marks are kept")
+        let chain = Array(repeating: "👨", count: 5_000).joined(separator: "\u{200D}")
+        let joined = WebSearchResult.cleaned(chain, limit: WebSearchResult.titleLimit)
+        expect(joined.unicodeScalars.count <= ceiling + 1, "a joiner chain is bounded")
+        expect(joined.hasSuffix("…"), "a joiner chain cut short ends in an ellipsis")
+        expect(WebSearchResult.cleaned("abc", limit: 0) == "", "a zero limit keeps nothing")
+        expect(WebSearchResult.cleaned("abc", limit: 1) == "…", "a limit of one is the ellipsis alone")
+    }
+
+    static func showsHostsAsPunycode() {
+        let results = decoded(json: reply(["https://\u{430}pple.com/x", "https://www./"]))
+        expect(results.count == 2, "both odd hosts decode, got \(results.count)")
+        expect(results.first?.host == "xn--pple-43d.com", "a foreign host shows as punycode: \(results.first?.host ?? "")")
+        expect(results.first?.title == "xn--pple-43d.com", "the title fallback uses punycode too")
+        expect(results.last?.host == "www.", "a bare www. host is not emptied")
+        expect(results.last?.title == "www.", "so a blank title never falls back to nothing")
+    }
+
+    static func treatsLinkVariantsAsOne() {
+        let links = [
+            "https://exa.ai", "https://exa.ai/", "HTTPS://EXA.AI", "https://exa.ai/#top", "https://exa.ai/a",
+            "https://exa.ai/a?q=1", "http://exa.ai/",
+        ]
+        let results = decoded(json: reply(links))
+        let kept = results.map(\.url.absoluteString)
+        expect(kept == ["https://exa.ai", "https://exa.ai/a", "https://exa.ai/a?q=1", "http://exa.ai/"], "variants kept once: \(kept)")
+    }
+
+    static func boundsExcludedDomains() {
+        let schemed = ExaSearchRequest.excluded(["https://Bar.com/path", "http://bar.com/path", "bar.com"])
+        expect(schemed == ["bar.com/path", "bar.com"], "a pasted scheme is dropped: \(schemed)")
+        let many = (0..<1_500).map { "site\($0).example" }
+        expect(ExaSearchRequest.excluded(many).count == ExaSearchRequest.maximumExcludedDomains, "the list is capped")
+    }
+
     static func rejectsMalformedReplies() {
         let cases: [(String, String)] = [
             ("not json", "plain text"),
@@ -267,7 +331,7 @@ struct WebSearchTests {
         expect(WebSearchFailure(status: 200) == nil, "200 is not a failure")
         expect(WebSearchFailure(status: 204) == nil, "2xx is not a failure")
         expect(WebSearchFailure(status: 401) == .unauthorized, "401 is unauthorized")
-        expect(WebSearchFailure(status: 403) == .unauthorized, "403 is unauthorized")
+        expect(WebSearchFailure(status: 403) == .server, "Exa's 403 is a blocked team, not a bad key")
         expect(WebSearchFailure(status: 402) == .outOfCredit, "402 is out of credit")
         expect(WebSearchFailure(status: 429) == .rateLimited, "429 is rate limited")
         expect(WebSearchFailure(status: 400) == .server, "another 4xx is a server failure")
