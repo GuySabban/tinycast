@@ -755,8 +755,13 @@ extension WebSearchProvider {
 }
 
 struct ExaSearchProvider: WebSearchProvider {
-    init(key: String, baseURL: URL, protocolClasses: [AnyClass]? = nil)
-    func search(
+    static let base: URL  // https://api.exa.ai/
+    /// A nil `protocolClasses` shares one ephemeral, cacheless session across every provider.
+    init(key: String, baseURL: URL = base, protocolClasses: [AnyClass]? = nil)
+    /// No cookie or credential storage, a total `timeoutIntervalForResource` cap, no redirects.
+    static func session(protocolClasses: [AnyClass]? = nil, timeout: TimeInterval = 10) -> URLSession
+    /// An empty key throws `missingKey`; a blank query returns no results without a request.
+    @concurrent func search(
         _ query: String, limit: Int, options: WebSearchOptions
     ) async throws(WebSearchFailure) -> [WebSearchResult]
 }
@@ -768,10 +773,16 @@ final class WebSearchSession {
         case searching(query: String)
         case failed(query: String, WebSearchFailure)
     }
+    static let memoryLimit = 20
     private(set) var state: State = .idle
-    /// The last 20 searched queries and their results, in memory only.
+    /// The last 20 searched queries and their results, in memory only, keyed by `key(for:)`.
     private(set) var results: [String: [WebSearchResult]] = [:]
-    func search(_ query: String)
+    /// Asked for the provider on each search, so storing or removing a key applies at once.
+    init(limit: Int, provider: @escaping @MainActor () -> (any WebSearchProvider)?)
+    nonisolated static func key(for query: String) -> String  // the query, trimmed
+    func results(for query: String) -> [WebSearchResult]?
+    /// No provider fails `missingKey` first; then memory answers, unless `again` forces a request.
+    func search(_ query: String, again: Bool = false)
     func cancel()
 }
 
@@ -825,11 +836,14 @@ section uses the existing `RevealableSecureField`. The key is never written to `
 
 - A new search cancels the task of the previous one. A reply is applied only if its query still
   equals the session's current query.
-- The request has a 10-second timeout. `cancel()` is called when a new search starts and when the
+- The request has a 10-second timeout, applied to the whole reply as the session's resource
+  timeout, since a request's own timeout restarts on every byte. `cancel()` is called when a new search starts and when the
   feature is switched off.
 - A cancelled request throws `WebSearchFailure.cancelled`, which the session drops without a row.
 - Typing after a trigger does not send anything. The in-flight request is allowed to finish, because
   its result is still useful in memory if the user returns to that query.
+- The provider session refuses every redirect, so the `x-api-key` header never reaches another
+  host; the 3xx reply reads as `server`. It keeps no cookies or credentials between searches.
 - HTTP 401 maps to `unauthorized`, 402 to `outOfCredit`, 429 to `rateLimited`, and a transport error
   other than cancellation to `offline`.
 
