@@ -50,6 +50,7 @@ final class AppCore {
     let calcHistory = CalculatorHistoryStore()
     let currencyRates = CurrencyRateStore()
     let packageInstallSettings = PackageInstallSettingsStore()
+    let webSearchSettings = WebSearchSettingsStore()
     let caskIndex = CaskIndexStore(cacheURL: AppPaths.caches().appending(path: "cask-index.json"))
     let regionNumberFormat = RegionNumberFormatMonitor()
     let calendarStore = CalendarStore()

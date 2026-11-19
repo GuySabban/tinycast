@@ -55199,6 +55199,58 @@
         }
       }
     },
+    "Exa API key" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exa-API-Schlüssel"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clave de API de Exa"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clé d’API Exa"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exa APIキー"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exa API 키"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chave de API da Exa"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API-ключ Exa"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exa API 密钥"
+          }
+        }
+      }
+    },
     "Example: /usr/bin/pmset displaysleepnow" : {
       "localizations" : {
         "de" : {
@@ -60282,6 +60334,58 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "开始使用"
+          }
+        }
+      }
+    },
+    "Get a free key from Exa" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kostenlosen Schlüssel bei Exa holen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obtén una clave gratuita de Exa"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obtenir une clé gratuite auprès d’Exa"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exaで無料のキーを取得"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exa에서 무료 키 받기"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obter uma chave gratuita da Exa"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Получить бесплатный ключ Exa"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从 Exa 获取免费密钥"
           }
         }
       }
@@ -91063,6 +91167,58 @@
         }
       }
     },
+    "Only the query is sent, only on Return, and Exa may keep it." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur die Suchanfrage wird gesendet, nur beim Drücken des Zeilenschalters, und Exa darf sie behalten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo se envía la consulta, solo al pulsar Retorno, y Exa puede conservarla."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seule la requête est envoyée, uniquement lorsque vous appuyez sur Retour, et Exa peut la conserver."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "送信されるのは検索語だけで、Returnキーを押したときだけです。Exaが保存する場合があります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "검색어만 Return 키를 누를 때만 전송되며, Exa가 이를 보관할 수 있습니다."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Somente a consulta é enviada, somente ao pressionar Return, e a Exa pode guardá-la."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отправляется только запрос и только при нажатии клавиши Return; Exa может его сохранить."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只发送查询内容，且仅在按下 Return 键时发送，Exa 可能会保留它。"
+          }
+        }
+      }
+    },
     "Only the selected provider is contacted." : {
       "localizations" : {
         "de" : {
@@ -95540,6 +95696,58 @@
         }
       }
     },
+    "Paste your key" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schlüssel einsetzen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pega tu clave"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collez votre clé"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キーをペースト"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "키 붙여넣기"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cole sua chave"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вставьте ключ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "粘贴你的密钥"
+          }
+        }
+      }
+    },
     "Path" : {
       "comment" : "Info row label: file path",
       "localizations" : {
@@ -97574,6 +97782,58 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "随时按 %@ 即可开始使用 Tinycast。"
+          }
+        }
+      }
+    },
+    "Press Return on Search the Web to list results from Exa here." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drücke bei „Im Web suchen“ den Zeilenschalter, um hier Ergebnisse von Exa aufzulisten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pulsa Retorno en Buscar en la web para ver aquí los resultados de Exa."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appuyez sur Retour sur Rechercher sur le Web pour afficher ici les résultats d’Exa."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「Webを検索」でReturnキーを押すと、Exaの検索結果がここに表示されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "웹 검색에서 Return 키를 누르면 Exa의 결과가 여기에 표시됩니다."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pressione Return em Pesquisar na Web para listar aqui os resultados da Exa."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нажмите Return на «Искать в интернете», чтобы увидеть здесь результаты Exa."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在“搜索网页”上按下 Return 键，即可在此列出 Exa 的结果。"
           }
         }
       }
@@ -106290,6 +106550,58 @@
         }
       }
     },
+    "Results stay in memory and are never saved." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ergebnisse bleiben im Arbeitsspeicher und werden nie gesichert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los resultados se quedan en la memoria y nunca se guardan."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les résultats restent en mémoire et ne sont jamais enregistrés."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "結果はメモリ上にのみ保持され、保存されることはありません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "결과는 메모리에만 유지되며 저장되지 않습니다."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os resultados ficam na memória e nunca são salvos."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Результаты хранятся только в памяти и никогда не сохраняются."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "结果仅保留在内存中，从不存储。"
+          }
+        }
+      }
+    },
     "Retry" : {
       "comment" : "Dialog button",
       "localizations" : {
@@ -108687,6 +108999,58 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "存储命令"
+          }
+        }
+      }
+    },
+    "Save Key" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schlüssel sichern"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guardar clave"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistrer la clé"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キーを保存"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "키 저장"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Salvar chave"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сохранить ключ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "存储密钥"
           }
         }
       }
@@ -115716,6 +116080,58 @@
         }
       }
     },
+    "Show web results" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Web-Ergebnisse anzeigen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar resultados web"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher les résultats Web"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Web検索結果を表示"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "웹 결과 표시"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar resultados da web"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показывать результаты из интернета"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示网页结果"
+          }
+        }
+      }
+    },
     "Showing choices" : {
       "localizations" : {
         "de" : {
@@ -119664,6 +120080,58 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已存储在钥匙串中"
+          }
+        }
+      }
+    },
+    "Stored in your keychain" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Im Schlüsselbund gesichert"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guardada en tu llavero"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stockée dans votre trousseau"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キーチェーンに保存済み"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "키체인에 저장됨"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Armazenada nas suas Chaves"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Хранится в связке ключей"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已存储在你的钥匙串中"
           }
         }
       }
@@ -125159,6 +125627,110 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在 Mac 进入睡眠、锁定或切换用户时交还。"
+          }
+        }
+      }
+    },
+    "The keychain did not answer. Your key may still be stored." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Schlüsselbund hat nicht geantwortet. Dein Schlüssel ist möglicherweise noch gesichert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El llavero no respondió. Puede que tu clave siga guardada."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le trousseau n’a pas répondu. Votre clé est peut-être toujours stockée."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キーチェーンが応答しませんでした。キーはまだ保存されている可能性があります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "키체인이 응답하지 않았습니다. 키가 아직 저장되어 있을 수 있습니다."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As Chaves não responderam. Sua chave ainda pode estar armazenada."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Связка ключей не ответила. Возможно, ключ всё ещё хранится."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "钥匙串没有响应。你的密钥可能仍已存储。"
+          }
+        }
+      }
+    },
+    "The keychain refused the change. Try again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Schlüsselbund hat die Änderung abgelehnt. Versuche es erneut."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El llavero rechazó el cambio. Inténtalo de nuevo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le trousseau a refusé la modification. Réessayez."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キーチェーンが変更を拒否しました。もう一度お試しください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "키체인이 변경을 거부했습니다. 다시 시도하십시오."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As Chaves recusaram a alteração. Tente novamente."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Связка ключей отклонила изменение. Повторите попытку."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "钥匙串拒绝了更改。请再试一次。"
           }
         }
       }

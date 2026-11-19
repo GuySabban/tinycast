@@ -62,6 +62,13 @@ final class WebSearchSession {
         }
     }
 
+    /// Drops every remembered query, for when the key that fetched them is removed.
+    func forget() {
+        cancel()
+        results = [:]
+        recency = []
+    }
+
     func cancel() {
         revision &+= 1
         task?.cancel()
