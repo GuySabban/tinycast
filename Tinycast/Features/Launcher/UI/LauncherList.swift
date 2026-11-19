@@ -23,6 +23,7 @@ struct LauncherList: View {
     let onFavoriteActions: (Int) -> Void
     let onDropped: () -> Void
     var files: FileSection?
+    var web: WebSection?
     /// The `Use "…" with` section, always last; nil when nothing is typed.
     var fallbacks: FallbackSection?
     @Environment(RunningAppsMonitor.self) private var runningApps
@@ -38,6 +39,12 @@ struct LauncherList: View {
 
     struct FileSection {
         let results: [FileSearchResult]
+        let onActivate: (Int) -> Void
+        let onActions: (Int) -> Void
+    }
+
+    struct WebSection {
+        let rows: [WebSearchRow]
         let onActivate: (Int) -> Void
         let onActions: (Int) -> Void
     }
@@ -76,6 +83,7 @@ struct LauncherList: View {
         case app(AppEntry)
         case favorite(FavoritesStore.Item, index: Int)
         case file(FileSearchResult, index: Int)
+        case web(WebSearchRow, index: Int)
         case fallback(AppEntry, index: Int)
         var id: String {
             switch self {
@@ -85,6 +93,7 @@ struct LauncherList: View {
             case .app(let app): return app.id
             case .favorite(let favorite, _): return favorite.id
             case .file(let result, _): return "file-" + result.id
+            case .web(let row, _): return row.id
             case .fallback(let app, _): return "fallback-" + app.id
             }
         }
@@ -99,6 +108,12 @@ struct LauncherList: View {
         guard let files else { return [] }
         return [.header(String(localized: "Files"))]
             + files.results.enumerated().map { Row.file($1, index: $0) }
+    }
+
+    private var webRows: [Row] {
+        guard let web else { return [] }
+        return [.header(String(localized: "Web"))]
+            + web.rows.enumerated().map { Row.web($1, index: $0) }
     }
 
     /// Every row the fallback section contributes, always after the results.
@@ -153,13 +168,15 @@ struct LauncherList: View {
             grouped.keys.allSatisfy(kinds.contains),
             "kind missing from the launcher's section order: "
                 + grouped.keys.filter { !kinds.contains($0) }.map(\.rawValue).joined(separator: ", "))
-        return rows + fileRows + fallbackRows
+        return rows + fileRows + webRows + fallbackRows
     }
 
     var body: some View {
         let rows = rows
         return Group {
-            if results.isEmpty && favorites.isEmpty && card == nil && files == nil && fallbacks == nil {
+            if results.isEmpty && favorites.isEmpty && card == nil && files == nil && web == nil
+                && fallbacks == nil
+            {
                 EmptyResults(text: String(localized: "No apps found"))
             } else {
                 ScrollViewReader { proxy in
@@ -209,6 +226,12 @@ struct LauncherList: View {
                                     }
                                     .onRightClick { files?.onActions(index) }
                                     .selectionFrame(row.id == selectedRowID)
+                                case .web(let webRow, let index):
+                                    WebSearchRowView(row: webRow, selected: row.id == selectedRowID)
+                                        .contentShape(Rectangle())
+                                        .onTapGesture { web?.onActivate(index) }
+                                        .onRightClick { web?.onActions(index) }
+                                        .selectionFrame(row.id == selectedRowID)
                                 case .fallback(let app, let index):
                                     AppRow(
                                         app: app, selected: row.id == selectedRowID, running: false,

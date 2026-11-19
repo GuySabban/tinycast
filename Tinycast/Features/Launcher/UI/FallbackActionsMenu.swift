@@ -5,14 +5,15 @@ import Foundation
 @MainActor
 enum FallbackActionsMenu {
     static func content(
-        fallback: Fallback, entry: AppEntry, query: String, core: AppCore
+        fallback: Fallback, entry: AppEntry, query: String, core: AppCore,
+        run: (() -> Void)? = nil
     ) -> PopoverMenuContent {
         PopoverMenuContent(
             header: entry.name,
             items: [
                 PopoverMenuItem(
                     title: fallback.openVerb, systemImage: "list.bullet.rectangle", shortcut: "↵"
-                ) { core.fallbackCoordinator.run(fallback, query: query) },
+                ) { (run ?? { core.fallbackCoordinator.run(fallback, query: query) })() },
                 PopoverMenuItem(
                     title: String(localized: "Configure Fallbacks…"), systemImage: "slider.horizontal.3",
                     startsSection: true

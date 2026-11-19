@@ -37,6 +37,18 @@ enum WebSearchActionsMenu {
         }
     }
 
+    /// The pill's title; a placeholder has no action, so its title is never shown.
+    static func primaryTitle(for row: WebSearchRow) -> String {
+        switch row {
+        case .placeholder: return String(localized: "Searching the web")
+        case .noResults: return String(localized: "Search Again")
+        case .result: return String(localized: "Open in Browser")
+        case .failure(let failure):
+            return WebSearchCoordinator.needsSettings(failure)
+                ? String(localized: "Open Web Search Settings") : String(localized: "Try Again")
+        }
+    }
+
     private static func searchAgain(_ query: String, coordinator: WebSearchCoordinator) -> PopoverMenuItem {
         var item = PopoverMenuItem(title: String(localized: "Search Again"), icon: .symbol("arrow.clockwise")) {
             coordinator.searchAgain(query)

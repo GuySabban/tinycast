@@ -30,6 +30,7 @@ struct LauncherScreen: PaletteScreen {
     private let suggestionCount: Int
     private let matchCount: Int
     private let files: [FileSearchResult]
+    private let web: [WebSearchRow]
     /// The `Use "…" with` section, below every result; empty unless something is typed.
     private let fallbacks: [(fallback: Fallback, entry: AppEntry)]
     /// Resolved in `init`: the palette indexes this several times per event, so it can't recompute.
@@ -79,6 +80,7 @@ struct LauncherScreen: PaletteScreen {
             calc == nil && color == nil && pinned == nil
             ? core.packageInstallCoordinator.candidate(for: vm.query) : nil
         let files = pinned == nil ? core.fileSearchCoordinator.launcherFiles(for: vm.query) : []
+        let web = pinned == nil ? core.webSearchCoordinator.launcherRows(for: vm.query) : []
         let fallbacks = core.fallbackCoordinator.entries(for: vm.query)
         let pinsFavorites = vm.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let pinnedFavorites = favorites.orderedItems(
@@ -87,13 +89,14 @@ struct LauncherScreen: PaletteScreen {
         results.removeFirst(ordered.favoriteCount)
         let entries =
             pinnedFavorites.map(Row.init) + results.map(Row.entry) + files.map(Row.file)
-            + fallbacks.map { Row.fallback($0.fallback, $0.entry) }
+            + web.map(Row.web) + fallbacks.map { Row.fallback($0.fallback, $0.entry) }
         // At most one of them leads, so the flat index keeps a single-row offset.
         let meeting = pinsFavorites ? meeting : nil
         self.meeting = meeting
         self.results = results
         self.calc = calc
         self.files = files
+        self.web = web
         self.fallbacks = fallbacks
         self.color = color
         self.package = package
@@ -124,6 +127,7 @@ struct LauncherScreen: PaletteScreen {
         case entry(AppEntry)
         /// Prefixed, because an application's entry id is the same bundle path a file hit carries.
         case file(FileSearchResult)
+        case web(WebSearchRow)
         /// Prefixed, because the same command can also be a ranked hit above its own fallback row.
         case fallback(Fallback, AppEntry)
 
@@ -151,6 +155,7 @@ struct LauncherScreen: PaletteScreen {
             case .package: return "package-card"
             case .entry(let app): return app.id
             case .file(let result): return "file-" + result.id
+            case .web(let row): return row.id
             case .fallback(let fallback, _): return "fallback-" + fallback.id
             }
         }
@@ -173,6 +178,7 @@ struct LauncherScreen: PaletteScreen {
         case .entry(let app): return app.kind.descriptor.openVerb.resolved()
         case .file(let result):
             return result.isDirectory ? String(localized: "Open Folder") : String(localized: "Open File")
+        case .web(let row): return WebSearchActionsMenu.primaryTitle(for: row)
         case .fallback(let fallback, _): return fallback.openVerb
         case nil: return String(localized: "Open Application")
         }
@@ -231,7 +237,7 @@ struct LauncherScreen: PaletteScreen {
     private func isCardSelected(_ selection: Int) -> Bool {
         switch row(at: selection) {
         case .calc, .meeting, .color, .package: return true
-        case .entry, .file, .fallback, nil: return false
+        case .entry, .file, .web, .fallback, nil: return false
         }
     }
 
@@ -245,6 +251,7 @@ struct LauncherScreen: PaletteScreen {
     /// An error card is selectable but has no action: it must drive neither the pill nor ⌘K.
     func hasPrimaryAction(at selection: Int) -> Bool {
         if case .package(let candidate) = row(at: selection) { return candidate.hasAction }
+        if case .web(.placeholder) = row(at: selection) { return false }
         guard case .calc(let result) = row(at: selection) else { return true }
         return result.isActionable
     }
@@ -274,9 +281,14 @@ struct LauncherScreen: PaletteScreen {
             return FileSearchActionsMenu.content(
                 result: result, core: core, target: vm.pasteTarget,
                 favorites: favoriteActions(for: .file(result), at: selection))
+        case .web(let row):
+            return WebSearchActionsMenu.content(
+                row: row, query: vm.query, coordinator: core.webSearchCoordinator)
         case .fallback(let fallback, let app):
+            var run: (() -> Void)?
+            if case .builtin(.searchWeb) = fallback { run = searchWeb }
             return FallbackActionsMenu.content(
-                fallback: fallback, entry: app, query: vm.query, core: core)
+                fallback: fallback, entry: app, query: vm.query, core: core, run: run)
         case nil:
             return nil
         }
@@ -294,10 +306,20 @@ struct LauncherScreen: PaletteScreen {
             core.launcherCoordinator.launch(
                 app, searchQuery: vm.query, arguments: core.launcherCoordinator.argumentValues(for: app))
         case .file(let result): core.fileSearchCoordinator.open(result)
+        case .web(.noResults): core.webSearchCoordinator.searchAgain(vm.query)
+        case .web(let row): core.webSearchCoordinator.open(row)
+        case .fallback(.builtin(.searchWeb), _): searchWeb()
         case .fallback(let fallback, _):
             core.fallbackCoordinator.run(fallback, query: vm.query)
         case nil: break
         }
+    }
+
+    /// The web section starts here once the search publishes, so the selection waits for its rows.
+    private func searchWeb() {
+        core.fallbackCoordinator.run(.builtin(.searchWeb), query: vm.query)
+        vm.selection = rows.count - fallbacks.count - web.count
+        scrollToFollow()
     }
 
     /// The card's meeting or a meeting row's; both answer the meeting menu's chords.
@@ -562,6 +584,7 @@ struct LauncherScreen: PaletteScreen {
             },
             onDropped: { core.paletteCoordinator.dragLanded() },
             files: fileSection,
+            web: webSection,
             fallbacks: fallbackSection
         )
     }
@@ -577,7 +600,23 @@ struct LauncherScreen: PaletteScreen {
             })
     }
 
-    private func fileRow(at index: Int) -> Int { rows.count - fallbacks.count - files.count + index }
+    private func fileRow(at index: Int) -> Int {
+        rows.count - fallbacks.count - web.count - files.count + index
+    }
+
+    private var webSection: LauncherList.WebSection? {
+        guard !web.isEmpty else { return nil }
+        return LauncherList.WebSection(
+            rows: web,
+            onActivate: { activate(at: webRow(at: $0)) },
+            onActions: {
+                guard hasPrimaryAction(at: webRow(at: $0)) else { return }
+                vm.selection = webRow(at: $0)
+                openActions()
+            })
+    }
+
+    private func webRow(at index: Int) -> Int { rows.count - fallbacks.count - web.count + index }
 
     /// Nil when nothing is typed, which is the one state the section has no input for.
     private var fallbackSection: LauncherList.FallbackSection? {
