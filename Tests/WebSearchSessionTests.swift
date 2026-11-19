@@ -38,6 +38,9 @@ struct WebSearchSessionTests {
         await answersAKnownQueryFromMemory()
         await searchAgainAsksAgain()
         await forgetsBeyondTheMemoryLimit()
+        await keepsTheKeyFromARedirect()
+        await capsATricklingReply()
+        await forgetsCookiesBetweenSearches()
         print("\(passes) passed, \(failures) failed")
         if failures > 0 { exit(1) }
     }
@@ -231,6 +234,45 @@ struct WebSearchSessionTests {
         await settled(session)
         expect(ExaFixture.requests.count == limit + 2, "a forgotten query is searched again")
     }
+
+    static func keepsTheKeyFromARedirect() async {
+        ExaFixture.reset(.redirect(URL(string: "https://elsewhere.test/search")!))
+        let session = exaSession()
+        session.search("swift")
+        await settled(session)
+        let hosts = ExaFixture.requests.map(\.host)
+        expect(hosts == ["exa.test"], "a redirect is never followed, so the key stays with Exa")
+        expect(session.state == .failed(query: "swift", .server), "a redirect reads as a server failure")
+        expect(session.results(for: "swift") == nil, "and nothing from it is kept")
+    }
+
+    static func capsATricklingReply() async {
+        let configuration = ExaSearchProvider.session().configuration
+        expect(
+            configuration.timeoutIntervalForResource == ExaSearchRequest.timeout,
+            "the whole search is capped at the request timeout, not just idle gaps")
+        ExaFixture.reset(.trickle)
+        let session = ExaSearchProvider.session(protocolClasses: [ExaFixture.self], timeout: 0.5)
+        let request = ExaSearchRequest(query: "swift", limit: 5, options: .rows)!
+        let started = ContinuousClock.now
+        var failure: WebSearchFailure?
+        do {
+            _ = try await session.data(for: request.urlRequest(key: key, baseURL: URL(string: "https://exa.test/")!))
+        } catch {
+            failure = WebSearchFailure(transport: error)
+        }
+        expect(failure == .offline, "a reply that trickles past the cap reads as no connection")
+        expect(ContinuousClock.now - started < .seconds(3), "and ends at the cap rather than spinning on")
+        await expectSettles("the trickling request is stopped") { ExaFixture.stopped == 1 }
+    }
+
+    /// URLProtocol fixtures bypass the cookie jar, so the configuration is the thing to check.
+    static func forgetsCookiesBetweenSearches() async {
+        let configuration = ExaSearchProvider.session().configuration
+        expect(configuration.httpCookieStorage == nil, "the session keeps no cookie jar to link searches")
+        expect(configuration.urlCredentialStorage == nil, "nor any credentials")
+        expect(configuration.urlCache == nil, "nor a response cache")
+    }
 }
 
 // MARK: - Stand-ins
@@ -270,12 +312,17 @@ final class ExaFixture: URLProtocol, @unchecked Sendable {
     enum Mode {
         case serve(Int, Data)
         case fail(URLError.Code)
+        /// A 307 to another host, as a compromised edge could send.
+        case redirect(URL)
+        /// Headers, then one byte at a time forever, so only a total cap ends it.
+        case trickle
         /// Answers nothing until `release`, so a case can act while the request is in flight.
         case hold
     }
 
     struct Seen {
         let method: String
+        let host: String
         let path: String
         let key: String?
         let timeout: TimeInterval
@@ -287,6 +334,7 @@ final class ExaFixture: URLProtocol, @unchecked Sendable {
         var requests: [Seen] = []
         var held: [ExaFixture] = []
         var answered: Set<ObjectIdentifier> = []
+        var halted: Set<ObjectIdentifier> = []
         /// Requests the session stopped before they were answered.
         var stopped = 0
     }
@@ -303,15 +351,18 @@ final class ExaFixture: URLProtocol, @unchecked Sendable {
             defer { state.held = [] }
             return state.held
         }
-        for fixture in held { fixture.reply(status: 200, data) }
+        let halted = state.withLock { $0.halted }
+        for fixture in held where !halted.contains(ObjectIdentifier(fixture)) { fixture.reply(status: 200, data) }
     }
 
-    override static func canInit(with request: URLRequest) -> Bool { request.url?.host == "exa.test" }
+    override static func canInit(with request: URLRequest) -> Bool {
+        ["exa.test", "elsewhere.test"].contains(request.url?.host)
+    }
     override static func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
         let seen = Seen(
-            method: request.httpMethod ?? "", path: request.url?.path ?? "",
+            method: request.httpMethod ?? "", host: request.url?.host ?? "", path: request.url?.path ?? "",
             key: request.value(forHTTPHeaderField: "x-api-key"), timeout: request.timeoutInterval,
             body: Self.body(of: request))
         let mode = Self.state.withLock { state in
@@ -324,13 +375,45 @@ final class ExaFixture: URLProtocol, @unchecked Sendable {
         case .fail(let code):
             Self.state.withLock { _ = $0.answered.insert(ObjectIdentifier(self)) }
             client?.urlProtocol(self, didFailWithError: URLError(code))
+        case .redirect(let target): redirect(to: target)
+        case .trickle: trickle()
         case .hold: break
         }
     }
 
     override func stopLoading() {
         let me = ObjectIdentifier(self)
-        Self.state.withLock { if !$0.answered.contains(me) { $0.stopped += 1 } }
+        Self.state.withLock { state in
+            state.halted.insert(me)
+            if !state.answered.contains(me) { state.stopped += 1 }
+        }
+    }
+
+    private func redirect(to target: URL) {
+        Self.state.withLock { _ = $0.answered.insert(ObjectIdentifier(self)) }
+        guard let url = request.url,
+            let response = HTTPURLResponse(
+                url: url, statusCode: 307, httpVersion: nil, headerFields: ["Location": target.absoluteString])
+        else { return }
+        var next = request
+        next.url = target
+        client?.urlProtocol(self, wasRedirectedTo: next, redirectResponse: response)
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    private func trickle() {
+        guard let url = request.url,
+            let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)
+        else { return }
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        let me = ObjectIdentifier(self)
+        Thread.detachNewThread { [self] in
+            while !Self.state.withLock({ $0.halted.contains(me) }) {
+                client?.urlProtocol(self, didLoad: Data("{".utf8))
+                Thread.sleep(forTimeInterval: 0.1)
+            }
+        }
     }
 
     /// URLSession hands a protocol the body as a stream, never as `httpBody`.
