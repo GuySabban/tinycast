@@ -1,0 +1,128 @@
+{
+ "requestId": "f00",
+ "results": [
+  {
+   "title": "Line\none\ttab\u0000nul\u202eevil\u2066iso\u2069  spaced\u2028out",
+   "url": "https://example.com/a",
+   "highlights": [
+    "  \u200fsnippet\r\nwith\u0007bell  "
+   ]
+  },
+  {
+   "title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "url": "https://example.com/long",
+   "highlights": [
+    "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+   ]
+  },
+  {
+   "title": "Script",
+   "url": "javascript:alert(1)",
+   "highlights": [
+    "no"
+   ]
+  },
+  {
+   "title": "Data",
+   "url": "data:text/html,<b>hi</b>",
+   "highlights": [
+    "no"
+   ]
+  },
+  {
+   "title": "FTP",
+   "url": "ftp://example.com/file",
+   "highlights": [
+    "no"
+   ]
+  },
+  {
+   "title": "Mail",
+   "url": "mailto:someone@example.com",
+   "highlights": [
+    "no"
+   ]
+  },
+  {
+   "title": "File",
+   "url": "file:///etc/passwd",
+   "highlights": [
+    "no"
+   ]
+  },
+  {
+   "title": "Relative",
+   "url": "/just/a/path",
+   "highlights": [
+    "no"
+   ]
+  },
+  {
+   "title": "No host",
+   "url": "https:///nohost",
+   "highlights": [
+    "no"
+   ]
+  },
+  {
+   "title": "Userinfo",
+   "url": "https://bank.com@evil.example/login",
+   "highlights": [
+    "no"
+   ]
+  },
+  {
+   "title": "No url",
+   "highlights": [
+    "no"
+   ]
+  },
+  {
+   "title": "Number url",
+   "url": 42,
+   "highlights": [
+    "no"
+   ]
+  },
+  {
+   "title": "Duplicate",
+   "url": "https://example.com/a",
+   "highlights": [
+    "dup"
+   ]
+  },
+  {
+   "title": "Upper",
+   "url": "HTTP://Example.ORG/Path",
+   "highlights": [
+    "upper-case scheme"
+   ]
+  },
+  {
+   "title": "   ",
+   "url": "https://www.untitled.example/page",
+   "highlights": [
+    "",
+    " ",
+    "second wins"
+   ]
+  },
+  {
+   "url": "https://notitle.example/",
+   "highlights": "not an array"
+  },
+  {
+   "title": 7,
+   "url": "https://numbertitle.example/",
+   "highlights": [
+    3,
+    "text after a number"
+   ]
+  },
+  "not an object",
+  {
+   "title": "Too long",
+   "url": "https://example.com/pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp"
+  }
+ ]
+}

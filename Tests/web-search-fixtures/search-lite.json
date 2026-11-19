@@ -1,0 +1,49 @@
+{
+  "requestId": "b5947044c4b78efa9552a7c89b306d95",
+  "resolvedSearchType": "",
+  "results": [
+    {
+      "id": "https://developer.apple.com/documentation/swiftui",
+      "title": "SwiftUI | Apple Developer Documentation",
+      "url": "https://developer.apple.com/documentation/swiftui",
+      "publishedDate": "2026-09-15T00:00:00.000Z",
+      "author": null,
+      "favicon": "https://developer.apple.com/favicon.ico",
+      "highlights": [
+        "SwiftUI provides views, controls, and layout structures for declaring your app's user interface.",
+        "A second highlight that is never shown."
+      ],
+      "highlightScores": [0.61, 0.44]
+    },
+    {
+      "id": "https://www.hackingwithswift.com/quick-start/swiftui",
+      "title": "SwiftUI by Example",
+      "url": "https://www.hackingwithswift.com/quick-start/swiftui",
+      "publishedDate": "2026-03-02T14:30:12.250Z",
+      "author": "Paul Hudson",
+      "highlights": ["Learn SwiftUI with hundreds of free examples."]
+    },
+    {
+      "id": "https://swift.org/blog/",
+      "title": "Swift.org - Blog",
+      "url": "https://swift.org/blog/",
+      "publishedDate": "2026-11-01T08:00:00Z",
+      "highlights": []
+    },
+    {
+      "id": "https://en.wikipedia.org/wiki/Swift_(programming_language)",
+      "title": "Swift (programming language) - Wikipedia",
+      "url": "https://en.wikipedia.org/wiki/Swift_(programming_language)",
+      "highlights": ["Swift is a high-level general-purpose, multi-paradigm, compiled programming language."]
+    },
+    {
+      "id": "https://forums.swift.org/c/swift-users/15",
+      "title": "Using Swift - Swift Forums",
+      "url": "https://forums.swift.org/c/swift-users/15",
+      "publishedDate": "not a date",
+      "highlights": ["Questions about using Swift and its standard library."]
+    }
+  ],
+  "searchTime": 212.4,
+  "costDollars": { "total": 0.005, "search": { "neural": 0.005 } }
+}

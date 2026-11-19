@@ -677,6 +677,7 @@ of credit.
 | Type | Layer | Isolation | Responsibility | Existing types it uses |
 | --- | --- | --- | --- | --- |
 | `WebSearchResult`, `WebSearchRow`, `WebSearchFailure` | Model | `Sendable` values | One result; one list row; one failure | None |
+| `WebSearchOptions` | Model | `Sendable` value | Search type and excluded domains; `.rows` is the launcher's default | None |
 | `ExaSearchRequest`, `ExaSearchResponse` | Model | pure | Build the request body; decode and clean the reply | None |
 | `WebSearchProvider` | Service | protocol | The seam a second provider plugs into | None |
 | `ExaSearchProvider` | Service | `Sendable` struct | One HTTPS call | None |
@@ -717,14 +718,44 @@ enum WebSearchRow: Sendable, Equatable, Identifiable {
     }
 }
 
+/// Phase U5 reuses the provider with other options, so they are a parameter from the start.
+struct WebSearchOptions: Sendable, Equatable {
+    enum SearchType: String, Sendable, CaseIterable { case auto, lite, fast, instant, deep }
+    static let rows = WebSearchOptions()
+    var searchType: SearchType = .lite
+    var excludedDomains: [String] = []
+}
+
+struct ExaSearchRequest: Sendable, Equatable {
+    /// Nil for a blank query; the limit is clamped to 1...100.
+    init?(query: String, limit: Int, options: WebSearchOptions = .rows)
+    var body: Data
+    func urlRequest(key: String, baseURL: URL) -> URLRequest
+}
+
+enum ExaSearchResponse {
+    static func results(from data: Data, limit: Int) throws(WebSearchFailure) -> [WebSearchResult]
+}
+
 // Service
 protocol WebSearchProvider: Sendable {
-    func search(_ query: String, limit: Int) async throws(WebSearchFailure) -> [WebSearchResult]
+    func search(
+        _ query: String, limit: Int, options: WebSearchOptions
+    ) async throws(WebSearchFailure) -> [WebSearchResult]
+}
+
+extension WebSearchProvider {
+    /// A protocol requirement cannot hold a default, so the launcher's call lives here.
+    func search(_ query: String, limit: Int) async throws(WebSearchFailure) -> [WebSearchResult] {
+        try await search(query, limit: limit, options: .rows)
+    }
 }
 
 struct ExaSearchProvider: WebSearchProvider {
     init(key: String, baseURL: URL, protocolClasses: [AnyClass]? = nil)
-    func search(_ query: String, limit: Int) async throws(WebSearchFailure) -> [WebSearchResult]
+    func search(
+        _ query: String, limit: Int, options: WebSearchOptions
+    ) async throws(WebSearchFailure) -> [WebSearchResult]
 }
 
 @MainActor @Observable
