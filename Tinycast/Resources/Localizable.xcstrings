@@ -125631,106 +125631,106 @@
         }
       }
     },
-    "The keychain did not answer. Your key may still be stored." : {
+    "The keychain did not answer." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Der Schlüsselbund hat nicht geantwortet. Dein Schlüssel ist möglicherweise noch gesichert."
+            "value" : "Der Schlüsselbund hat nicht geantwortet."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "El llavero no respondió. Puede que tu clave siga guardada."
+            "value" : "El llavero no respondió."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Le trousseau n’a pas répondu. Votre clé est peut-être toujours stockée."
+            "value" : "Le trousseau n’a pas répondu."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "キーチェーンが応答しませんでした。キーはまだ保存されている可能性があります。"
+            "value" : "キーチェーンが応答しませんでした。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "키체인이 응답하지 않았습니다. 키가 아직 저장되어 있을 수 있습니다."
+            "value" : "키체인이 응답하지 않았습니다."
           }
         },
         "pt" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "As Chaves não responderam. Sua chave ainda pode estar armazenada."
+            "value" : "As Chaves não responderam."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Связка ключей не ответила. Возможно, ключ всё ещё хранится."
+            "value" : "Связка ключей не ответила."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "钥匙串没有响应。你的密钥可能仍已存储。"
+            "value" : "钥匙串没有响应。"
           }
         }
       }
     },
-    "The keychain refused the change. Try again." : {
+    "The keychain refused the change." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Der Schlüsselbund hat die Änderung abgelehnt. Versuche es erneut."
+            "value" : "Der Schlüsselbund hat die Änderung abgelehnt."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "El llavero rechazó el cambio. Inténtalo de nuevo."
+            "value" : "El llavero rechazó el cambio."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Le trousseau a refusé la modification. Réessayez."
+            "value" : "Le trousseau a refusé la modification."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "キーチェーンが変更を拒否しました。もう一度お試しください。"
+            "value" : "キーチェーンが変更を拒否しました。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "키체인이 변경을 거부했습니다. 다시 시도하십시오."
+            "value" : "키체인이 변경을 거부했습니다."
           }
         },
         "pt" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "As Chaves recusaram a alteração. Tente novamente."
+            "value" : "As Chaves recusaram a alteração."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Связка ключей отклонила изменение. Повторите попытку."
+            "value" : "Связка ключей отклонила изменение."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "钥匙串拒绝了更改。请再试一次。"
+            "value" : "钥匙串拒绝了更改。"
           }
         }
       }
@@ -136361,6 +136361,58 @@
         }
       }
     },
+    "Try again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Versuche es erneut."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inténtalo de nuevo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réessayez."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "もう一度お試しください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다시 시도하십시오."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tente novamente."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Повторите попытку."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请再试一次。"
+          }
+        }
+      }
+    },
     "Try “%@” instead." : {
       "localizations" : {
         "de" : {
@@ -143170,6 +143222,58 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "你的 Codex 配置中已有名为“%@”的 MCP 服务器。请将其重命名，以便在 Codex 中使用此 Tinycast 服务器。"
+          }
+        }
+      }
+    },
+    "Your key may still be stored." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Schlüssel ist möglicherweise noch gesichert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puede que tu clave siga guardada."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre clé est peut-être toujours stockée."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キーはまだ保存されている可能性があります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "키가 아직 저장되어 있을 수 있습니다."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sua chave ainda pode estar armazenada."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Возможно, ключ всё ещё хранится."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的密钥可能仍已存储。"
           }
         }
       }

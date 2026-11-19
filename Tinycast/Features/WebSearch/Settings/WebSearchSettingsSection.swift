@@ -38,7 +38,7 @@ struct WebSearchSettingsSection: View {
             case .unreadable:
                 LabeledContent("Exa API key") {
                     HStack(spacing: Theme.Spacing.sm) {
-                        Text("The keychain did not answer. Your key may still be stored.")
+                        Text(Self.unreadableNote)
                             .foregroundStyle(.secondary)
                         Button("Check Again") { settings.refreshKeyStatus() }
                     }
@@ -60,8 +60,18 @@ struct WebSearchSettingsSection: View {
             draft = ""
             failure = nil
         } catch {
-            failure = String(localized: "The keychain refused the change. Try again.")
+            failure = [
+                String(localized: "The keychain refused the change."),
+                String(localized: "Try again."),
+            ].joined(separator: " ")
         }
+    }
+
+    private static var unreadableNote: String {
+        [
+            String(localized: "The keychain did not answer."),
+            String(localized: "Your key may still be stored."),
+        ].joined(separator: " ")
     }
 
     private static var subtitle: String {

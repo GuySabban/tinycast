@@ -36,7 +36,7 @@ before resolving it. New files the fork owns (`Scripts/fork/`, `docs/planning/`)
 | P2.3 | `Scripts/run-tests.sh` | the `run` list, after `WebSearchTests` | Added a one-line `run WebSearchSessionTests` entry | Registers the provider and session harness, in the same end-of-list block |
 | P2.4 | `Scripts/run-tests.sh` | the `run` list, after `WebSearchSessionTests` | Added a two-line `run WebSearchSettingsTests` entry | Registers the settings harness, in the same end-of-list block. It also compiles upstream's `KeychainSecretStore`, so a merge that changes that file's API breaks this entry |
 | P2.4 | `Tinycast/App/AppCore.swift` | stored properties | Added `webSearchSettings` after `packageInstallSettings` | `AppCore` owns every long-lived object; the Fallbacks section reads it from the environment |
-| P2.4 | `Tinycast/Resources/Localizable.xcstrings` | 11 new keys, in sorted position | Added the web search settings strings with all eight translations | Same rule and the same `sync` rewrites as P1.7, put back as upstream spells them |
+| P2.4 | `Tinycast/Resources/Localizable.xcstrings` | 13 new keys, in sorted position | Added the web search settings strings with all eight translations | Same rule and the same `sync` rewrites as P1.7, put back as upstream spells them |
 
 `Tinycast.xcodeproj/project.pbxproj` is regenerated from `project.yml` by `xcodegen generate` and is
 never edited by hand.
