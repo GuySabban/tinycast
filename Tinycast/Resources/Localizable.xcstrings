@@ -125995,6 +125995,58 @@
         }
       }
     },
+    "The keychain didn’t release the Exa API key. Try again" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Schlüsselbund hat den Exa-API-Schlüssel nicht freigegeben. Versuche es noch einmal"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El llavero no entregó la clave de API de Exa. Inténtalo de nuevo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le trousseau n’a pas fourni la clé d’API Exa. Réessayez"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キーチェーンから Exa APIキーを取得できませんでした。もう一度お試しください"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "키체인에서 Exa API 키를 가져오지 못했습니다. 다시 시도하세요"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Porta-chaves não liberou a chave de API da Exa. Tente novamente"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Связка ключей не выдала API-ключ Exa. Повторите попытку"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "钥匙串未提供 Exa API 密钥。请重试"
+          }
+        }
+      }
+    },
     "The keychain refused the change." : {
       "localizations" : {
         "de" : {

@@ -28,17 +28,20 @@ final class WebSearchCoordinator {
         self.openURL = openURL
         self.copyText = copyText
         settings.onKeyRemoved = { [weak session] in session?.forget() }
+        settings.onKeyStored = { [weak session] in session?.dropFailure() }
     }
 
-    /// A key read on each search, never while building rows; a missing key skips the Keychain.
+    /// The key is read per request, off the main actor; a missing key skips the Keychain.
     static func provider(
         for settings: WebSearchSettingsStore, baseURL: URL = ExaSearchProvider.base,
-        protocolClasses: [AnyClass]? = nil
+        protocolClasses: [AnyClass]? = nil,
+        readKey: @escaping @MainActor (WebSearchSettingsStore) async throws -> String? = { try await $0.readKey() }
     ) -> WebSearchSession.ProviderSource {
-        { [weak settings] in
-            guard let settings, settings.keyStatus != .missing,
-                let key = try? settings.key(), !key.isEmpty
-            else { return nil }
+        { [weak settings] () async throws(WebSearchFailure) -> any WebSearchProvider in
+            guard let settings, settings.keyStatus != .missing else { throw .missingKey }
+            let key: String?
+            do { key = try await readKey(settings) } catch { throw .keyUnreadable }
+            guard let key, !key.isEmpty else { throw .missingKey }
             return ExaSearchProvider(key: key, baseURL: baseURL, protocolClasses: protocolClasses)
         }
     }

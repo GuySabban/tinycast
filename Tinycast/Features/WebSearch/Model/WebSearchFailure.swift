@@ -2,6 +2,8 @@ import Foundation
 
 enum WebSearchFailure: Error, Sendable, Equatable {
     case missingKey, offline, unauthorized, outOfCredit, rateLimited, server, malformedReply
+    /// The Keychain refused to hand over a stored key (risk R14), which is not a missing one.
+    case keyUnreadable
     /// Not shown to the user; the session drops it.
     case cancelled
 

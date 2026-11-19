@@ -40,6 +40,10 @@ struct WebSearchCoordinatorTests {
         await switchingOffStopsTheSearch()
         await removingTheKeyForgetsResults()
         await removingTheKeyStopsASearch()
+        await storingAKeyClearsTheMissingKeyRow()
+        await aRefusedKeychainIsNotAMissingKey()
+        await placeholdersComeBeforeTheKeyIsRead()
+        await knownQueriesSkipTheKeychain()
         print("\(passes) passed, \(failures) failed")
         if failures > 0 { exit(1) }
     }
@@ -68,7 +72,9 @@ struct WebSearchCoordinatorTests {
     }
 
     /// AppCore's own wiring, against a fresh defaults suite and Keychain scope removed when the case ends.
-    static func world(_ name: String, key: String? = "exa-key-123", body: @MainActor (World) async -> Void) async {
+    static func world(
+        _ name: String, key: String? = "exa-key-123",
+        readKey: (@MainActor (WebSearchSettingsStore) async throws -> String?)? = nil, body: @MainActor (World) async -> Void) async {
         let suite = "WebSearchCoordinatorTests.\(name).\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         let keychain = KeychainSecretStore(
@@ -78,11 +84,14 @@ struct WebSearchCoordinatorTests {
             try? WebSearchSettingsStore(defaults: defaults, keychain: keychain).setKey(nil)
         }
         let settings = WebSearchSettingsStore(defaults: defaults, keychain: keychain)
-        do { try settings.setKey(key) } catch { return expect(false, "\(name) could not store the key: \(error)") }
+        do { try settings.setKey(key) } catch {
+            return expect(false, "\(name) could not store the key: \(error)")
+        }
         let session = WebSearchSession(
             limit: WebSearchCoordinator.resultLimit,
             provider: WebSearchCoordinator.provider(
-                for: settings, baseURL: URL(string: "https://exa.test/")!, protocolClasses: [ExaFixture.self]))
+                for: settings, baseURL: URL(string: "https://exa.test/")!, protocolClasses: [ExaFixture.self],
+                readKey: readKey ?? { try await $0.readKey() }))
         let core = AppCore()
         let palette = PaletteCoordinator()
         let settingsWindow = SettingsCoordinator()
@@ -175,6 +184,7 @@ struct WebSearchCoordinatorTests {
         await world("missing-key", key: nil) { w in
             expect(!w.coordinator.isAvailable, "no key is not available")
             w.coordinator.search("swift")
+            await settled(w.session)
             let rows = w.coordinator.launcherRows(for: "swift")
             expect(rows == [.failure(.missingKey)], "one failure row")
             w.coordinator.open(rows[0])
@@ -294,6 +304,83 @@ struct WebSearchCoordinatorTests {
             try? await Task.sleep(for: .milliseconds(50))
             expect(w.coordinator.launcherRows(for: "swift").isEmpty, "a late reply shows nothing")
             expect(w.session.results.isEmpty, "nor reaches memory")
+        }
+    }
+}
+
+extension WebSearchCoordinatorTests {
+    static func storingAKeyClearsTheMissingKeyRow() async {
+        ExaFixture.reset(.serve(200, lite))
+        await world("store-key", key: nil) { w in
+            w.coordinator.search("swift")
+            await settled(w.session)
+            expect(w.coordinator.launcherRows(for: "swift") == [.failure(.missingKey)], "no key, one failure row")
+            do { try w.settings.setKey("exa-key-789") } catch { return expect(false, "store threw \(error)") }
+            expect(w.coordinator.launcherRows(for: "swift").isEmpty, "storing a key drops the stale row")
+            w.coordinator.search("swift")
+            await settled(w.session)
+            expect(ExaFixture.requests.map(\.key) == ["exa-key-789"], "and the next Return searches with it")
+            expect(!results(w.coordinator.launcherRows(for: "swift")).isEmpty, "showing results")
+        }
+    }
+
+    static func aRefusedKeychainIsNotAMissingKey() async {
+        ExaFixture.reset(.serve(200, lite))
+        let refuse: @MainActor (WebSearchSettingsStore) async throws -> String? = { _ in
+            throw KeychainSecretStore.StoreError.keychain(errSecAuthFailed)
+        }
+        await world("refused", readKey: refuse) { w in
+            w.coordinator.search("swift")
+            await settled(w.session)
+            let rows = w.coordinator.launcherRows(for: "swift")
+            expect(rows == [.failure(.keyUnreadable)], "a refused read says so, not 'add a key'")
+            expect(w.settings.hasKey, "and the stored key still reads as stored")
+            w.coordinator.open(rows[0])
+            expect(w.settingsWindow.shown.isEmpty, "Return retries rather than opening Settings")
+            await settled(w.session)
+            expect(ExaFixture.requests.isEmpty, "nothing is sent without the key")
+        }
+    }
+
+    static func placeholdersComeBeforeTheKeyIsRead() async {
+        ExaFixture.reset(.serve(200, lite))
+        let gate = Box(false)
+        let reads = Box(0)
+        let slow: @MainActor (WebSearchSettingsStore) async throws -> String? = { settings in
+            reads.value += 1
+            while !gate.value { try await Task.sleep(for: .milliseconds(5)) }
+            return try await settings.readKey()
+        }
+        await world("slow-read", readKey: slow) { w in
+            w.coordinator.search("swift")
+            expect(
+                w.coordinator.launcherRows(for: "swift")
+                    == WebSearchRow.placeholders(count: WebSearchCoordinator.resultLimit),
+                "placeholders show before the key is read")
+            await expectSettles("the read has started") { reads.value == 1 }
+            expect(ExaFixture.requests.isEmpty, "nothing is sent until the key arrives")
+            gate.value = true
+            await settled(w.session)
+            expect(ExaFixture.requests.count == 1, "then exactly one request")
+        }
+    }
+
+    static func knownQueriesSkipTheKeychain() async {
+        ExaFixture.reset(.serve(200, lite))
+        let reads = Box(0)
+        let counted: @MainActor (WebSearchSettingsStore) async throws -> String? = { settings in
+            reads.value += 1
+            return try await settings.readKey()
+        }
+        await world("memory-no-read", readKey: counted) { w in
+            w.coordinator.search("swift")
+            await settled(w.session)
+            w.coordinator.search("swift")
+            await settled(w.session)
+            expect(reads.value == 1, "a query in memory never reads the Keychain")
+            w.coordinator.searchAgain("swift")
+            await settled(w.session)
+            expect(reads.value == 2, "Search Again reads it once more")
         }
     }
 }

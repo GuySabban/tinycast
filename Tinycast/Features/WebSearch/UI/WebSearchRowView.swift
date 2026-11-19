@@ -90,7 +90,7 @@ struct WebSearchRowView: View {
         }
     }
 
-    static func detail(for result: WebSearchResult, now: Date = .now) -> String {
+    static func detail(for result: WebSearchResult) -> String {
         guard let published = result.published else { return result.host }
         let age = published.formatted(.relative(presentation: .named, unitsStyle: .abbreviated))
         return "\(result.host) · \(age)"
@@ -103,6 +103,7 @@ struct WebSearchRowView: View {
         case .outOfCredit: String(localized: "Your Exa account is out of credit")
         case .rateLimited: String(localized: "Too many web searches. Try again in a moment")
         case .offline: String(localized: "Couldn’t reach Exa. Check your connection")
+        case .keyUnreadable: String(localized: "The keychain didn’t release the Exa API key. Try again")
         case .server, .malformedReply, .cancelled: String(localized: "Web search failed. Try again")
         }
     }
