@@ -4,13 +4,15 @@ import Foundation
 @MainActor
 enum WebSearchActionsMenu {
     static func content(
-        row: WebSearchRow, query: String, coordinator: WebSearchCoordinator
+        row: WebSearchRow, query: String, coordinator: WebSearchCoordinator,
+        onSearchAgain: @escaping () -> Void = {}
     ) -> PopoverMenuContent? {
+        let again = searchAgain(query, coordinator: coordinator, then: onSearchAgain)
         switch row {
         case .placeholder:
             return nil
         case .noResults:
-            return PopoverMenuContent(header: nil, items: [searchAgain(query, coordinator: coordinator)])
+            return PopoverMenuContent(header: nil, items: [again])
         case .result(let result):
             return PopoverMenuContent(
                 header: result.host,
@@ -21,7 +23,7 @@ enum WebSearchActionsMenu {
                     PopoverMenuItem(title: String(localized: "Copy Link"), icon: .symbol("link")) {
                         coordinator.copyLink(result)
                     },
-                    searchAgain(query, coordinator: coordinator),
+                    again,
                 ])
         case .failure(let failure):
             let primary =
@@ -49,9 +51,12 @@ enum WebSearchActionsMenu {
         }
     }
 
-    private static func searchAgain(_ query: String, coordinator: WebSearchCoordinator) -> PopoverMenuItem {
+    private static func searchAgain(
+        _ query: String, coordinator: WebSearchCoordinator, then onSearch: @escaping () -> Void
+    ) -> PopoverMenuItem {
         var item = PopoverMenuItem(title: String(localized: "Search Again"), icon: .symbol("arrow.clockwise")) {
             coordinator.searchAgain(query)
+            onSearch()
         }
         item.startsSection = true
         return item

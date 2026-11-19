@@ -284,7 +284,8 @@ struct LauncherScreen: PaletteScreen {
                 favorites: favoriteActions(for: .file(result), at: selection))
         case .web(let row):
             return WebSearchActionsMenu.content(
-                row: row, query: vm.query, coordinator: core.webSearchCoordinator)
+                row: row, query: vm.query, coordinator: core.webSearchCoordinator,
+                onSearchAgain: selectFirstWebRow)
         case .fallback(let fallback, let app):
             var run: (() -> Void)?
             if case .builtin(.searchWeb) = fallback { run = searchWeb }
@@ -318,8 +319,19 @@ struct LauncherScreen: PaletteScreen {
     /// The web section starts here once the search publishes, so the selection waits for its rows.
     private func searchWeb() {
         core.fallbackCoordinator.run(.builtin(.searchWeb), query: vm.query)
-        vm.selection = rows.count - fallbacks.count - web.count
+        selectFirstWebRow()
+    }
+
+    private func selectFirstWebRow() {
+        vm.selection = webRow(at: 0)
         scrollToFollow()
+    }
+
+    func move(_ delta: Int, axis: PaletteAxis, from selection: Int) -> Int? {
+        guard axis == .vertical else { return nil }
+        let start = webRow(at: 0)
+        let landed = WebSearchRow.landing(at: selection + delta - start, from: selection - start, in: web)
+        return landed.map { rows.indices.contains($0 + start) ? $0 + start : selection }
     }
 
     /// The card's meeting or a meeting row's; both answer the meeting menu's chords.

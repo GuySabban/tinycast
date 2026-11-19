@@ -19,4 +19,11 @@ enum WebSearchRow: Sendable, Equatable, Identifiable {
     static func placeholders(count: Int) -> [WebSearchRow] {
         (0..<max(count, 0)).map(WebSearchRow.placeholder)
     }
+
+    /// A placeholder past the first is skipped: fewer rows may arrive and hand its index to another.
+    /// Positions are relative to the section's first row; nil leaves the move as it is.
+    static func landing(at target: Int, from current: Int, in rows: [WebSearchRow]) -> Int? {
+        guard target > 0, rows.indices.contains(target), case .placeholder = rows[target] else { return nil }
+        return target > current ? rows.count : 0
+    }
 }
