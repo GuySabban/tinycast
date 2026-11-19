@@ -51,7 +51,7 @@ final class WebSearchSettingsStore {
         try keychain.secret(for: Self.account)
     }
 
-    /// The same read off the main actor, so the Keychain's password prompt never holds the launcher.
+    /// The same read off the main actor, so the Keychain prompt never holds up the launcher.
     func readKey() async throws -> String? {
         try await Self.read(from: keychain, account: Self.account)
     }
