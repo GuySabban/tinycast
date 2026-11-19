@@ -80,7 +80,8 @@ struct LauncherScreen: PaletteScreen {
             calc == nil && color == nil && pinned == nil
             ? core.packageInstallCoordinator.candidate(for: vm.query) : nil
         let files = pinned == nil ? core.fileSearchCoordinator.launcherFiles(for: vm.query) : []
-        let web = pinned == nil ? core.webSearchCoordinator.launcherRows(for: vm.query) : []
+        // Not gated on `pinned`: the fallbacks below still offer Search the Web there.
+        let web = core.webSearchCoordinator.launcherRows(for: vm.query)
         let fallbacks = core.fallbackCoordinator.entries(for: vm.query)
         let pinsFavorites = vm.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let pinnedFavorites = favorites.orderedItems(
