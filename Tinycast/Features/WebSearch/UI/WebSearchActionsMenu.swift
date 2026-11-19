@@ -37,11 +37,11 @@ enum WebSearchActionsMenu {
         }
     }
 
-    /// The pill's title; a placeholder has no action, so its title is never shown.
+    /// The pill's title. A placeholder shows none; No web results keeps ⌘K, but Return does nothing.
     static func primaryTitle(for row: WebSearchRow) -> String {
         switch row {
         case .placeholder: return String(localized: "Searching the web")
-        case .noResults: return String(localized: "Search Again")
+        case .noResults: return String(localized: "No web results")
         case .result: return String(localized: "Open in Browser")
         case .failure(let failure):
             return WebSearchCoordinator.needsSettings(failure)
