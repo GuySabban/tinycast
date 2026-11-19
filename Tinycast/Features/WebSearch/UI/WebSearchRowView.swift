@@ -71,6 +71,12 @@ struct WebSearchRowView: View {
                 }
             }
             .layoutPriority(1)
+        case .noResults:
+            Text("No web results")
+                .font(metrics.typography.rowTitle)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .layoutPriority(1)
         case .failure(let failure):
             Text(Self.message(for: failure))
                 .font(metrics.typography.rowTitle)

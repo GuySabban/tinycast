@@ -44,6 +44,7 @@ struct WebSearchCoordinatorTests {
         await aRefusedKeychainIsNotAMissingKey()
         await placeholdersComeBeforeTheKeyIsRead()
         await knownQueriesSkipTheKeychain()
+        await anEmptyAnswerSaysSo()
         print("\(passes) passed, \(failures) failed")
         if failures > 0 { exit(1) }
     }
@@ -383,6 +384,22 @@ extension WebSearchCoordinatorTests {
             w.coordinator.searchAgain("swift")
             await settled(w.session)
             expect(reads.value == 2, "Search Again reads it once more")
+        }
+    }
+}
+
+extension WebSearchCoordinatorTests {
+    static func anEmptyAnswerSaysSo() async {
+        ExaFixture.reset(.serve(200, fixture("search-empty.json")))
+        await world("empty") { w in
+            expect(w.coordinator.launcherRows(for: "zzqx").isEmpty, "no row before Return")
+            w.coordinator.search("zzqx")
+            await settled(w.session)
+            let rows = w.coordinator.launcherRows(for: "zzqx")
+            expect(rows == [.noResults], "an empty answer is one No web results row")
+            w.coordinator.open(rows[0])
+            expect(w.opened.value.isEmpty && w.palette.hidden == 0, "Return on it does nothing")
+            expect(w.settingsWindow.shown.isEmpty, "nor opens Settings")
         }
     }
 }

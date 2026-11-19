@@ -9,6 +9,8 @@ enum WebSearchActionsMenu {
         switch row {
         case .placeholder:
             return nil
+        case .noResults:
+            return PopoverMenuContent(header: nil, items: [searchAgain(query, coordinator: coordinator)])
         case .result(let result):
             return PopoverMenuContent(
                 header: result.host,

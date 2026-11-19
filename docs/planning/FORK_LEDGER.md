@@ -39,7 +39,7 @@ before resolving it. New files the fork owns (`Scripts/fork/`, `docs/planning/`)
 | P2.4 | `Tinycast/Resources/Localizable.xcstrings` | 13 new keys, in sorted position | Added the web search settings strings with all eight translations | Same rule and the same `sync` rewrites as P1.7, put back as upstream spells them |
 | P2.5 | `Scripts/run-tests.sh` | the `run` list, after `WebSearchSettingsTests` | Added a three-line `run WebSearchCoordinatorTests` entry | Drives the coordinator over the real store, Keychain scope, session and provider, in the same end-of-list block. It compiles upstream's `KeychainSecretStore` and `Signposts` |
 | P2.5 | `Tinycast/App/AppCore.swift` | lazy coordinators | Added `webSearch` (the session, built with `WebSearchCoordinator.provider(for: webSearchSettings)`) and `webSearchCoordinator` before `fileSearchCoordinator` | `AppCore` owns the session; the coordinator's `init` points `webSearchSettings.onKeyRemoved` at `webSearch.forget()` |
-| P2.5 | `Tinycast/Resources/Localizable.xcstrings` | 10 new keys, in sorted position | Added the web row, failure and menu strings with all eight translations | Same rule and the same `sync` rewrites as P1.7, put back as upstream spells them |
+| P2.5 | `Tinycast/Resources/Localizable.xcstrings` | 11 new keys, in sorted position | Added the web row, failure and menu strings with all eight translations | Same rule and the same `sync` rewrites as P1.7, put back as upstream spells them |
 
 `Tinycast.xcodeproj/project.pbxproj` is regenerated from `project.yml` by `xcodegen generate` and is
 never edited by hand.

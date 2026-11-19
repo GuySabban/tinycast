@@ -79,14 +79,16 @@ final class WebSearchCoordinator {
         case .failed(let searched, let failure) where searched == key:
             return [.failure(failure)]
         default:
-            return session.results(for: key)?.prefix(Self.resultLimit).map(WebSearchRow.result) ?? []
+            guard let found = session.results(for: key) else { return [] }
+            guard !found.isEmpty else { return [.noResults] }
+            return found.prefix(Self.resultLimit).map(WebSearchRow.result)
         }
     }
 
     /// A result opens its link; a failure retries, or opens Settings when only a new key can help.
     func open(_ row: WebSearchRow) {
         switch row {
-        case .placeholder:
+        case .placeholder, .noResults:
             return
         case .result(let result):
             guard let url = WebSearchResult.webLink(result.url.absoluteString) else { return }
