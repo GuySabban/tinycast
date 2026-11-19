@@ -781,6 +781,7 @@ final class WebSearchSession {
     init(limit: Int, provider: @escaping @MainActor () -> (any WebSearchProvider)?)
     nonisolated static func key(for query: String) -> String  // the query, trimmed
     func results(for query: String) -> [WebSearchResult]?
+    /// Without a provider every query fails `missingKey`, even one in memory.
     /// A query in memory answers from there without a request; `again` (Search Again) forces one.
     func search(_ query: String, again: Bool = false)
     func cancel()

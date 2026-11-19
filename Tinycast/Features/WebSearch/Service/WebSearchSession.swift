@@ -44,14 +44,13 @@ final class WebSearchSession {
     func search(_ query: String, again: Bool = false) {
         let key = Self.key(for: query)
         guard !key.isEmpty else { return }
-        if !again, results[key] != nil {
-            cancel()
-            remember(key)
-            return
-        }
         cancel()
         guard let provider = provider() else {
             state = .failed(query: key, .missingKey)
+            return
+        }
+        if !again, results[key] != nil {
+            remember(key)
             return
         }
         state = .searching(query: key)

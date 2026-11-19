@@ -37,6 +37,7 @@ struct WebSearchSessionTests {
         await dropsAStaleReply()
         await answersAKnownQueryFromMemory()
         await searchAgainAsksAgain()
+        await knownQueryStillNeedsAKey()
         await forgetsBeyondTheMemoryLimit()
         await keepsTheKeyFromARedirect()
         await capsATricklingReply()
@@ -197,6 +198,20 @@ struct WebSearchSessionTests {
         expect(session.results(for: "swift")?.count == 5, "it shows its results again")
         try? await Task.sleep(for: .milliseconds(50))
         expect(ExaFixture.requests.count == 2, "without a request")
+    }
+
+    static func knownQueryStillNeedsAKey() async {
+        ExaFixture.reset(.serve(200, lite))
+        let provider = ExaSearchProvider(
+            key: key, baseURL: URL(string: "https://exa.test/")!, protocolClasses: [ExaFixture.self])
+        var keyed = true
+        let session = WebSearchSession(limit: 5) { keyed ? provider : nil }
+        session.search("swift")
+        await settled(session)
+        keyed = false
+        session.search("swift")
+        expect(session.state == .failed(query: "swift", .missingKey), "a known query without a key says so")
+        expect(ExaFixture.requests.count == 1, "and sends nothing")
     }
 
     static func searchAgainAsksAgain() async {
