@@ -74,7 +74,9 @@ struct WebSearchCoordinatorTests {
     /// AppCore's own wiring, against a fresh defaults suite and Keychain scope removed when the case ends.
     static func world(
         _ name: String, key: String? = "exa-key-123",
-        readKey: (@MainActor (WebSearchSettingsStore) async throws -> String?)? = nil, body: @MainActor (World) async -> Void) async {
+        readKey: (@MainActor (WebSearchSettingsStore) async throws -> String?)? = nil,
+        body: @MainActor (World) async -> Void
+    ) async {
         let suite = "WebSearchCoordinatorTests.\(name).\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         let keychain = KeychainSecretStore(
