@@ -91167,54 +91167,54 @@
         }
       }
     },
-    "Only the query is sent, only on Return, and Exa may keep it." : {
+    "Only the query is sent, only when you request a web search, and Exa may keep it." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nur die Suchanfrage wird gesendet, nur beim Drücken des Zeilenschalters, und Exa darf sie behalten."
+            "value" : "Nur die Suchanfrage wird gesendet, nur wenn du eine Websuche anforderst, und Exa darf sie behalten."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Solo se envía la consulta, solo al pulsar Retorno, y Exa puede conservarla."
+            "value" : "Solo se envía la consulta, solo cuando pides una búsqueda web, y Exa puede conservarla."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Seule la requête est envoyée, uniquement lorsque vous appuyez sur Retour, et Exa peut la conserver."
+            "value" : "Seule la requête est envoyée, uniquement lorsque vous demandez une recherche Web, et Exa peut la conserver."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "送信されるのは検索語だけで、Returnキーを押したときだけです。Exaが保存する場合があります。"
+            "value" : "送信されるのは検索語だけで、Web検索を実行したときだけです。Exaが保存する場合があります。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "검색어만 Return 키를 누를 때만 전송되며, Exa가 이를 보관할 수 있습니다."
+            "value" : "검색어만 웹 검색을 요청할 때만 전송되며, Exa가 이를 보관할 수 있습니다."
           }
         },
         "pt" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Somente a consulta é enviada, somente ao pressionar Return, e a Exa pode guardá-la."
+            "value" : "Somente a consulta é enviada, somente quando você solicita uma pesquisa na web, e a Exa pode guardá-la."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Отправляется только запрос и только при нажатии клавиши Return; Exa может его сохранить."
+            "value" : "Отправляется только запрос и только когда вы запрашиваете поиск в интернете; Exa может его сохранить."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "只发送查询内容，且仅在按下 Return 键时发送，Exa 可能会保留它。"
+            "value" : "只发送查询内容，且仅在你请求网页搜索时发送，Exa 可能会保留它。"
           }
         }
       }

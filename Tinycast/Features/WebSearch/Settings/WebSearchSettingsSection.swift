@@ -67,7 +67,7 @@ struct WebSearchSettingsSection: View {
     private static var subtitle: String {
         [
             String(localized: "Press Return on Search the Web to list results from Exa here."),
-            String(localized: "Only the query is sent, only on Return, and Exa may keep it."),
+            String(localized: "Only the query is sent, only when you request a web search, and Exa may keep it."),
             String(localized: "Results stay in memory and are never saved."),
         ].joined(separator: " ")
     }

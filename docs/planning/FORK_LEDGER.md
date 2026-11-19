@@ -78,3 +78,9 @@ are left unedited:
   library's": in the fork it carries both, and it asks before every run.
 - `docs/features/custom-commands.md`, "The ad-hoc run": "It is not gated on `customCommandsEnabled`".
   In the fork it is, and `runShellCommand` confirms first.
+
+`Tinycast/Platform/KeychainSecretStore.swift` says every Keychain scope the app stores under is named
+in that file. The fork leaves the file unedited and creates one more scope in its own code:
+
+- `web-search-keys`: `WebSearchSettingsStore.keychain`, holding the Exa key (P2.4). A Keychain audit
+  or a merge that renames scopes must look there as well as in the Platform file.
