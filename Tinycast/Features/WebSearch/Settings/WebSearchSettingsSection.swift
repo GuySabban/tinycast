@@ -9,9 +9,9 @@ struct WebSearchSettingsSection: View {
     private static let keysPage = URL(string: "https://dashboard.exa.ai/api-keys")!
 
     var body: some View {
-        @Bindable var settings = core.webSearchSettings
+        let settings = core.webSearchSettings
         Section {
-            Toggle(isOn: $settings.isEnabled) {
+            Toggle(isOn: Binding(get: { settings.isEnabled }, set: { core.webSearchCoordinator.setEnabled($0) })) {
                 Text("Show web results")
                 Text(Self.subtitle)
             }

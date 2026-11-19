@@ -85,8 +85,8 @@ struct WebSearchSettingsTests {
 
     /// The launcher's wiring: a provider made from the stored key on each search.
     static func session(over settings: WebSearchSettingsStore) -> WebSearchSession {
-        let session = WebSearchSession(limit: 5) {
-            guard let key = try? settings.key() else { return nil }
+        let session = WebSearchSession(limit: 5) { () throws(WebSearchFailure) -> any WebSearchProvider in
+            guard let key = try? settings.key() else { throw .missingKey }
             return ExaSearchProvider(
                 key: key, baseURL: URL(string: "https://exa.test/")!, protocolClasses: [ExaFixture.self])
         }
@@ -168,6 +168,7 @@ struct WebSearchSettingsTests {
             ExaFixture.reset(.serve(200, lite))
             let session = session(over: world.settings)
             session.search("swift")
+            await settled(session)
             expect(session.state == .failed(query: "swift", .missingKey), "no stored key sends nothing")
             expect(ExaFixture.requests.isEmpty, "not one request")
             try? world.settings.setKey("exa-key-123")

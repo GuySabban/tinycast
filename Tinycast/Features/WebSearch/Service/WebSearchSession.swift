@@ -4,7 +4,7 @@ import Foundation
 @MainActor
 @Observable
 final class WebSearchSession {
-    typealias ProviderSource = @MainActor () -> (any WebSearchProvider)?
+    typealias ProviderSource = @MainActor () async throws(WebSearchFailure) -> any WebSearchProvider
 
     enum State: Equatable {
         case idle
@@ -26,7 +26,7 @@ final class WebSearchSession {
     @ObservationIgnored private let provider: ProviderSource
     @ObservationIgnored private let limit: Int
 
-    /// The provider is asked for on each search, so a key stored or removed applies at once.
+    /// The provider is asked for on each request, so a key stored or removed applies at once.
     init(limit: Int, provider: @escaping ProviderSource) {
         self.limit = limit
         self.provider = provider
@@ -45,10 +45,6 @@ final class WebSearchSession {
         let key = Self.key(for: query)
         guard !key.isEmpty else { return }
         cancel()
-        guard let provider = provider() else {
-            state = .failed(query: key, .missingKey)
-            return
-        }
         if !again, results[key] != nil {
             remember(key)
             return
@@ -56,10 +52,22 @@ final class WebSearchSession {
         state = .searching(query: key)
         let current = revision
         let limit = limit
+        let source = provider
         task = Task { [weak self] in
-            let outcome = await Self.fetch(key, limit: limit, from: provider)
+            let outcome: Result<[WebSearchResult], WebSearchFailure>
+            do throws(WebSearchFailure) {
+                let provider = try await source()
+                outcome = await Self.fetch(key, limit: limit, from: provider)
+            } catch {
+                outcome = .failure(error)
+            }
             self?.apply(outcome, for: key, revision: current)
         }
+    }
+
+    /// A failure row outlives its cause once a key is stored, so it goes back to idle.
+    func dropFailure() {
+        if case .failed = state { state = .idle }
     }
 
     /// Drops every remembered query, for when the key that fetched them is removed.

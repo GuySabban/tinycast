@@ -37,7 +37,7 @@ struct WebSearchSessionTests {
         await dropsAStaleReply()
         await answersAKnownQueryFromMemory()
         await searchAgainAsksAgain()
-        await knownQueryStillNeedsAKey()
+        await knownQueryNeedsNoKey()
         await forgetsBeyondTheMemoryLimit()
         await keepsTheKeyFromARedirect()
         await capsATricklingReply()
@@ -122,8 +122,11 @@ struct WebSearchSessionTests {
 
     static func asksForNoKeyWithoutOne() async {
         ExaFixture.reset(.serve(200, lite))
-        let unset = WebSearchSession(limit: 5) { nil }
+        let unset = WebSearchSession(limit: 5) { () throws(WebSearchFailure) -> any WebSearchProvider in
+            throw .missingKey
+        }
         unset.search("swift")
+        await settled(unset)
         expect(unset.state == .failed(query: "swift", .missingKey), "no provider is a missing key")
         let blank = exaSession(key: "")
         blank.search("swift")
@@ -200,17 +203,20 @@ struct WebSearchSessionTests {
         expect(ExaFixture.requests.count == 2, "without a request")
     }
 
-    static func knownQueryStillNeedsAKey() async {
+    static func knownQueryNeedsNoKey() async {
         ExaFixture.reset(.serve(200, lite))
         let provider = ExaSearchProvider(
             key: key, baseURL: URL(string: "https://exa.test/")!, protocolClasses: [ExaFixture.self])
-        var keyed = true
-        let session = WebSearchSession(limit: 5) { keyed ? provider : nil }
+        var asks = 0
+        let session = WebSearchSession(limit: 5) { () throws(WebSearchFailure) -> any WebSearchProvider in
+            asks += 1
+            return provider
+        }
         session.search("swift")
         await settled(session)
-        keyed = false
         session.search("swift")
-        expect(session.state == .failed(query: "swift", .missingKey), "a known query without a key says so")
+        expect(session.state == .idle, "a known query answers from memory")
+        expect(asks == 1, "without asking for the key again")
         expect(ExaFixture.requests.count == 1, "and sends nothing")
     }
 

@@ -25,6 +25,8 @@ final class WebSearchSettingsStore {
 
     /// Called after a key is removed, so results fetched with it leave memory too.
     @ObservationIgnored var onKeyRemoved: @MainActor () -> Void = {}
+    /// Called after a key is stored, so a failure the old key caused stops showing.
+    @ObservationIgnored var onKeyStored: @MainActor () -> Void = {}
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let keychain: KeychainSecretStore
 
@@ -49,6 +51,16 @@ final class WebSearchSettingsStore {
         try keychain.secret(for: Self.account)
     }
 
+    /// The same read off the main actor, so the Keychain prompt never holds up the launcher.
+    func readKey() async throws -> String? {
+        try await Self.read(from: keychain, account: Self.account)
+    }
+
+    @concurrent
+    private nonisolated static func read(from keychain: KeychainSecretStore, account: UUID) async throws -> String? {
+        try keychain.secret(for: account)
+    }
+
     /// A blank or nil key removes the stored one.
     func setKey(_ key: String?) throws {
         let trimmed = key?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -60,5 +72,6 @@ final class WebSearchSettingsStore {
         }
         try keychain.setSecret(trimmed, for: Self.account)
         keyStatus = .stored
+        onKeyStored()
     }
 }
