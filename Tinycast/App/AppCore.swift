@@ -212,6 +212,11 @@ final class AppCore {
         settings: packageInstallSettings, index: caskIndex, appIndex: appIndex,
         paletteCoordinator: paletteCoordinator, settingsCoordinator: settingsCoordinator,
         activationPolicy: activationPolicy, core: self)
+    @ObservationIgnored private(set) lazy var webSearch = WebSearchSession(
+        limit: WebSearchCoordinator.resultLimit, provider: WebSearchCoordinator.provider(for: webSearchSettings))
+    @ObservationIgnored private(set) lazy var webSearchCoordinator = WebSearchCoordinator(
+        settings: webSearchSettings, session: webSearch, paletteCoordinator: paletteCoordinator,
+        settingsCoordinator: settingsCoordinator, core: self)
     @ObservationIgnored private(set) lazy var fileSearchCoordinator = FileSearchCoordinator(
         settings: settings, appIndex: appIndex, session: fileSearch, indexer: fileIndexer,
         palette: palette, paletteCoordinator: paletteCoordinator,
