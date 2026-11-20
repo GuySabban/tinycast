@@ -173,8 +173,12 @@ final class Run {
             checkDecoys(in: image, screen: screen, index: index)
             if let save = options.save {
                 let path = options.repeatCount > 1 ? save.replacingOccurrences(of: ".png", with: "-\(index).png") : save
-                Self.writePNG(image, to: path)
-                log("#\(index) saved \(path)")
+                do {
+                    try Self.writePNG(image, to: path)
+                    log("#\(index) saved \(path)")
+                } catch {
+                    log("#\(index) save failed: \(error.localizedDescription)")
+                }
             }
         } catch {
             log("#\(index) capture failed: \(error.localizedDescription) [\((error as NSError).code)]")
@@ -278,9 +282,11 @@ final class Run {
         return hash.map { String(format: "%02x", $0) }.joined()
     }
 
-    static func writePNG(_ image: CGImage, to path: String) {
-        let rep = NSBitmapImageRep(cgImage: image)
-        try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+    static func writePNG(_ image: CGImage, to path: String) throws {
+        guard let png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]) else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        try png.write(to: URL(fileURLWithPath: path))
     }
 }
 
