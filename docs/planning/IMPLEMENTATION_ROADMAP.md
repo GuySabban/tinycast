@@ -354,8 +354,8 @@ command, and every bindable command already has a global hotkey (`LOOK.md` secti
    into `RISKS_AND_DECISIONS.md`. If Codex fails, Look's AI default becomes the on-device route
    until it passes.
 2. **Capture spike**, throwaway code on a branch: grant Screen Recording, take one excluded still of
-   the display under the pointer, and settle `LOOK.md` section 12 rows 2, 3, 4 and 6. Start the
-   six-week log of re-asks (row 1).
+   the display under the pointer, and settle `LOOK.md` section 12 rows 2, 3, 4 and 6. The owner
+   dropped row 1's six-week log of re-asks on 2026-11-20.
 3. **Recognition from memory:** the helper's `image-stdin` mode and the worker's `Data` entry, with
    a harness case that feeds PNG bytes and checks nothing is written under the temporary directory.
    Measure `.accurate` against the 1 s target on a 5K capture (row 5, D39).

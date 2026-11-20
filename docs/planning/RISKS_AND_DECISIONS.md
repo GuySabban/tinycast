@@ -94,14 +94,14 @@ Each has a recommendation. D1 is the only one that blocks Phase 0.
 
 D16 to D31 are still in `UNIVERSAL_INSTALL.md` section 8 until U1 step 1 moves them. Look's
 decisions, D32 to D42, moved here from `LOOK.md` section 11 in Phase L step 1. D41 is set by the
-brief; the others wait on the owner.
+brief, and the owner settled D32 and D35 on 2026-11-20; the others wait on the owner.
 
 | # | Decision | Alternatives | Recommendation |
 | --- | --- | --- | --- |
-| D32 | Which display | Under the pointer; every display; the frontmost window's | Under the pointer; "All Displays" as a later command |
+| D32 | Which display | Under the pointer; every display; the frontmost window's | **Settled by the owner, 2026-11-20:** the display under the pointer. Still open: "All Displays" as a later command |
 | D33 | How the hotkey is added | A `HotKeyAction.look` case; a `CommandID.look` | `CommandID.look`: 7 lines in three files instead of about 10 in six, and no `HotKeyAction` switch changes |
 | D34 | The key inside the launcher | ⌘L; Tab; none | ⌘L: free, and L for Look |
-| D35 | Capture route | Direct capture with a monthly re-ask; the system picker every time | Direct capture |
+| D35 | Capture route | Direct capture with a monthly re-ask; the system picker every time | **Settled by the owner, 2026-11-20:** direct capture |
 | D36 | Where recognition runs | A stdin mode in the existing helper; in the app; a new helper target | The existing helper: Vision's memory leaves with it, and a new target would edit `project.yml` |
 | D37 | Consent before a cloud ask | Preview on the first ask of each Look; once ever; never | Each Look |
 | D38 | Claude for Look before the hook fix | Allowed, with a note; hidden until the fix | Allowed with a note; it is the owner's own Mac and hooks |
