@@ -45,6 +45,8 @@ struct WebSearchCoordinatorTests {
         await placeholdersComeBeforeTheKeyIsRead()
         await knownQueriesSkipTheKeychain()
         await anEmptyAnswerSaysSo()
+        await theLauncherTriggerKeepsItsSelection()
+        await searchingAgainOnNoResults()
         print("\(passes) passed, \(failures) failed")
         if failures > 0 { exit(1) }
     }
@@ -499,5 +501,43 @@ final class ExaFixture: URLProtocol, @unchecked Sendable {
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: data)
         client?.urlProtocolDidFinishLoading(self)
+    }
+}
+
+extension WebSearchCoordinatorTests {
+    /// The launcher selects the section's first row as it triggers; that row must outlive the reply.
+    static func theLauncherTriggerKeepsItsSelection() async {
+        ExaFixture.reset(.hold)
+        await world("trigger-selection") { w in
+            w.coordinator.search("swift concurrency")
+            let searching = w.coordinator.launcherRows(for: "swift concurrency")
+            expect(searching.first == .placeholder(0), "the trigger's selection lands on a placeholder")
+            expect(WebSearchRow.landing(at: 1, from: 0, in: searching) == searching.count, "↓ leaves the section")
+            expect(WebSearchRow.landing(at: 4, from: 5, in: searching) == 0, "↑ lands on the first row")
+            await expectSettles("the request is in flight") { ExaFixture.requests.count == 1 }
+            ExaFixture.release(lite)
+            await settled(w.session)
+            let answered = w.coordinator.launcherRows(for: "swift concurrency")
+            expect(!answered.isEmpty, "the selected first row still exists once answered")
+            expect(WebSearchRow.landing(at: 1, from: 0, in: answered) == nil, "results are all selectable")
+        }
+    }
+
+    /// Return on No web results is the launcher's Search Again: a fresh request, placeholders first.
+    static func searchingAgainOnNoResults() async {
+        ExaFixture.reset(.serve(200, fixture("search-empty.json")))
+        await world("search-again-empty") { w in
+            w.coordinator.search("zzqx")
+            await settled(w.session)
+            expect(w.coordinator.launcherRows(for: "zzqx") == [.noResults], "nothing found")
+            w.coordinator.searchAgain("zzqx")
+            expect(
+                w.coordinator.launcherRows(for: "zzqx")
+                    == WebSearchRow.placeholders(count: WebSearchCoordinator.resultLimit),
+                "searching again shows placeholders where the row was")
+            await settled(w.session)
+            expect(ExaFixture.requests.count == 2, "searching again sends a fresh request")
+            expect(w.coordinator.launcherRows(for: "zzqx") == [.noResults], "and says so again")
+        }
     }
 }

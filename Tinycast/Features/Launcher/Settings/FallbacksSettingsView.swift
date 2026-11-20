@@ -27,6 +27,7 @@ struct FallbacksSettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            WebSearchSettingsSection()
         }
         .formStyle(.grouped)
         .settingsScrollTarget(.fallbacks)

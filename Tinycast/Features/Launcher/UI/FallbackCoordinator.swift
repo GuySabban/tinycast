@@ -46,6 +46,7 @@ final class FallbackCoordinator {
         case .builtin(.searchFiles): core.fileSearchCoordinator.show(query: query)
         case .builtin(.runShellCommand): core.customCommandCoordinator.runShellCommand(query)
         case .builtin(.define): core.dictionaryCoordinator.show(term: query)
+        case .builtin(.searchWeb): core.webSearchCoordinator.search(query)
         case .quicklink(let id): core.quicklinkCoordinator.openQuicklink(id: id, filling: query)
         }
     }
@@ -74,6 +75,7 @@ final class FallbackCoordinator {
         case .runShellCommand: return settings.customCommandsEnabled
         // Settings › Commands is Define's only switch, so hiding the command there hides this too.
         case .define: return visibility.isVisible(CommandCatalog.makeEntry(.define))
+        case .searchWeb: return core.webSearchCoordinator.isAvailable
         }
     }
 }
