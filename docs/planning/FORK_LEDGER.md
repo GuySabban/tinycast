@@ -7,7 +7,7 @@ before resolving it. New files the fork owns (`Scripts/fork/`, `docs/planning/`)
 
 | Task | File | Symbol | Change | Why |
 | --- | --- | --- | --- | --- |
-| 2 | `project.yml` | `settings.configs.Release.TINYCAST_BUNDLE_IDENTIFIER` | Added `io.github.guysabban.spotcast` | Upstream's updater only follows `com.tinycast.app` (`ReleaseChannel`), so a renamed Release build is a local build and is never offered upstream's release (risk R1, D1) |
+| 2 | `project.yml` | `settings.configs.Release.TINYCAST_BUNDLE_IDENTIFIER` | Added `io.github.guysabban.spotcast` | Upstream's updater only follows `com.abueammar.tinycast` since v0.12.15 (`com.tinycast.app` before; `ReleaseChannel`), so a renamed Release build is a local build and is never offered upstream's release (risk R1, D1) |
 | 2 | `project.yml` | `settings.configs.Release.TINYCAST_URL_SCHEME` | Added `spotcast` | Links must not land in an installed upstream Tinycast, which owns `tinycast` (D1) |
 | 2 | `project.yml` | `targets.Tinycast.settings.configs.Release` | Added the `Release:` key next to `Debug:` | Holds the Release-only product name below |
 | 2 | `project.yml` | `targets.Tinycast.settings.configs.Release.PRODUCT_NAME` | Added `PRODUCT_NAME: Spotcast` | Gives the app its own name (D1). `DICTATION_EXECUTABLE_NAME` stays upstream's because `DictationWorker` hard-codes it |
