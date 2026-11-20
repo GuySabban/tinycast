@@ -25,5 +25,8 @@ It builds three helpers into the ignored `build/look-recognition-bench/` and run
 
 The test page is 5120 × 2880, a 5K display at scale 2: two columns of 140 lines of 11 pt body text,
 plus one marker each at 9, 11 and 13 pt and an 11 pt Hebrew line (`LOOK.md` section 12, row 5). Each
-run prints the macOS build and chip, the languages Vision recognizes at each level, the median, 95th
-percentile, minimum and maximum, and which markers came back. Nothing is written but the binaries.
+run prints the macOS build, chip and selected Xcode, the languages Vision recognizes at each level,
+the first (cold) run on its own, then the median, 95th percentile, minimum and maximum of the rest,
+and which markers came back. A failed run is listed and skipped, and a failed helper does not stop
+the next one, so the output always has timings for whatever succeeded. Each call has a 180 s
+deadline. Nothing is written but the binaries.

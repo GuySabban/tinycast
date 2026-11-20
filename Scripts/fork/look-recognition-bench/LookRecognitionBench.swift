@@ -37,18 +37,30 @@ struct LookRecognitionBench {
         let page = png ?? testPage()
         print("helper \(helper.lastPathComponent), \(page.count) PNG bytes, \(png == nil ? "5K test page" : "given PNG")")
         var times: [Double] = []
+        var failures: [String] = []
         var text = ""
-        for _ in 0..<runs {
+        for run in 0...runs {
             let start = ContinuousClock.now
-            text = try await ClipboardTextWorker.extract(imageData: page, executable: helper, timeout: .seconds(60))
+            do {
+                text = try await ClipboardTextWorker.extract(imageData: page, executable: helper, timeout: .seconds(180))
+            } catch {
+                failures.append("run \(run): \(error)")
+                continue
+            }
             let elapsed = ContinuousClock.now - start
-            times.append(Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18)
+            let seconds = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
+            if run == 0 { print(String(format: "first run (cold, not counted) %.3f s", seconds)) } else { times.append(seconds) }
+        }
+        for failure in failures { print("FAILED \(failure)") }
+        guard !times.isEmpty else {
+            print("no timed run succeeded")
+            return
         }
         times.sort()
         let median = times[times.count / 2]
         let p95 = times[min(times.count - 1, Int((Double(times.count) * 0.95).rounded(.up)) - 1)]
         print(String(format: "runs %d  median %.3f s  p95 %.3f s  min %.3f s  max %.3f s  (target: 1 s median)",
-                     runs, median, p95, times.first!, times.last!))
+                     times.count, median, p95, times.first!, times.last!))
         print("text \(text.utf8.count) bytes, \(text.split(separator: "\n").count) lines")
         if png == nil {
             for (label, marker, key, _) in markers {

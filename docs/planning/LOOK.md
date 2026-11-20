@@ -136,9 +136,9 @@ A later version can add "Look at All Displays" as a second command, which costs 
 
 ### 3.4 Size
 
-The image is taken at the display's pixel size, capped at 4096 px on the long side so recognition
-matches the clipboard extractor's limits (`ClipboardTextExtractor`: 4096 px, 2048-high strips).
-A 5K display becomes 4096 × 2304; text smaller than about 9 points may then be missed (row 5).
+The image is taken at the display's pixel size, capped at 4096 px on the long side. The clipboard
+extractor then scales it to at most 2048 × 2048 pixels (`ClipboardTextExtractor`: 4096 px long
+side, 2048-high strips), so a 5K display is read at 2731 × 1536, not 4096 × 2304 (row 5, step 3).
 
 ### 3.5 Never on disk
 

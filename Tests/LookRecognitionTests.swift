@@ -10,6 +10,8 @@ struct LookRecognitionTests {
     static var passes = 0
     /// No other harness draws this size, so a file of it in a temporary directory is ours.
     static let fixtureSize = (width: 1234, height: 321)
+    /// A cold Vision start on a fresh machine has taken over 60 s; the harness tests behaviour, not speed.
+    static let coldDeadline = Duration.seconds(180)
 
     static func main() async throws {
         let build = FileManager.default.temporaryDirectory
@@ -23,17 +25,21 @@ struct LookRecognitionTests {
         let png = pngData(page.makeImage()!)
 
         let before = snapshot(excluding: build)
-        let text = try await ClipboardTextWorker.extract(imageData: png, executable: helper, timeout: .seconds(60))
+        let text = await recognized("PNG bytes") {
+            try await ClipboardTextWorker.extract(imageData: png, executable: helper, timeout: coldDeadline)
+        }
         expect(text.contains("ALPINE RECEIPT 7391"), "PNG bytes through the helper are recognized")
         let leaks = writtenImages(since: before, excluding: build, matching: png)
-        expect(leaks.isEmpty, "nothing is written under the temporary directory: \(leaks)")
+        expect(leaks.isEmpty, "no image is written under the temporary or cache folders: \(leaks)")
 
         let control = FileManager.default.temporaryDirectory
             .appendingPathComponent("tinycast-look-control-\(UUID().uuidString).png")
         defer { try? FileManager.default.removeItem(at: control) }
         let controlBefore = snapshot(excluding: build)
         try png.write(to: control)
-        let fileText = try await ClipboardTextWorker.extract(at: control, isPDF: false, executable: helper)
+        let fileText = await recognized("the control file") {
+            try await ClipboardTextWorker.extract(at: control, isPDF: false, executable: helper, timeout: coldDeadline)
+        }
         expect(fileText.contains("ALPINE RECEIPT 7391"), "the file mode still recognizes")
         expect(
             writtenImages(since: controlBefore, excluding: build, matching: png) == [control.resolvingSymlinksInPath().path],
@@ -44,8 +50,9 @@ struct LookRecognitionTests {
         draw("ELEVEN POINT LINE 8263", in: screen, at: CGPoint(x: 200, y: 1400), size: 22)
         let screenPNG = pngData(screen.makeImage()!)
         expect(screenPNG.count > 65_536, "the 5K page outgrows a pipe buffer")
-        let screenText = try await ClipboardTextWorker.extract(
-            imageData: screenPNG, executable: helper, timeout: .seconds(60))
+        let screenText = await recognized("the 5K page") {
+            try await ClipboardTextWorker.extract(imageData: screenPNG, executable: helper, timeout: coldDeadline)
+        }
         expect(screenText.contains("4417"), "13-point text on a 5K page is read")
         expect(screenText.contains("8263"), "11-point text on a 5K page is read")
 
@@ -82,6 +89,13 @@ struct LookRecognitionTests {
         if failures > 0 { exit(1) }
     }
 
+    static func recognized(_ input: String, _ body: @Sendable () async throws -> String) async -> String {
+        do { return try await body() } catch {
+            expect(false, "recognizing \(input) threw \(error)")
+            return ""
+        }
+    }
+
     static func buildHelper(into directory: URL) throws -> URL {
         let helper = directory.appendingPathComponent("ClipboardTextHelper")
         let compile = Process()
@@ -96,11 +110,14 @@ struct LookRecognitionTests {
         return helper
     }
 
-    /// The temporary roots a helper inherits, by path, with each regular file's size and date.
+    /// The per-user temporary and cache folders, `/tmp` and `~/Library/Caches`: where a helper could write.
     static func snapshot(excluding build: URL) -> [String: [AnyHashable]] {
         let roots = Set(
-            [FileManager.default.temporaryDirectory, URL(fileURLWithPath: "/tmp")]
-                .map { $0.resolvingSymlinksInPath() })
+            [
+                FileManager.default.temporaryDirectory.deletingLastPathComponent(),
+                URL(fileURLWithPath: "/tmp"),
+                FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Caches")
+            ].map { $0.resolvingSymlinksInPath() })
         let keys: [URLResourceKey] = [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey]
         let skipped = build.resolvingSymlinksInPath().path
         var files: [String: [AnyHashable]] = [:]

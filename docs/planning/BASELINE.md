@@ -513,6 +513,12 @@ Earlier bench runs on the same VM gave `.accurate` medians from 2.3 s to 5.2 s, 
 well as slow. A first test page of near-identical lines lost most of its lines at `.accurate`;
 the bench now draws varied lines, as a screen has.
 
+An independent review on a cold VM once saw a recognition failure after 88 s crash the harness and
+then stop the bench with no timings; it did not reproduce. The harness now reports a failed call
+as a failed case, its success cases allow 180 s, and the bench times the first (cold) run apart,
+lists failed runs and goes on to the next helper. The no-disk check also walks the per-user cache
+folder and `~/Library/Caches`, where the helper writes small Metal shader caches but no image.
+
 Not yet run on the owner's Mac. His display is 3420 × 2224 at scale 2, not 5K, so the bench's
 synthetic 5K page stands in for row 5, and `--png` with his own screenshot gives a real screen.
 

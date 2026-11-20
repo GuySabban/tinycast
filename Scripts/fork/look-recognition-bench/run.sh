@@ -3,7 +3,6 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/../../.." || exit 1
-export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 OUT=build/look-recognition-bench
 S=Tinycast/Features/Clipboard/Service
 mkdir -p "$OUT"
@@ -22,6 +21,8 @@ xcrun swiftc -swift-version 6 -O Tinycast/Features/Clipboard/Model/*.swift \
     "$S/ClipboardTextWorker.swift" Tinycast/Platform/ProcessExit.swift \
     Scripts/fork/look-recognition-bench/LookRecognitionBench.swift -o "$OUT/LookRecognitionBench"
 sw_vers | tr '\n' ' '; sysctl -n machdep.cpu.brand_string
-"$OUT/LookRecognitionBench" "$OUT/AccurateHelper" "$@"
-"$OUT/LookRecognitionBench" "$OUT/FastHelper" "$@"
-"$OUT/LookRecognitionBench" "$OUT/Accurate4096Helper" "$@"
+xcode-select -p
+# One helper failing must not cost the others' timings.
+for helper in AccurateHelper FastHelper Accurate4096Helper; do
+    "$OUT/LookRecognitionBench" "$OUT/$helper" "$@" || echo "$helper: bench exited $?"
+done
