@@ -453,6 +453,30 @@ results below were reported; nothing here ran in a VM.
 Checks 3 to 6 pass, so Look's AI default stays Codex (D41). The ten timed asks belong to step 10's
 hands-on run.
 
+## Phase L step 2: the capture spike (2026-11-20)
+
+The throwaway spike `Scripts/fork/look-capture-spike/` (`io.github.guysabban.spotcast.look-capture-spike`,
+signed with `Tinycast Self-Signed`) ran in a Devin macOS VM: macOS 26.6.2 (25G83), one 1600 × 1200
+display at scale 1, Xcode 27 RC. A VM is not the owner's Mac: it runs a remote-desktop app that
+records the screen all the time, and it is reset between sessions. Timings are logged but are not
+measurements. D32 (display under the pointer) and D35 (direct capture) were settled by the owner
+the same day, so the spike uses both.
+
+| `LOOK.md` row | Ran on the VM | Result on the VM | Owner's Mac |
+| --- | --- | --- | --- |
+| 1. Monthly re-ask | First grant and first capture | The "bypass the system private window picker" alert came on the first capture after the grant, answered Allow. The interval cannot be seen on a VM | Six-week log, `SCREEN_RECORDING_LOG.md` |
+| 2. Rebuild keeps the grant | Granted build `1586aa7c`, rebuilt as `aad7fed9`, same certificate leaf `c4d8d50c` | **Held.** `preflight true` and a capture with no prompt or alert | Repeat with the spike, then with the Release app in step 10 |
+| 3. Own windows left out | Three decoy panels at the palette, `MenuPanel` and HUD levels, excluded with `--exclude-self`; then the Dev build's launcher with ⌘K's menu open, and its Toggle Mute failure dialog, excluded by bundle from the spike | **Held.** Decoys 100 % visible without the exclusion, 0 % with it, over four captures. Launcher, menu and dialog visible without, absent with. No HUD was shown: Toggle Mute had no audio device and showed a dialog instead | Launcher, menu and a real HUD, steps in the spike's README |
+| 4. A grant needs a relaunch | `request` mode kept running through the grant, choosing Later at Quit & Reopen | **Half.** In the same process, `SCScreenshotManager` captured at t+30 s, but `CGPreflightScreenCaptureAccess()` stayed false. A new process read `preflight true` | Repeat once on the Dev build |
+| 6. Menu-bar indicator for one still | Watched the menu bar around single captures | **Not settled.** A purple dot by Control Center appeared after a capture and stayed at least 15 s, but Control Center named only `devin-remote`, the VM's remote desktop | Watch with no screen sharing running |
+
+Also seen:
+
+- `CGRequestScreenCaptureAccess()` returns false at once and does not wait for the answer.
+- Excluding the app by its `SCRunningApplication` dropped every one of its windows, layers 3, 9
+  and 10, so one filter covers the palette, menu, HUD and dialog levels.
+- Capture of a 1600 × 1200 display took 16 to 84 ms after `SCShareableContent` (6 to 32 ms).
+
 ## Repository
 
 On 2026-11-13 the clone was arranged as `RISKS_AND_DECISIONS.md` section 4 describes. `upstream` is

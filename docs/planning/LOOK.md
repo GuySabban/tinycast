@@ -119,7 +119,7 @@ number today.
 
 ### 3.3 Several displays
 
-**Recommended (D32): the display under the pointer**, using `NSScreen.underCursor` from
+**Settled (D32, by the owner on 2026-11-20): the display under the pointer**, using `NSScreen.underCursor` from
 `Platform/ScreenTarget.swift` and its `CGDirectDisplayID`. That is where the person is looking, and
 it matches how the launcher already chooses a screen with `openOnCursorScreen`. From ⌘L it is the
 display the panel is on.
@@ -374,6 +374,20 @@ D32 to D42 are in `RISKS_AND_DECISIONS.md` section 3, moved there in step 1.
 | 7 | `NSDataDetector` finds addresses in the owner's locales and Hebrew text | Fixtures from real screens in English and Hebrew | 4 |
 | 8 | The app's `codex app-server` loads no MCP server from `~/.codex/config.toml` | Section 6.2, check 7. Not settled on 2026-11-20: the owner's config defines servers and only the model said it had none, so step 8 excludes them explicitly | 1, then 8 |
 | 9 | `tel:` from a menu-bar app hands to FaceTime and asks before calling | One call to a test number | 7 |
+
+Step 2 ran the spike in `Scripts/fork/look-capture-spike/` on a macOS 26.6.2 VM; results are in
+`BASELINE.md`, "Phase L step 2". None of rows 1 to 4 or 6 is settled for the owner's Mac yet:
+
+- **Row 1:** the log is open in `SCREEN_RECORDING_LOG.md`. On the VM the direct-capture alert
+  ("bypass the system private window picker") came on the first capture after the grant.
+- **Row 2:** held on the VM: a rebuild with a new code hash and the same certificate captured with
+  no prompt.
+- **Row 3:** held on the VM for the palette, the actions menu and a dialog, excluded by bundle from
+  another process. HUDs not seen on the VM.
+- **Row 4:** half true on the VM: without a relaunch, capture worked but
+  `CGPreflightScreenCaptureAccess()` stayed false until a new process. Step 5's permission check
+  must not trust preflight alone in the process that was just granted.
+- **Row 6:** not settled: the VM's remote-desktop app shows the same purple indicator.
 
 ## 13. Seam budget
 
