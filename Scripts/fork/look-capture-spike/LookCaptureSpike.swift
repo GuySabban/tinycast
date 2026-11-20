@@ -208,7 +208,7 @@ final class Run {
         let size = NSSize(width: 360, height: 220)
         let specs: [(String, NSColor, NSWindow.Level, Bool)] = [
             ("palette-like", NSColor(srgbRed: 1, green: 0, blue: 1, alpha: 1), paletteLevel, true),
-            ("menu-like", NSColor(srgbRed: 0, green: 1, blue: 1, alpha: 1), .floating, true),
+            ("menu-like", NSColor(srgbRed: 0, green: 1, blue: 1, alpha: 1), paletteLevel, true),
             ("hud-like", NSColor(srgbRed: 1, green: 1, blue: 0, alpha: 1), paletteLevel, false),
         ]
         for (offset, spec) in specs.enumerated() {
@@ -227,6 +227,9 @@ final class Run {
             panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
             panel.backgroundColor = spec.1
             panel.orderFrontRegardless()
+            if spec.0 == "menu-like", let palette = decoyWindows.first?.window {
+                palette.addChildWindow(panel, ordered: .above)
+            }
             decoyWindows.append(Decoy(name: spec.0, color: spec.1, window: panel))
         }
         log("decoys shown: \(decoyWindows.map { "\($0.name)#\($0.window.windowNumber)" })")

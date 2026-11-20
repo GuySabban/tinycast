@@ -380,10 +380,12 @@ Step 2 ran the spike in `Scripts/fork/look-capture-spike/` on a macOS 26.6.2 VM;
 
 - **Row 1:** the log is open in `SCREEN_RECORDING_LOG.md`. On the VM the direct-capture alert
   ("bypass the system private window picker") came on the first capture after the grant.
+The spike stood in for the Dev build, which cannot capture until step 5.
+
 - **Row 2:** held on the VM: a rebuild with a new code hash and the same certificate captured with
   no prompt.
-- **Row 3:** held on the VM for the palette, the actions menu and a dialog, excluded by bundle from
-  another process. HUDs not seen on the VM.
+- **Row 3:** partly held on the VM: the palette, the actions menu and a dialog were left out,
+  excluded by bundle from another process. No real HUD was shown on the VM.
 - **Row 4:** half true on the VM: without a relaunch, capture worked but
   `CGPreflightScreenCaptureAccess()` stayed false until a new process. Step 5's permission check
   must not trust preflight alone in the process that was just granted.

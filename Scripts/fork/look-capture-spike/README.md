@@ -13,6 +13,8 @@ bundle identifier through `SCContentFilter(display:excludingApplications:excepti
 
 ## Build
 
+Run every command here from the repository root, in Terminal.
+
 ```sh
 ./Scripts/fork/look-capture-spike/build.sh            # stamp = current time
 ./Scripts/fork/look-capture-spike/build.sh rebuild2   # any stamp; it changes the cdhash
@@ -25,9 +27,17 @@ logs no image content.
 
 ## Modes
 
-Run with `open build/LookCaptureSpike.app --args <mode> [options]`, or call
-`build/LookCaptureSpike.app/Contents/MacOS/LookCaptureSpike` directly so the launch does not
-change the frontmost app.
+Always launch it through LaunchServices:
+
+```sh
+open -n -g -W build/LookCaptureSpike.app --args <mode> [options]
+```
+
+`-n` starts a new copy, `-g` keeps the frontmost app in front, and `-W` waits until the run
+ends. Never run `build/LookCaptureSpike.app/Contents/MacOS/LookCaptureSpike` directly: macOS then
+charges the capture to Terminal, denies it, and asks to give Terminal itself Screen Recording.
+If that prompt appears, deny it. A launched app starts in `/`, so give `--save` an absolute or `~`
+path.
 
 | Mode | Does |
 | --- | --- |
@@ -39,7 +49,7 @@ change the frontmost app.
 | --- | --- |
 | `--exclude-self` | Exclude this process's own windows |
 | `--exclude-bundle <id>` | Exclude every window of a running app, e.g. `com.abueammar.tinycast.dev` |
-| `--decoys` | Show three coloured panels shaped like `PalettePanel`, `MenuPanel` and `HUDPanel` and check their pixels in the image |
+| `--decoys` | Show three coloured panels like `PalettePanel`, `MenuPanel` (a child window of the palette-like one) and `HUDPanel`, and check their pixels in the image |
 | `--delay <s>` | Wait before the first capture |
 | `--repeat <n>`, `--interval <s>` | Several captures |
 | `--hold <s>` | Stay alive after the last capture |
@@ -53,22 +63,24 @@ macOS version and build (`sw_vers`) next to each result. Copy the log lines into
 
 **Row 4: does a grant need a relaunch?**
 
-1. `tccutil reset ScreenCapture io.github.guysabban.spotcast.look-capture-spike` (a clean start).
-2. `./Scripts/fork/look-capture-spike/build.sh`
-3. `open build/LookCaptureSpike.app --args request`
+1. `./Scripts/fork/look-capture-spike/build.sh`
+2. `tccutil reset ScreenCapture io.github.guysabban.spotcast.look-capture-spike` for a clean
+   start. Before the spike's first launch this exits 64 with "No such bundle identifier": there is
+   no grant to reset, so go on.
+3. `open -n -g -W build/LookCaptureSpike.app --args request`
 4. In the macOS prompt choose Open System Settings and turn LookCaptureSpike on. When macOS offers
    "Quit & Reopen", choose **Later**.
 5. If a "bypass the system private window picker" alert appears, note it in
    `SCREEN_RECORDING_LOG.md` (row 1) and choose Allow.
 6. Wait for `request done` in the log. Record whether a `t+…s in-process: capture ok` line
    appeared before it, and the final `preflight` value.
-7. `open build/LookCaptureSpike.app --args status`, and record `preflight`.
+7. `open -n -g -W build/LookCaptureSpike.app --args status`, and record `preflight`.
 
 **Row 2: does a rebuild with the same certificate keep the grant?**
 
 1. After row 4, `./Scripts/fork/look-capture-spike/build.sh rebuild2`. The `CDHash` it prints must
    differ from the first build's; the `designated` line must name the same certificate leaf.
-2. `open build/LookCaptureSpike.app --args capture --exclude-self`
+2. `open -n -g -W build/LookCaptureSpike.app --args capture --exclude-self`
 3. Record `preflight`, whether capture is `ok`, and whether any prompt or alert appeared.
 4. Later, the same for the Release app itself: once Look exists (step 10), grant
    `io.github.guysabban.spotcast`, rebuild Release, Look again.
@@ -79,9 +91,9 @@ macOS version and build (`sw_vers`) next to each result. Copy the log lines into
 2. In Terminal, start this and switch away within 8 s:
 
    ```sh
-   B=build/LookCaptureSpike.app/Contents/MacOS/LookCaptureSpike
-   sleep 8; $B capture --save ~/Desktop/look-row3-shown.png; \
-     $B capture --exclude-bundle com.abueammar.tinycast.dev --repeat 4 --interval 0.5 \
+   spike() { open -n -g -W build/LookCaptureSpike.app --args capture "$@"; }
+   sleep 8; spike --save ~/Desktop/look-row3-shown.png; \
+     spike --exclude-bundle com.abueammar.tinycast.dev --repeat 4 --interval 0.5 \
        --save ~/Desktop/look-row3-excluded.png
    ```
 
@@ -97,7 +109,7 @@ Look will run.
 
 **Row 6: is there a menu-bar recording indicator for one still?**
 
-1. `open build/LookCaptureSpike.app --args capture --exclude-self --delay 3 --hold 15`
+1. `open -n -g -W build/LookCaptureSpike.app --args capture --exclude-self --delay 3 --hold 15`
 2. Watch the right end of the menu bar from before the capture until 20 s after.
 3. Record whether a purple indicator appears, for how long, and which app Control Center names
    when clicked while it shows. Close any screen-sharing or remote-desktop app first: it shows the

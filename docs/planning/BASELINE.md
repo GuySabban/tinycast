@@ -462,13 +462,24 @@ records the screen all the time, and it is reset between sessions. Timings are l
 measurements. D32 (display under the pointer) and D35 (direct capture) were settled by the owner
 the same day, so the spike uses both.
 
+Every run below was launched through LaunchServices (`open -n -g -W build/LookCaptureSpike.app
+--args …`), so TCC charged the capture to the spike's own bundle. Launched directly from a shell,
+TCC charges it to the app responsible for that shell instead: from Terminal that is Terminal, which
+is denied and then asked for its own grant; from a Devin shell it is `devin-remote`, which already
+holds a grant, so preflight reads true before the spike has one. Rows 2, 3 and 4 were rerun from
+Terminal with the README's `open` commands on 2026-11-20 and reproduced: a rebuild (cdhash
+`3b97d307`, same leaf) captured with no prompt; the launcher with ⌘K's menu open showed without the
+exclusion and was absent with it; after `tccutil reset`, the prompt named the spike, the capture in
+the same process worked at t+30 s while preflight stayed false, and a new process read true. That
+time the "bypass the system private window picker" alert did not come back.
+
 | `LOOK.md` row | Ran on the VM | Result on the VM | Owner's Mac |
 | --- | --- | --- | --- |
 | 1. Monthly re-ask | First grant and first capture | The "bypass the system private window picker" alert came on the first capture after the grant, answered Allow. The interval cannot be seen on a VM | Six-week log, `SCREEN_RECORDING_LOG.md` |
-| 2. Rebuild keeps the grant | Granted build `1586aa7c`, rebuilt as `aad7fed9`, same certificate leaf `c4d8d50c` | **Held.** `preflight true` and a capture with no prompt or alert | Repeat with the spike, then with the Release app in step 10 |
-| 3. Own windows left out | Three decoy panels at the palette, `MenuPanel` and HUD levels, excluded with `--exclude-self`; then the Dev build's launcher with ⌘K's menu open, and its Toggle Mute failure dialog, excluded by bundle from the spike | **Held.** Decoys 100 % visible without the exclusion, 0 % with it, over four captures. Launcher, menu and dialog visible without, absent with. No HUD was shown: Toggle Mute had no audio device and showed a dialog instead | Launcher, menu and a real HUD, steps in the spike's README |
-| 4. A grant needs a relaunch | `request` mode kept running through the grant, choosing Later at Quit & Reopen | **Half.** In the same process, `SCScreenshotManager` captured at t+30 s, but `CGPreflightScreenCaptureAccess()` stayed false. A new process read `preflight true` | Repeat once on the Dev build |
-| 6. Menu-bar indicator for one still | Watched the menu bar around single captures | **Not settled.** A purple dot by Control Center appeared after a capture and stayed at least 15 s, but Control Center named only `devin-remote`, the VM's remote desktop | Watch with no screen sharing running |
+| 2. Rebuild keeps the grant | Granted build `1586aa7c`, rebuilt as `aad7fed9`, same certificate leaf `c4d8d50c` | Held on the VM. `preflight true` and a capture with no prompt or alert | Repeat with the spike, then with the Release app in step 10 |
+| 3. Own windows left out | Three decoy panels: palette-like and HUD-like at Spotcast's palette level, and a menu-like one as a child window of the palette-like one, as `MenuPanel` is, excluded with `--exclude-self`; then the Dev build's launcher with ⌘K's menu open, and its Toggle Mute failure dialog, excluded by bundle from the spike | Partly held on the VM. Decoys 100 % visible without the exclusion, 0 % with it, over four captures. Launcher, menu and dialog visible without, absent with. No HUD was shown: Toggle Mute had no audio device and showed a dialog instead | Launcher, menu and a real HUD, steps in the spike's README |
+| 4. A grant needs a relaunch | `request` mode kept running through the grant, choosing Later at Quit & Reopen | Half true on the VM. In the same process, `SCScreenshotManager` captured at t+30 s, but `CGPreflightScreenCaptureAccess()` stayed false. A new process read `preflight true` | The README's row 4 steps with the spike; the Dev build repeats them in step 5, when it can capture |
+| 6. Menu-bar indicator for one still | Watched the menu bar around single captures | Not settled. A purple dot by Control Center appeared after a capture and stayed at least 15 s, but Control Center named only `devin-remote`, the VM's remote desktop | Watch with no screen sharing running |
 
 Also seen:
 

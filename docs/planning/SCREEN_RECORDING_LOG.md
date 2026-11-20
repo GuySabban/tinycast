@@ -26,5 +26,8 @@ between sessions, so it cannot show the monthly interval.
 | 2026-11-20 | 26.6.2 (25G83) | spike | After turning it on: "may not be able to record … until it is quit", with Quit & Reopen and Later | Later |
 | 2026-11-20 | 26.6.2 (25G83) | spike | On the first capture after the grant: "is requesting to bypass the system private window picker and directly access your screen and audio", with Allow and Open System Settings | Allow |
 
+| 2026-11-20 | 26.6.2 (25G83) | spike | After `tccutil reset ScreenCapture` for the spike and a new grant: the first two alerts again, but not the third | Open System Settings, Later |
+
 The third alert is the one to watch for: it is the direct-capture confirmation that macOS 15
-began repeating. On the VM it appeared on the very first capture, not a month later.
+began repeating. On the VM it appeared on the very first capture, not a month later, and
+`tccutil reset ScreenCapture` did not bring it back, so a reset does not restart the interval.

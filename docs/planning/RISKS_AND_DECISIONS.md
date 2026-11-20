@@ -98,7 +98,7 @@ brief, and the owner settled D32 and D35 on 2026-11-20; the others wait on the o
 
 | # | Decision | Alternatives | Recommendation |
 | --- | --- | --- | --- |
-| D32 | Which display | Under the pointer; every display; the frontmost window's | **Settled by the owner, 2026-11-20:** the display under the pointer; "All Displays" as a later command |
+| D32 | Which display | Under the pointer; every display; the frontmost window's | **Settled by the owner, 2026-11-20:** the display under the pointer. Still open: "All Displays" as a later command |
 | D33 | How the hotkey is added | A `HotKeyAction.look` case; a `CommandID.look` | `CommandID.look`: 7 lines in three files instead of about 10 in six, and no `HotKeyAction` switch changes |
 | D34 | The key inside the launcher | ⌘L; Tab; none | ⌘L: free, and L for Look |
 | D35 | Capture route | Direct capture with a monthly re-ask; the system picker every time | **Settled by the owner, 2026-11-20:** direct capture |
