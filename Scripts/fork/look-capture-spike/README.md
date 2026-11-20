@@ -2,8 +2,7 @@
 
 Throwaway code for `docs/planning/IMPLEMENTATION_ROADMAP.md` Phase L step 2. It is not part of the
 app target, nothing in `Tinycast/` imports it, and it is deleted when step 5's `ScreenCapturer`
-lands. Results are in `docs/planning/BASELINE.md`, "Phase L step 2"; the re-ask log is
-`docs/planning/SCREEN_RECORDING_LOG.md`.
+lands. Results are in `docs/planning/BASELINE.md`, "Phase L step 2".
 
 It is a small accessory app, `io.github.guysabban.spotcast.look-capture-spike`, signed with the kept
 `Tinycast Self-Signed` identity (R10), so it gets its own Screen Recording grant. It takes one
@@ -70,8 +69,7 @@ macOS version and build (`sw_vers`) next to each result. Copy the log lines into
 3. `open -n -g -W build/LookCaptureSpike.app --args request`
 4. In the macOS prompt choose Open System Settings and turn LookCaptureSpike on. When macOS offers
    "Quit & Reopen", choose **Later**.
-5. If a "bypass the system private window picker" alert appears, note it in
-   `SCREEN_RECORDING_LOG.md` (row 1) and choose Allow.
+5. If a "bypass the system private window picker" alert appears, record it and choose Allow.
 6. Wait for `request done` in the log. Record whether a `t+…s in-process: capture ok` line
    appeared before it, and the final `preflight` value.
 7. `open -n -g -W build/LookCaptureSpike.app --args status`, and record `preflight`.
@@ -114,8 +112,6 @@ Look will run.
 3. Record whether a purple indicator appears, for how long, and which app Control Center names
    when clicked while it shows. Close any screen-sharing or remote-desktop app first: it shows the
    same indicator.
-
-**Row 1: the six-week log.** See `docs/planning/SCREEN_RECORDING_LOG.md`.
 
 **Clean-up.** `tccutil reset ScreenCapture io.github.guysabban.spotcast.look-capture-spike`, and
 `rm -rf build/LookCaptureSpike.app` when the spike is deleted.

@@ -76,7 +76,8 @@ the betas and monthly at release. The exemption for remote-desktop apps is the
 members of its paid developer programme. A self-signed build cannot carry it.
 
 So the plan assumes **a re-ask about once a month**, answered with "Allow". Whether macOS 26 and 27
-keep the same interval is not verified (section 12, row 1). The picker avoids the re-ask but shows
+keep the same interval is not verified: the owner chose not to log it (section 12, row 1), so Look
+handles the alert whenever it comes. The picker avoids the re-ask but shows
 a system window on every capture, which defeats a one-key action, so it is dropped (D35).
 
 ### 2.3 Keeping the grant across builds
@@ -365,7 +366,7 @@ D32 to D42 are in `RISKS_AND_DECISIONS.md` section 3, moved there in step 1.
 
 | # | Assumption | How it is settled | Step |
 | --- | --- | --- | --- |
-| 1 | macOS 27 re-asks for direct screen capture about monthly, as macOS 15 did | Keep a dated note of each alert on the owner's Mac for six weeks after the first grant | 2, then ongoing |
+| 1 | macOS 27 re-asks for direct screen capture about monthly, as macOS 15 did | Dropped by the owner on 2026-11-20: the plan assumes about one re-ask a month | 2 |
 | 2 | A rebuild with the same certificate keeps the Screen Recording grant | Grant, rebuild the Release app, Look again | 2 |
 | 3 | `SCScreenshotManager` excluding the own app leaves out the palette, `MenuPanel` and HUDs | Look from ⌘L with the actions menu open and a HUD showing | 2 |
 | 4 | A grant takes effect only after relaunch | First grant on the Dev build | 2 |
@@ -375,21 +376,21 @@ D32 to D42 are in `RISKS_AND_DECISIONS.md` section 3, moved there in step 1.
 | 8 | The app's `codex app-server` loads no MCP server from `~/.codex/config.toml` | Section 6.2, check 7. Not settled on 2026-11-20: the owner's config defines servers and only the model said it had none, so step 8 excludes them explicitly | 1, then 8 |
 | 9 | `tel:` from a menu-bar app hands to FaceTime and asks before calling | One call to a test number | 7 |
 
-Step 2 ran the spike in `Scripts/fork/look-capture-spike/` on a macOS 26.6.2 VM; results are in
-`BASELINE.md`, "Phase L step 2". None of rows 1 to 4 or 6 is settled for the owner's Mac yet:
+Step 2 ran the spike in `Scripts/fork/look-capture-spike/` on a macOS 26.6.2 VM and on the owner's
+Mac; results are in `BASELINE.md`, "Phase L step 2". The spike stood in for the Dev build, which
+cannot capture until step 5.
 
-- **Row 1:** the log is open in `SCREEN_RECORDING_LOG.md`. On the VM the direct-capture alert
-  ("bypass the system private window picker") came on the first capture after the grant.
-The spike stood in for the Dev build, which cannot capture until step 5.
-
-- **Row 2:** held on the VM: a rebuild with a new code hash and the same certificate captured with
-  no prompt.
-- **Row 3:** partly held on the VM: the palette, the actions menu and a dialog were left out,
-  excluded by bundle from another process. No real HUD was shown on the VM.
-- **Row 4:** half true on the VM: without a relaunch, capture worked but
-  `CGPreflightScreenCaptureAccess()` stayed false until a new process. Step 5's permission check
-  must not trust preflight alone in the process that was just granted.
-- **Row 6:** not settled: the VM's remote-desktop app shows the same purple indicator.
+- **Row 1:** not measured. The owner dropped the six-week log, so the plan assumes a monthly
+  re-ask. On both machines the "bypass the system private window picker" alert came on the first
+  capture after the grant.
+- **Row 2:** held: a rebuild with a new code hash and the same certificate captured with no prompt.
+- **Row 3:** held: the palette, the actions menu and a real HUD were left out, excluded by bundle
+  from another process.
+- **Row 4:** half true: without a relaunch, capture worked but `CGPreflightScreenCaptureAccess()`
+  stayed false until a new process. Step 5's permission check must not trust preflight alone in the
+  process that was just granted.
+- **Row 6:** yes: one still shows the menu-bar indicator for about 3 s, and Control Center names no
+  app.
 
 ## 13. Seam budget
 
