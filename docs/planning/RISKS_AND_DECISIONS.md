@@ -37,6 +37,19 @@ hardening" is worth doing when the named later feature arrives.
 | T12 | Links from outside and extensions | A web page or app sends an extension-command link, which runs without consent (audit R3, confirmed by Appendix B row 8); extension code is unconfined (R4) | Extensions stay off, which is the default. With extensions off the link path does nothing. | A consent prompt on that path, as a small local patch or an upstream report (D10). |
 | T13 | Changes arriving by merge | An upstream commit adds a network host, a permission or a behaviour the owner would not accept | Merge at upstream's stable tags, read the diff of the seam files, and list new outbound hosts after each merge with one search. | A small script that reports new hosts, entitlements and usage strings between two commits. |
 
+T14 to T21, for installs beyond Homebrew, are still in `UNIVERSAL_INSTALL.md` section 7 until U1
+step 1 moves them. Look (Phase L) adds T22 to T27, moved here from `LOOK.md` section 10 in Phase L
+step 1:
+
+| # | Threat | Safeguard |
+| --- | --- | --- |
+| T22 | Screen text reaches a cloud provider the person did not think about | On-device by default up to the action list; Ask AI only on Return; the first ask in each Look previews and allows editing the exact text, naming the provider (`LOOK.md` section 7) |
+| T23 | Instructions on screen steer the model | No tools, no MCP, no web search in Look's turn; the boundary; the answer drawn as text; links in it need a click (`LOOK.md` section 6.3) |
+| T24 | A detected link, number or address is hostile | Only `http`, `https` and `mailto` links; the row shows the host first; nothing opens without Return; `tel:` and `sms:` hand to the system, which asks before calling |
+| T25 | A capture outlives its use | In memory only, released after recognition; passed to the helper by pipe; text dropped on close; nothing logged (`LOOK.md` section 3.5) |
+| T26 | The Screen Recording grant is used by other code | No capture API in the extension runtime; merge checklist searches for capture APIs; the grant's breadth stated in Settings (`LOOK.md` section 2.4) |
+| T27 | A link from another app starts a capture | `.look` requires deep-link consent |
+
 ## 2. The audit's risks, carried forward
 
 | # | Risk | What the plan does | When |
@@ -78,6 +91,24 @@ Each has a recommendation. D1 is the only one that blocks Phase 0.
 | D13 | The owner's default AI route | Claude through the CLI; the on-device model | Claude for quality, on-device as the fallback | Audit Appendix B rows 11 and 13 |
 | D14 | Where install progress is shown | The existing output window; a progress pill only | The output window. It shows Homebrew's own log and has Stop. | Use it for a week |
 | D15 | WebP output in Phase 5 (R15) | Vendor libwebp's encoder as source, the app's first third-party code, with its licence added to `NOTICE.md`; call an installed `cwebp` from Homebrew when present; leave WebP out and offer HEIC or AVIF, which ImageIO writes | Leave WebP out of Phase 5's first version. Upstream has zero third-party dependencies, and vendoring C code adds a build step and a licence duty for one format. Revisit if WebP is asked for by name. | The owner, when Phase 5 is re-planned |
+
+D16 to D31 are still in `UNIVERSAL_INSTALL.md` section 8 until U1 step 1 moves them. Look's
+decisions, D32 to D42, moved here from `LOOK.md` section 11 in Phase L step 1. D41 is set by the
+brief; the others wait on the owner.
+
+| # | Decision | Alternatives | Recommendation |
+| --- | --- | --- | --- |
+| D32 | Which display | Under the pointer; every display; the frontmost window's | Under the pointer; "All Displays" as a later command |
+| D33 | How the hotkey is added | A `HotKeyAction.look` case; a `CommandID.look` | `CommandID.look`: 7 lines in three files instead of about 10 in six, and no `HotKeyAction` switch changes |
+| D34 | The key inside the launcher | ⌘L; Tab; none | ⌘L: free, and L for Look |
+| D35 | Capture route | Direct capture with a monthly re-ask; the system picker every time | Direct capture |
+| D36 | Where recognition runs | A stdin mode in the existing helper; in the app; a new helper target | The existing helper: Vision's memory leaves with it, and a new target would edit `project.yml` |
+| D37 | Consent before a cloud ask | Preview on the first ask of each Look; once ever; never | Each Look |
+| D38 | Claude for Look before the hook fix | Allowed, with a note; hidden until the fix | Allowed with a note; it is the owner's own Mac and hooks |
+| D39 | Recognition level | `.accurate`; `.fast`; a setting | `.accurate`, unless it misses the target |
+| D40 | Copy and clipboard history | Into history like any copy; marked to skip history | Into history: it is the person's own copy, and only text |
+| D41 | Look's AI route | Its own setting defaulting to Codex; the general default | **Set by the brief:** its own setting, Codex by default |
+| D42 | An undated time ("at 3") | Today; the next such time; ignored | The next such time, shown on the row so a wrong guess is visible |
 
 ## 4. Upstream sync strategy
 

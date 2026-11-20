@@ -9,8 +9,8 @@ place in this file. Their design, threats T14 to T21 and decisions D16 to D31 ar
 `UNIVERSAL_INSTALL.md`. The owner approved the start on 2026-11-14 by settling D28, together with
 D16, D29 and D30.
 
-Phase L, Look, follows Phase 2 in this file and needs only Phase 0. Its design, threats T22 to
-T27 and decisions D32 to D42 are in `LOOK.md`.
+Phase L, Look, follows Phase 2 in this file and needs only Phase 0. Its design is in `LOOK.md`;
+its threats T22 to T27 and decisions D32 to D42 are in `RISKS_AND_DECISIONS.md`.
 
 ## How to read the estimates
 
@@ -329,7 +329,8 @@ and failure mapping. `WebSearchSessionTests` uses an in-process `URLProtocol` fo
 **Objective.** A hotkey, or ⌘L in the open launcher, reads the display under the pointer and shows
 what is on it as actions: create an event from a date, open a link, call or copy a number, get
 directions to an address, copy or translate the text, or ask AI about it. Everything before Ask AI
-is on-device. The design, threats T22 to T27 and decisions D32 to D42 are in `LOOK.md`.
+is on-device. The design is in `LOOK.md`; threats T22 to T27 and decisions D32 to D42 are in
+`RISKS_AND_DECISIONS.md`.
 
 **Needs.** Phase 0 only. It can run before or after Phase 2; it is placed here because it is sized
 in detail.

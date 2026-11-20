@@ -4,14 +4,15 @@ Spotcast reads what is on screen and turns it into actions: a date becomes a cal
 opens, a phone number is called or copied, an address gets directions, any text can be copied,
 translated or asked about.
 
-- **Status:** planned, not started. No source file has changed. The phase, its steps and hours are
-  in `IMPLEMENTATION_ROADMAP.md` (Phase L, after Phase 2).
+- **Status:** step 1's Codex checks are recorded in `BASELINE.md` (Phase L step 1); check 7 is not
+  settled and check 8 is still owed (section 6.2). No source file has changed. The phase, its steps and hours are in `IMPLEMENTATION_ROADMAP.md` (Phase L, after
+  Phase 2).
 - **Basis:** the fork at `5b6461e6` on `universal-launcher`, read on 2026-11-19. Facts about
   Spotcast's code below were read in the source, not run. Facts about macOS behaviour that this
   plan could not check are marked as needing a run and listed in section 12.
 - **Related documents:** threats T22 to T27 and decisions D32 to D42 continue the numbering of
-  `UNIVERSAL_INSTALL.md` and move to `RISKS_AND_DECISIONS.md` in step 1. The AI routes are
-  described in `ARCHITECTURE_AUDIT.md` section 3.3; the Claude hook finding is `UNIVERSAL_INSTALL.md`
+  `UNIVERSAL_INSTALL.md` and are in `RISKS_AND_DECISIONS.md`, moved there in step 1. The AI routes
+  are described in `ARCHITECTURE_AUDIT.md` section 3.3; the Claude hook finding is `UNIVERSAL_INSTALL.md`
   section 10, row 24.
 
 ## 1. The plan in brief
@@ -255,6 +256,11 @@ new row:
 If any of 3 to 6 fails, Look's default falls back to the on-device route until fixed, and the
 owner is told.
 
+**Result (2026-11-20, `BASELINE.md`):** checks 3 to 6 passed, so Codex stays Look's default. Check 7
+did not settle row 8 of section 12: the owner's `~/.codex/config.toml` defines MCP servers, and only
+the model's own answer says the turn could not reach them, so step 8 excludes those servers
+explicitly. Check 8 gave one informal figure, about 2 s; the ten timed asks are still owed.
+
 ### 6.3 No tools in that turn
 
 Screen text is untrusted: any web page, message or document on screen can contain instructions.
@@ -349,30 +355,11 @@ Measured on the owner's Mac, Release build, one 5K display, with new signposts u
 
 ## 10. Threats added
 
-| # | Threat | Safeguard |
-| --- | --- | --- |
-| T22 | Screen text reaches a cloud provider the person did not think about | On-device by default up to the action list; Ask AI only on Return; the first ask in each Look previews and allows editing the exact text, naming the provider (section 7) |
-| T23 | Instructions on screen steer the model | No tools, no MCP, no web search in Look's turn; the boundary; the answer drawn as text; links in it need a click (section 6.3) |
-| T24 | A detected link, number or address is hostile | Only `http`, `https` and `mailto` links; the row shows the host first; nothing opens without Return; `tel:` and `sms:` hand to the system, which asks before calling |
-| T25 | A capture outlives its use | In memory only, released after recognition; passed to the helper by pipe; text dropped on close; nothing logged (section 3.5) |
-| T26 | The Screen Recording grant is used by other code | No capture API in the extension runtime; merge checklist searches for capture APIs; the grant's breadth stated in Settings (section 2.4) |
-| T27 | A link from another app starts a capture | `.look` requires deep-link consent |
+T22 to T27 are in `RISKS_AND_DECISIONS.md` section 1, moved there in step 1.
 
 ## 11. Decisions
 
-| # | Decision | Alternatives | Recommendation |
-| --- | --- | --- | --- |
-| D32 | Which display | Under the pointer; every display; the frontmost window's | Under the pointer; "All Displays" as a later command |
-| D33 | How the hotkey is added | A `HotKeyAction.look` case; a `CommandID.look` | `CommandID.look`: 7 lines in three files instead of about 10 in six, and no `HotKeyAction` switch changes |
-| D34 | The key inside the launcher | ⌘L; Tab; none | ⌘L: free, and L for Look |
-| D35 | Capture route | Direct capture with a monthly re-ask; the system picker every time | Direct capture |
-| D36 | Where recognition runs | A stdin mode in the existing helper; in the app; a new helper target | The existing helper: Vision's memory leaves with it, and a new target would edit `project.yml` |
-| D37 | Consent before a cloud ask | Preview on the first ask of each Look; once ever; never | Each Look |
-| D38 | Claude for Look before the hook fix | Allowed, with a note; hidden until the fix | Allowed with a note; it is the owner's own Mac and hooks |
-| D39 | Recognition level | `.accurate`; `.fast`; a setting | `.accurate`, unless it misses the target |
-| D40 | Copy and clipboard history | Into history like any copy; marked to skip history | Into history: it is the person's own copy, and only text |
-| D41 | Look's AI route | Its own setting defaulting to Codex; the general default | **Set by the brief:** its own setting, Codex by default |
-| D42 | An undated time ("at 3") | Today; the next such time; ignored | The next such time, shown on the row so a wrong guess is visible |
+D32 to D42 are in `RISKS_AND_DECISIONS.md` section 3, moved there in step 1.
 
 ## 12. Assumptions that need a run
 
@@ -385,7 +372,7 @@ Measured on the owner's Mac, Release build, one 5K display, with new signposts u
 | 5 | 4096 px recognition of a 5K display reads 11-point text | A test page at 9, 11 and 13 points | 3 |
 | 6 | The capture shows the menu-bar recording indicator, or not, for a single still | Watch the menu bar during a Look | 2 |
 | 7 | `NSDataDetector` finds addresses in the owner's locales and Hebrew text | Fixtures from real screens in English and Hebrew | 4 |
-| 8 | The app's `codex app-server` loads no MCP server from `~/.codex/config.toml` | Section 6.2, check 7 | 1 |
+| 8 | The app's `codex app-server` loads no MCP server from `~/.codex/config.toml` | Section 6.2, check 7. Not settled on 2026-11-20: the owner's config defines servers and only the model said it had none, so step 8 excludes them explicitly | 1, then 8 |
 | 9 | `tel:` from a menu-bar app hands to FaceTime and asks before calling | One call to a test number | 7 |
 
 ## 13. Seam budget
