@@ -308,6 +308,9 @@ struct LauncherScreen: PaletteScreen {
             core.launcherCoordinator.launch(
                 app, searchQuery: vm.query, arguments: core.launcherCoordinator.argumentValues(for: app))
         case .file(let result): core.fileSearchCoordinator.open(result)
+        case .web(.noResults):
+            core.webSearchCoordinator.searchAgain(vm.query)
+            selectFirstWebRow()
         case .web(let row): core.webSearchCoordinator.open(row)
         case .fallback(.builtin(.searchWeb), _): searchWeb()
         case .fallback(let fallback, _):

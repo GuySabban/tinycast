@@ -28,7 +28,7 @@ user's own Exa API key, set in Settings › Fallbacks › Web Search.
 | --- | --- | --- |
 | Placeholder (five while searching) | nothing | no menu |
 | Result | Open in Browser | Open in Browser, Copy Link, Search Again |
-| No web results | nothing | Search Again |
+| No web results | Search Again | Search Again |
 | Key missing or rejected | Open Web Search Settings | the same |
 | Any other failure | Try Again | the same |
 

@@ -12,7 +12,10 @@ enum WebSearchActionsMenu {
         case .placeholder:
             return nil
         case .noResults:
-            return PopoverMenuContent(header: nil, items: [again])
+            var primary = again
+            primary.shortcut = "↵"
+            primary.startsSection = false
+            return PopoverMenuContent(header: nil, items: [primary])
         case .result(let result):
             return PopoverMenuContent(
                 header: result.host,
@@ -39,11 +42,11 @@ enum WebSearchActionsMenu {
         }
     }
 
-    /// The pill's title. A placeholder shows none; No web results keeps ⌘K, but Return does nothing.
+    /// The pill's title; a placeholder has no action, so its title is never shown.
     static func primaryTitle(for row: WebSearchRow) -> String {
         switch row {
         case .placeholder: return String(localized: "Searching the web")
-        case .noResults: return String(localized: "No web results")
+        case .noResults: return String(localized: "Search Again")
         case .result: return String(localized: "Open in Browser")
         case .failure(let failure):
             return WebSearchCoordinator.needsSettings(failure)
