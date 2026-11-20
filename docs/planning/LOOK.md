@@ -4,8 +4,8 @@ Spotcast reads what is on screen and turns it into actions: a date becomes a cal
 opens, a phone number is called or copied, an address gets directions, any text can be copied,
 translated or asked about.
 
-- **Status:** step 1 done: the Codex checks are in `BASELINE.md` (Phase L step 1). No source file
-  has changed. The phase, its steps and hours are in `IMPLEMENTATION_ROADMAP.md` (Phase L, after
+- **Status:** step 1's Codex checks are recorded in `BASELINE.md` (Phase L step 1); check 7 is not
+  settled and check 8 is still owed (section 6.2). No source file has changed. The phase, its steps and hours are in `IMPLEMENTATION_ROADMAP.md` (Phase L, after
   Phase 2).
 - **Basis:** the fork at `5b6461e6` on `universal-launcher`, read on 2026-11-19. Facts about
   Spotcast's code below were read in the source, not run. Facts about macOS behaviour that this

@@ -444,7 +444,7 @@ results below were reported; nothing here ran in a VM.
 | 1. `codex --version`, `codex login status` | **Pass.** codex-cli 0.146.0, logged in using ChatGPT |
 | 2. Enable Codex in Settings › AI › Manage; its models appear | **Not reported on its own.** Check 3 ran with a Codex model selected, which needs it enabled |
 | 3. A Quick AI question with a Codex model streams an answer | **Pass.** It streamed |
-| 4. `ps` during the turn shows one long-lived `codex app-server` | **Pass.** Exactly one `codex app-server` line |
+| 4. `ps` during the turn shows one long-lived `codex app-server` | **Pass, in part.** Exactly one `codex app-server` line; its parent and whether it outlives the turn were not checked |
 | 5. Asked to create `/tmp/look-codex-probe`, the turn cannot | **Pass.** The file was not created |
 | 6. No session file for the turn under `~/.codex/sessions` | **Pass** |
 | 7. No tools with MCP off; servers in `~/.codex/config.toml` not loaded | **Not settled.** `grep -c mcp_servers ~/.codex/config.toml` gives 7, so the config defines servers. The turn said it could not access MCP, but that is the model's own word, not checked at the process level. Step 8 must exclude config servers explicitly (`LOOK.md` section 12, row 8) |

@@ -37,8 +37,9 @@ hardening" is worth doing when the named later feature arrives.
 | T12 | Links from outside and extensions | A web page or app sends an extension-command link, which runs without consent (audit R3, confirmed by Appendix B row 8); extension code is unconfined (R4) | Extensions stay off, which is the default. With extensions off the link path does nothing. | A consent prompt on that path, as a small local patch or an upstream report (D10). |
 | T13 | Changes arriving by merge | An upstream commit adds a network host, a permission or a behaviour the owner would not accept | Merge at upstream's stable tags, read the diff of the seam files, and list new outbound hosts after each merge with one search. | A small script that reports new hosts, entitlements and usage strings between two commits. |
 
-Look (Phase L) adds T22 to T27, moved here from `LOOK.md` section 10 in Phase L step 1. Each has one
-safeguard, which must hold before Look ships:
+T14 to T21, for installs beyond Homebrew, are still in `UNIVERSAL_INSTALL.md` section 7 until U1
+step 1 moves them. Look (Phase L) adds T22 to T27, moved here from `LOOK.md` section 10 in Phase L
+step 1:
 
 | # | Threat | Safeguard |
 | --- | --- | --- |
@@ -91,8 +92,9 @@ Each has a recommendation. D1 is the only one that blocks Phase 0.
 | D14 | Where install progress is shown | The existing output window; a progress pill only | The output window. It shows Homebrew's own log and has Stop. | Use it for a week |
 | D15 | WebP output in Phase 5 (R15) | Vendor libwebp's encoder as source, the app's first third-party code, with its licence added to `NOTICE.md`; call an installed `cwebp` from Homebrew when present; leave WebP out and offer HEIC or AVIF, which ImageIO writes | Leave WebP out of Phase 5's first version. Upstream has zero third-party dependencies, and vendoring C code adds a build step and a licence duty for one format. Revisit if WebP is asked for by name. | The owner, when Phase 5 is re-planned |
 
-Look's decisions, D32 to D42, moved here from `LOOK.md` section 11 in Phase L step 1. D41 is set by
-the brief; the others wait on the owner.
+D16 to D31 are still in `UNIVERSAL_INSTALL.md` section 8 until U1 step 1 moves them. Look's
+decisions, D32 to D42, moved here from `LOOK.md` section 11 in Phase L step 1. D41 is set by the
+brief; the others wait on the owner.
 
 | # | Decision | Alternatives | Recommendation |
 | --- | --- | --- | --- |
