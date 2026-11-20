@@ -938,7 +938,8 @@ Not touched in Phase 1: `RootPaletteView.swift`, `AppSettings.swift` and the set
 | `Scripts/run-tests.sh` | 4 | 0 | Harness entries. Actual: 8 added, for four harnesses |
 
 Phase 2 in all, without the string catalog: 87 lines planned (added plus changed), 113 inserted
-(30% over). `LauncherScreen` is 58 against 36; the other eleven files are 55 against 51.
+(30% over). `LauncherScreen` is 58 against 36; the other eleven files are 55 against 51. With the
+catalog, which the acceptance does not exclude: 1,465 against about 887, 65% over.
 
 Across both feature phases the nine seam files of the audit take about 64 added and 7 changed lines,
 in four of the nine: `LauncherScreen`, `AppCore`, `CommandID` and `LauncherCoordinator`. Phase 0 adds

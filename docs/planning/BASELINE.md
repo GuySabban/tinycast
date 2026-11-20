@@ -392,7 +392,7 @@ his private, so nothing that sends a search ran here.
 | `./Scripts/lint.sh` | **Pass.** 78 warnings, the baseline's count |
 | Model purity search | **Pass.** Nothing found |
 | Strings | **Pass.** 26 keys are new since the phase began (`afc97036`), each translated in all eight languages. `./Scripts/sync-strings.sh` changed nothing |
-| Seam budget | **Over.** 113 lines against 87, 30% over the 20% the acceptance allows, all of it in `LauncherScreen` (58 against 36). See `PROPOSED_ARCHITECTURE.md` section 7 |
+| Seam budget | **Over.** Without the string catalog, 113 lines against 87: 30% over the 20% the acceptance allows. `LauncherScreen` is 22 of the 26 (58 against 36); `run-tests.sh` +4, `AppCore` +1 and `LauncherList` −1 make the rest. With the catalog (1,352 against about 800), 1,465 against about 887, 65% over. See `PROPOSED_ARCHITECTURE.md` section 7 |
 
 The harnesses drive the request, the reply, every failure and the five-result limit through an
 in-process `URLProtocol`, and the coordinator over the real Keychain scope. They do not show timing,
@@ -410,6 +410,10 @@ Not run yet. The Dev build, signed, with the owner's own key. Stream the signpos
 | Typing a query sends nothing: no `WebSearch.fetch` | |
 | Return on Search the Web: one `WebSearch.fetch`, and five placeholder rows in the same frame with the selection on the first, scrolled into view | |
 | The same from the Cmd-K menu's Search the Web item | |
+| During a search, ↓ to placeholder 3, 4 or 5; when fewer results come back the selection stays on a web row, and Return there runs no fallback | |
+| Search Again from a result's Cmd-K menu selects the first web row again | |
+| With file rows showing above the web section: a first search, then Search Again, each selecting the first web row | |
+| The same under a lead card: a calculation, then `install rectangle` | |
 | Timing over 20 searches: `WebSearch.fetch` median under 1.5 s, p95 under 3 s | |
 | Up to five rows; Return opens the link in the browser; the Cmd-K menu's Copy Link copies it, and its Search Again searches once more | |
 | A query searched earlier in the session shows its results again with no `WebSearch.fetch` | |
@@ -417,9 +421,9 @@ Not run yet. The Dev build, signed, with the owner's own key. Stream the signpos
 | Wi-Fi off: one row says "Couldn’t reach Exa. Check your connection"; with Wi-Fi back, Return on it (Try Again) shows results | |
 | A key with one character changed: "Exa didn’t accept the API key. Check it in Settings", and Return on it opens the Web Search settings | |
 | Keychain Access lists `com.tinycast.app.dev.web-search-keys` | |
-| The key is nowhere on disk: `read -s K; grep -rlF "$K" ~/Library/Preferences ~/Library/Caches "$HOME/Library/Application Support"; unset K` prints nothing | |
+| The key is nowhere on disk: `read -s K; grep -rlF "$K" ~/Library/Preferences ~/Library/Caches "$HOME/Library/Application Support" ~/Library/HTTPStorages ~/Library/Containers ~/Library/Logs ~/.config/tinycast-dev 2>/dev/null; unset K` prints nothing | |
 | Clearing the key and saving removes the fallback and the rows | |
-| `footprint` at idle and after ten searches stays under 100 MB, and Instruments Leaks shows no leak after ten | |
+| `footprint` stays under 100 MB at the template's four points (idle after launch, palette open, peak over ten searches, palette closed and settled), and Instruments Leaks shows no leak after ten | |
 
 If PR #7 (upstream `v0.12.15`) merges first, the Dev build becomes `com.abueammar.tinycast.dev`.
 Its migration moves preferences and folders but no Keychain item, so the key must be saved again,
