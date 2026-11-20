@@ -204,7 +204,8 @@ process; `docs/features/clipboard.md` gives that as the reason the helper exists
 
 The helper takes a file path. Look must not write one, so the helper gains one mode, `image-stdin`,
 that reads PNG bytes from standard input, and `ClipboardTextWorker` gains an entry that writes
-`Data` to the pipe. About 15 lines in two upstream files (D36). The 60-second deadline, the 32 KB
+`Data` to the pipe (D36). Step 3 also gave `ClipboardTextExtractor` a `Data` entry, since it read
+only from a URL: about 55 lines added and 4 changed in three upstream files. The 60-second deadline, the 32 KB
 cap and cancellation stay as they are; Look sets a 5-second deadline of its own.
 
 Recognition levels: `.accurate` is the default. `.fast` is several times quicker but weaker on
@@ -380,6 +381,11 @@ Step 2 ran the spike in `Scripts/fork/look-capture-spike/` on a macOS 26.6.2 VM 
 Mac; results are in `BASELINE.md`, "Phase L step 2". The spike stood in for the Dev build, which
 cannot capture until step 5.
 
+Step 3 ran row 5 on the VM with `Scripts/fork/look-recognition-bench/`; results are in
+`BASELINE.md`, "Phase L step 3". The extractor's 2048 × 2048 pixel cap reads a 5K capture at
+2731 × 1536, not at 4096 px as row 5 assumed; on that page 9, 11 and 13 pt text was read on the VM.
+Vision on macOS 26.6 lists no Hebrew at either level, which row 7 depends on.
+
 - **Row 1:** not measured. The owner dropped the six-week log, so the plan assumes a monthly
   re-ask. On both machines the "bypass the system private window picker" alert came on the first
   capture after the grant.
@@ -404,7 +410,7 @@ for size only.
 | `DeepLinks/Model/DeepLinkConsentPolicy.swift` | 0 | 1 | Consent for links |
 | `Palette/PaletteMode.swift` | about 4 | 0 | The `.look` mode, its symbol and title |
 | `Palette/RootPaletteView.swift` | about 5 | 0 | The mode's screen; ⌘L |
-| `Clipboard/Service/ClipboardTextHelper.swift`, `ClipboardTextWorker.swift` | about 15 | 0 | The `image-stdin` mode |
+| `Clipboard/Service/ClipboardTextHelper.swift`, `ClipboardTextWorker.swift`, `ClipboardTextExtractor.swift` | 55 | 4 | The `image-stdin` mode and the `Data` entries (step 3) |
 | `Calendar/Model/EventDraft.swift`, `Calendar/UI/CalendarCoordinator.swift`, `EventEditorView.swift` | about 15 | 2 | Absolute start prefill |
 | `App/AppCore.swift` | 2 | 0 | Look's settings store and coordinator |
 | AI pane's settings view | 1 | 0 | `LookSettingsSection` |

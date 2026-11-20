@@ -8,6 +8,9 @@ nonisolated enum ClipboardTextHelper {
         if CommandLine.arguments.count == 5, CommandLine.arguments[1] == "thumbnail" {
             exit(writeThumbnail() ? 0 : 1)
         }
+        if CommandLine.arguments.count == 2, CommandLine.arguments[1] == "image-stdin" {
+            exit(await writeTextFromStandardInput() ? 0 : 1)
+        }
         guard CommandLine.arguments.count == 3,
             ["image", "pdf"].contains(CommandLine.arguments[1])
         else { exit(2) }
@@ -19,6 +22,14 @@ nonisolated enum ClipboardTextHelper {
         } catch {
             exit(1)
         }
+    }
+
+    /// `image-stdin`: PNG bytes in, text out, so the image never touches the disk.
+    private static func writeTextFromStandardInput() async -> Bool {
+        guard let data = try? FileHandle.standardInput.readToEnd(),
+            let text = try? await ClipboardTextExtractor.extract(imageData: data)
+        else { return false }
+        return (try? FileHandle.standardOutput.write(contentsOf: Data(text.utf8))) != nil
     }
 
     /// `thumbnail <source> <copy> <edge>`: the full-size decode's memory leaves with this process.

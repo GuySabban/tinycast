@@ -493,6 +493,29 @@ Also seen:
   and 10, so one filter covers the palette, menu, HUD and dialog levels.
 - Capture of a 1600 × 1200 display took 16 to 84 ms after `SCShareableContent` (6 to 32 ms).
 
+## Phase L step 3: recognition from memory (2026-11-20)
+
+`ClipboardTextHelper image-stdin` and `ClipboardTextWorker.extract(imageData:executable:timeout:)`
+ran in a Devin macOS VM: macOS 26.6.2 (25G83), Apple M4 Pro (Virtual), Xcode 27 RC. The VM has no
+Neural Engine and runs a remote-desktop recorder, so its timings are not measurements of the
+owner's Mac.
+
+| Check | On the VM |
+| --- | --- |
+| `LookRecognitionTests` | **Pass**, alone and inside the full suite of 124. It builds the real helper from source and feeds it PNG bytes: text comes back, no file of the fixture appears under `$TMPDIR` or `/tmp` (a control written to a file is seen), a 1.4 MB 5K page outgrows the pipe buffer and its 11 and 13 pt lines are read, bad and empty input fail, a 50 ms deadline and a cancel each leave no helper within 1 s, and a helper that never reads fails the call instead of `SIGPIPE`. With `F_SETNOSIGPIPE` removed the harness dies of signal 13 |
+| Full suite, lint, model purity, Debug build `CODE_SIGNING_ALLOWED=NO` | **Pass.** No compiler warnings; only the two AppIntents lines |
+| Bench, `.accurate`, shipped 2048 × 2048 cap (5K page read at 2731 × 1536) | Median 4.99 s, 95th percentile 6.05 s, 10 runs. 9, 11 and 13 pt markers read; the 13 pt word came back as "VAJAEK" |
+| Bench, `.fast`, same cap | Median 1.46 s, 95th percentile 1.86 s. 9 pt missed; 11 pt read as "MAAKEA" |
+| Bench, `.accurate`, cap raised to 4096 × 2304 | Median 6.54 s, 95th percentile 7.47 s. All three Latin markers read exactly |
+| Hebrew | Not read at any setting. Vision lists no Hebrew: `.accurate` has 30 languages including Arabic, `.fast` six Latin ones |
+
+Earlier bench runs on the same VM gave `.accurate` medians from 2.3 s to 5.2 s, so the VM is noisy as
+well as slow. A first test page of near-identical lines lost most of its lines at `.accurate`;
+the bench now draws varied lines, as a screen has.
+
+Not yet run on the owner's Mac. His display is 3420 × 2224 at scale 2, not 5K, so the bench's
+synthetic 5K page stands in for row 5, and `--png` with his own screenshot gives a real screen.
+
 ## Repository
 
 On 2026-11-13 the clone was arranged as `RISKS_AND_DECISIONS.md` section 4 describes. `upstream` is
