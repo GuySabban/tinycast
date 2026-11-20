@@ -377,6 +377,59 @@ Upstream moved to the bundle id `com.abueammar.tinycast` (#1910, #1912).
   fork's added `bundleID != Bundle.main.bundleIdentifier` filter is still what keeps Spotcast out of
   its own Suggestions, but the ledger's note on the prefix needs rewording then.
 
+## Phase 2 step 7: strings, checks and the hands-on run (2026-11-20)
+
+`universal-launcher` at `eb97c321` (step 6 merged), Xcode 27.0 (27A266), the system appearance
+Dark. Everything in the first table ran in the VM. The VM has no Exa key, by design: the owner keeps
+his private, so nothing that sends a search ran here.
+
+### Checks run in the VM
+
+| Check | Result |
+| --- | --- |
+| Debug build, `CODE_SIGNING_ALLOWED=NO` | **Pass.** No compiler warnings; only the two AppIntents lines under "Build log noise" |
+| `./Scripts/run-tests.sh` | **Pass.** 121 of 121 in 152 s: the baseline's 113, Phase 1's four and Phase 2's four (`WebSearchTests`, `WebSearchSessionTests`, `WebSearchSettingsTests`, `WebSearchCoordinatorTests`) |
+| `./Scripts/lint.sh` | **Pass.** 78 warnings, the baseline's count |
+| Model purity search | **Pass.** Nothing found |
+| Strings | **Pass.** 26 keys are new since the phase began (`afc97036`), each translated in all eight languages. `./Scripts/sync-strings.sh` changed nothing |
+| Seam budget | **Over.** 113 lines against 87, 30% over the 20% the acceptance allows, all of it in `LauncherScreen` (58 against 36). See `PROPOSED_ARCHITECTURE.md` section 7 |
+
+The harnesses drive the request, the reply, every failure and the five-result limit through an
+in-process `URLProtocol`, and the coordinator over the real Keychain scope. They do not show timing,
+the panel, the browser or what reaches the disk; the run below does.
+
+### Hands-on run on the owner's Mac
+
+Not run yet. The Dev build, signed, with the owner's own key. Stream the signposts first:
+`log stream --signpost --predicate 'subsystem == "com.tinycast.perf"'`. Each search is one
+`WebSearch.fetch` interval.
+
+| Check | Result |
+| --- | --- |
+| Settings › Fallbacks › Web Search: turn on Show web results, paste the key, Save Key. It shows "Stored in your keychain", and Search the Web appears in the fallbacks; with the switch off, or no key, it does not | |
+| Typing a query sends nothing: no `WebSearch.fetch` | |
+| Return on Search the Web: one `WebSearch.fetch`, and five placeholder rows in the same frame with the selection on the first, scrolled into view | |
+| The same from the Cmd-K menu's Search the Web item | |
+| Timing over 20 searches: `WebSearch.fetch` median under 1.5 s, p95 under 3 s | |
+| Up to five rows; Return opens the link in the browser; the Cmd-K menu's Copy Link copies it, and its Search Again searches once more | |
+| A query searched earlier in the session shows its results again with no `WebSearch.fetch` | |
+| A query with no hits shows No web results, and Return on it searches again | |
+| Wi-Fi off: one row says "Couldn’t reach Exa. Check your connection"; with Wi-Fi back, Return on it (Try Again) shows results | |
+| A key with one character changed: "Exa didn’t accept the API key. Check it in Settings", and Return on it opens the Web Search settings | |
+| Keychain Access lists `com.tinycast.app.dev.web-search-keys` | |
+| The key is nowhere on disk: `read -s K; grep -rlF "$K" ~/Library/Preferences ~/Library/Caches "$HOME/Library/Application Support"; unset K` prints nothing | |
+| Clearing the key and saving removes the fallback and the rows | |
+| `footprint` at idle and after ten searches stays under 100 MB, and Instruments Leaks shows no leak after ten | |
+
+If PR #7 (upstream `v0.12.15`) merges first, the Dev build becomes `com.abueammar.tinycast.dev`.
+Its migration moves preferences and folders but no Keychain item, so the key must be saved again,
+and the Keychain row reads `com.abueammar.tinycast.dev.web-search-keys`.
+
+### Upstream merge
+
+This step's merge is PR #7, the trial merge of `v0.12.15`. Its branch already contains step 6
+(`930bc25c` merges `eb97c321`), so merging it is the step's merge; this step opens no second one.
+
 ## Repository
 
 On 2026-11-13 the clone was arranged as `RISKS_AND_DECISIONS.md` section 4 describes. `upstream` is

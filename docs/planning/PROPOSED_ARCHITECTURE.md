@@ -923,7 +923,7 @@ Not touched in Phase 1: `RootPaletteView.swift`, `AppSettings.swift` and the set
 
 | File | Added | Changed | Why |
 | --- | ---: | ---: | --- |
-| `Tinycast/Features/Launcher/UI/LauncherScreen.swift` | 33 | 3 | As the Files section did, plus moving the selection on trigger. Actual: 55 added, 4 changed; the rest keeps the selection off placeholders that can vanish (`move`), and Search Again reselects |
+| `Tinycast/Features/Launcher/UI/LauncherScreen.swift` | 33 | 3 | As the Files section did, plus moving the selection on trigger. Actual: 58 added, 4 changed; the rest keeps the selection off placeholders that can vanish (`move`), and Search Again reselects |
 | `Tinycast/Features/Launcher/UI/LauncherList.swift` | 24 | 2 | A section, as for files. Actual: 25 added, 2 changed |
 | `Tinycast/Features/Launcher/UI/FallbackActionsMenu.swift` | 3 | 0 | A closure so the Cmd-K path moves the selection too. Actual: 3 added, 2 changed |
 | `Tinycast/Features/Launcher/Model/Fallback.swift` | 3 | 0 | The built-in and its two switch arms. Actual: 3 added |
@@ -932,10 +932,13 @@ Not touched in Phase 1: `RootPaletteView.swift`, `AppSettings.swift` and the set
 | `Tinycast/Features/Launcher/UI/LauncherCoordinator.swift` | 0 | 1 | The no-op arm in `runCommand`. Actual: 1 changed |
 | `Tinycast/Features/DeepLinks/Model/DeepLinkConsentPolicy.swift` | 1 | 0 | Classify the new command. Actual: 1 changed (the case joins an existing line) |
 | `Tests/HotKeyTests.swift` | 0 | 1 | The pinned list of commands that take no shortcut. Actual: 1 changed |
-| `Tinycast/App/AppCore.swift` | 5 | 0 | Session, store, lazy coordinator, `start()` |
+| `Tinycast/App/AppCore.swift` | 5 | 0 | Session, store, lazy coordinator, `start()`. Actual: 6 added |
 | `Tinycast/Features/Launcher/Settings/FallbacksSettingsView.swift` | 1 | 0 | The web search section. Actual: 1 added |
-| `Tinycast/Resources/Localizable.xcstrings` | about 800 | 0 | About 15 strings |
-| `Scripts/run-tests.sh` | 4 | 0 | Harness entries |
+| `Tinycast/Resources/Localizable.xcstrings` | about 800 | 0 | About 15 strings. Actual: 1,352 added, 0 changed, for 26 strings, all eight languages |
+| `Scripts/run-tests.sh` | 4 | 0 | Harness entries. Actual: 8 added, for four harnesses |
+
+Phase 2 in all, without the string catalog: 87 lines planned (added plus changed), 113 inserted
+(30% over). `LauncherScreen` is 58 against 36; the other eleven files are 55 against 51.
 
 Across both feature phases the nine seam files of the audit take about 64 added and 7 changed lines,
 in four of the nine: `LauncherScreen`, `AppCore`, `CommandID` and `LauncherCoordinator`. Phase 0 adds
