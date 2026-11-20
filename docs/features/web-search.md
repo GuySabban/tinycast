@@ -1,8 +1,9 @@
 # Web Search
 
 A fork feature (Spotcast). Return on the **Search the Web** fallback lists up to five results from Exa
-in the main launcher, between the file rows and the fallback rows. It is off by default and needs the
-user's own Exa API key, set in Settings › Fallbacks › Web Search.
+in the main launcher, between the file rows and the fallback rows. Its switch, **Show web results**, is
+on by default, but nothing is offered until the user stores their own Exa API key in Settings ›
+Fallbacks › Web Search.
 
 ## Invariants
 
@@ -10,8 +11,9 @@ user's own Exa API key, set in Settings › Fallbacks › Web Search.
   sends the query. `LauncherScreen.init` reads `WebSearchCoordinator.launcherRows(for:)`, which
   touches memory only.
 - **Results live in memory and are never written to disk.** Exa's terms permit display copies but not
-  storage. A query searched earlier in the session shows its rows again without a request, and
-  removing the key or switching the feature off forgets them.
+  storage. A query searched earlier in the session shows its rows again without a request. Removing
+  the key forgets them. Switching the feature off cancels a search in flight and hides the rows, but
+  keeps them in memory, so switching it back on shows them again.
 - **The fallback is offered only when a search can be sent:** the feature is on and a key is stored.
   The key is a Keychain item in the `web-search-keys` scope, never in `UserDefaults`, a backup or
   `settings.json`.
