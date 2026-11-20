@@ -37,6 +37,7 @@ struct WebSearchTests {
         rejectsMalformedReplies()
         mapsStatusesAndTransportErrors()
         rowIdentitiesAreDistinct()
+        onlyTheFirstPlaceholderTakesTheSelection()
         print("\(passes) passed, \(failures) failed")
         if failures > 0 { exit(1) }
     }
@@ -357,6 +358,21 @@ struct WebSearchTests {
         expect(WebSearchRow.failure(.server).id == WebSearchRow.failure(.offline).id, "one failure row")
         expect(WebSearchRow.placeholders(count: 0).isEmpty, "zero placeholders")
         expect(WebSearchRow.placeholders(count: -1).isEmpty, "a negative count is none")
+    }
+
+    static func onlyTheFirstPlaceholderTakesTheSelection() {
+        let searching = WebSearchRow.placeholders(count: 5)
+        expect(WebSearchRow.landing(at: 1, from: 0, in: searching) == 5, "↓ from the first skips the rest")
+        expect(WebSearchRow.landing(at: 4, from: 5, in: searching) == 0, "↑ into the section lands first")
+        expect(WebSearchRow.landing(at: 0, from: -1, in: searching) == nil, "the first placeholder is selectable")
+        expect(WebSearchRow.landing(at: 5, from: 0, in: searching) == nil, "past the section is untouched")
+        expect(WebSearchRow.landing(at: -1, from: 0, in: searching) == nil, "before the section is untouched")
+        let result = WebSearchResult(
+            title: "T", url: URL(string: "https://example.com/a")!, snippet: "", host: "example.com",
+            published: nil)
+        let answered: [WebSearchRow] = [.result(result), .result(result)]
+        expect(WebSearchRow.landing(at: 1, from: 0, in: answered) == nil, "result rows are selectable")
+        expect(WebSearchRow.landing(at: 0, from: 1, in: [.noResults]) == nil, "No web results is selectable")
     }
 }
 

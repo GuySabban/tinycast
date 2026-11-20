@@ -40,6 +40,22 @@ before resolving it. New files the fork owns (`Scripts/fork/`, `docs/planning/`)
 | P2.5 | `Scripts/run-tests.sh` | the `run` list, after `WebSearchSettingsTests` | Added a three-line `run WebSearchCoordinatorTests` entry | Drives the coordinator over the real store, Keychain scope, session and provider, in the same end-of-list block. It compiles upstream's `KeychainSecretStore` and `Signposts` |
 | P2.5 | `Tinycast/App/AppCore.swift` | lazy coordinators | Added `webSearch` (the session, built with `WebSearchCoordinator.provider(for: webSearchSettings)`) and `webSearchCoordinator` before `fileSearchCoordinator` | `AppCore` owns the session; the coordinator's `init` points `webSearchSettings.onKeyRemoved` at `webSearch.forget()` |
 | P2.5 | `Tinycast/Resources/Localizable.xcstrings` | 11 new keys, in sorted position | Added the web row, failure and menu strings with all eight translations | Same rule and the same `sync` rewrites as P1.7, put back as upstream spells them |
+| P2.6 | `Tinycast/Features/Launcher/Model/CommandID.swift` | cases, `nameResource`, `sfSymbol` | Added `searchWeb = "command:search-web"`, its name "Search the Web" and the `magnifyingglass` symbol | The fallback takes its row name and glyph from a command |
+| P2.6 | `Tinycast/Features/Launcher/Model/CommandID.swift` | `isQueryDriven` | Added `\|\| self == .searchWeb` | Never listed, ranked, pinned or bound as a standalone command, like Run Shell Command |
+| P2.6 | `Tinycast/Features/Launcher/Model/Fallback.swift` | `Builtin`, `command`, `openVerb` | Added `case searchWeb` last, and one arm in each switch | Last, so a fresh install and an upgraded one both list it after Define Word |
+| P2.6 | `Tinycast/Features/Launcher/UI/FallbackCoordinator.swift` | `run(_:query:)`, `isAvailable(_:)` | Added a `.searchWeb` arm to each: run calls `webSearchCoordinator.search`; available is `webSearchCoordinator.isAvailable` (on, with a key) | The fallback is offered only when a search can be sent |
+| P2.6 | `Tinycast/Features/Launcher/UI/LauncherCoordinator.swift` | `run(_:)`, the query-driven arm | `.openInBrowser, .runShellCommand` became `.openInBrowser, .runShellCommand, .searchWeb` | Query-driven commands never run through this funnel |
+| P2.6 | `Tinycast/Features/DeepLinks/Model/DeepLinkConsentPolicy.swift` | `requiresConsent(_:)` | Added `.searchWeb` to the consent arm | It would send text to a third party. It is query-driven, so no deep link reaches it today; the class is for the exhaustive switch |
+| P2.6 | `Tests/HotKeyTests.swift` | the unbindable-commands check | `[.openInBrowser, .runShellCommand, .quit]` became `[.openInBrowser, .runShellCommand, .searchWeb, .quit]` | The roadmap's planned one-line harness edit: a query-driven command has no hotkey action |
+| P2.6 | `Tinycast/Features/Launcher/UI/LauncherList.swift` | `web`, `WebSection`, `Row`, `webRows`, `rows`, `body` | Added `var web: WebSection?` after `files`, the `WebSection` struct, `case web(WebSearchRow, index:)` and its `id` arm, `webRows` (a "Web" header and the rows), `fileRows + webRows + fallbackRows`, `&& web == nil` in the empty check, and a `.web` arm drawing `WebSearchRowView` | The section sits between files and fallbacks; its look stays in `WebSearch/UI/` |
+| P2.6 | `Tinycast/Features/Launcher/UI/LauncherScreen.swift` | stored properties, `init` | Added `private let web: [WebSearchRow]`, read from `webSearchCoordinator.launcherRows(for:)` (not gated on a pinned row, since the fallbacks are not), and `+ web.map(Row.web)` before the fallbacks | Rows come from memory only, so typing never sends a request |
+| P2.6 | `Tinycast/Features/Launcher/UI/LauncherScreen.swift` | `Row`, `primaryActionTitle`, `isCardSelected`, `hasPrimaryAction(at:)`, `actions(at:)`, `activate(at:)` | Added `case web(WebSearchRow)` and one arm in each; a placeholder has no primary action; `activate` sends a Search the Web fallback to the new `searchWeb()`, and Return on No web results to Search Again (the owner's call) | Each exhaustive switch must name the new row |
+| P2.6 | `Tinycast/Features/Launcher/UI/LauncherScreen.swift` | `actions(at:)`, the `.fallback` arm | Passes `run: searchWeb` for the Search the Web fallback | The Cmd-K item moves the selection as Return does |
+| P2.6 | `Tinycast/Features/Launcher/UI/LauncherScreen.swift` | new `searchWeb()`, `selectFirstWebRow()`, `webSection`, `webRow(at:)`; `fileRow(at:)` | Added the four; `fileRow(at:)` now also subtracts `web.count`, wrapped to three lines | `searchWeb()` runs the fallback, then `selectFirstWebRow()` selects the first web row and calls `scrollToFollow()`; Search Again in a web row's menu does the same |
+| P2.6 | `Tinycast/Features/Launcher/UI/LauncherScreen.swift` | new `move(_:axis:from:)` | Overrides `PaletteScreen`'s default, which returns nil; it adjusts only ↑/↓ into a placeholder past the first, through `WebSearchRow.landing` | Fewer rows can replace five placeholders, and the flat index would then fall on a fallback, so Return there would run, say, Quick AI |
+| P2.6 | `Tinycast/Features/Launcher/UI/FallbackActionsMenu.swift` | `content(fallback:entry:query:core:)` | Added `run: (() -> Void)? = nil`; the primary item calls it when given, else `fallbackCoordinator.run` | The closure the roadmap names, so the screen can move the selection |
+| P2.6 | `Tinycast/Features/Launcher/Settings/FallbacksSettingsView.swift` | `body` | Added `WebSearchSettingsSection()` after the fallbacks section | The feature's switch and key (decision D7) |
+| P2.6 | `Tinycast/Resources/Localizable.xcstrings` | 2 new keys, in sorted position | Added "Search the Web" and "Web" with all eight translations | Same rule as P1.7. `sync-strings.sh` made no further change this time |
 
 `Tinycast.xcodeproj/project.pbxproj` is regenerated from `project.yml` by `xcodegen generate` and is
 never edited by hand.
@@ -81,6 +97,9 @@ are left unedited:
   library's": in the fork it carries both, and it asks before every run.
 - `docs/features/custom-commands.md`, "The ad-hoc run": "It is not gated on `customCommandsEnabled`".
   In the fork it is, and `runShellCommand` confirms first.
+- `docs/features/launcher.md`, the fallback table, lists four built-in fallbacks. The fork adds a
+  fifth, Search the Web, available when web search is on and a key is stored. See
+  `docs/features/web-search.md`.
 
 `Tinycast/Platform/KeychainSecretStore.swift` says every Keychain scope the app stores under is named
 in that file. The fork leaves the file unedited and creates one more scope in its own code:
