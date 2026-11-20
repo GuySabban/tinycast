@@ -967,6 +967,15 @@ run WebSearchSettingsTests $WS/Model/*.swift $WS/Service/*.swift $WS/Settings/We
 run WebSearchCoordinatorTests $WS/Model/*.swift $WS/Service/*.swift $WS/Settings/WebSearchSettingsStore.swift \
                               $WS/UI/WebSearchCoordinator.swift Tinycast/Platform/KeychainSecretStore.swift \
                               Tinycast/Platform/Signposts.swift
+run StagedImageClipboardTests Tinycast/Features/Clipboard/Model/ClipboardStore.swift \
+                             Tinycast/Features/Clipboard/Model/ClipboardFilter.swift \
+                             Tinycast/Features/Clipboard/Model/ClipboardFileKind.swift \
+                             Tinycast/Features/Clipboard/Model/ColorValue.swift \
+                             Tinycast/Features/Clipboard/Model/ColorFormat.swift \
+                             Tinycast/Features/Clipboard/Model/ColorSpaces.swift \
+                             Tinycast/Features/Clipboard/Service/ClipboardManager.swift \
+                             Tinycast/Platform/Images/ImageDerivative.swift \
+                             Tinycast/Platform/NotificationToken.swift Tinycast/Platform/PasteboardFiles.swift
 
 if [ "$emit_db" -eq 1 ]; then
     printf ']\n' >> "$DB"

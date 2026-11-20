@@ -157,22 +157,24 @@ final class ClipboardManager {
         let sourceBundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         if let sourceBundleID, settings.clipboardDisabledApps.contains(sourceBundleID) { return }
 
+        capture(on: pb, sourceBundleID: sourceBundleID)
+    }
+
+    func capture(on pb: NSPasteboard, sourceBundleID: String?) {
         // Ahead of the text branch: Finder puts the file's *name* on `.string` beside its URL.
-        let roots = Self.volatileRoots(on: pb, copiedFrom: sourceBundleID)
+        let stagingRoots = Self.volatileRoots(on: pb, copiedFrom: sourceBundleID, roots: [])
+        let roots = Self.volatileRoots + stagingRoots
         if let paths = Self.fileURLs(on: pb, volatileRoots: roots) {
             store.addFiles(paths, sourceBundleID: sourceBundleID)
             return
         }
 
-        if let text = pb.string(forType: .string),
-            !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        {
-            guard text.count <= ClipboardStore.maxTextLength else { return }
-            store.addText(text, sourceBundleID: sourceBundleID)
-            return
+        let text = pb.string(forType: .string).flatMap {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0
         }
-
-        if let type = pb.availableType(from: [.png, .tiff]), let data = pb.data(forType: type) {
+        if text == nil || Self.isStagedFilename(text, on: pb, in: stagingRoots.first),
+            let type = pb.availableType(from: [.png, .tiff]), let data = pb.data(forType: type)
+        {
             let isPNG = type == .png
             let store = store
             let capture = store.captureGeneration
@@ -188,11 +190,24 @@ final class ClipboardManager {
             return
         }
 
+        if let text {
+            guard text.count <= ClipboardStore.maxTextLength else { return }
+            store.addText(text, sourceBundleID: sourceBundleID)
+            return
+        }
+
         guard let text = Self.plainText(fromRichTextOn: pb),
             !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
             text.count <= ClipboardStore.maxTextLength
         else { return }
         store.addText(text, sourceBundleID: sourceBundleID)
+    }
+
+    private static func isStagedFilename(_ text: String?, on pb: NSPasteboard, in container: String?) -> Bool {
+        guard let text, let container else { return false }
+        return !PasteboardFiles.urls(on: pb, limit: 1) {
+            $0.lastPathComponent == text && $0.standardizedFileURL.path.hasPrefix(container)
+        }.isEmpty
     }
 
     private static let maxImportedHTMLBytes = 256 * 1024
