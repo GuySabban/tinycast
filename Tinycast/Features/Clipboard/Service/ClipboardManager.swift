@@ -205,8 +205,11 @@ final class ClipboardManager {
 
     private static func isStagedFilename(_ text: String?, on pb: NSPasteboard, in container: String?) -> Bool {
         guard let text, let container else { return false }
-        return !PasteboardFiles.urls(on: pb, limit: 1) {
-            $0.lastPathComponent == text && $0.standardizedFileURL.path.hasPrefix(container)
+        return !PasteboardFiles.urls(on: pb, limit: 1) { url in
+            let filename = url.lastPathComponent
+            return !filename.isEmpty && text.hasPrefix(filename)
+                && text.dropFirst(filename.count).allSatisfy(\.isWhitespace)
+                && url.standardizedFileURL.path.hasPrefix(container)
         }.isEmpty
     }
 

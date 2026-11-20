@@ -6,6 +6,12 @@ struct StagedImageClipboardTests {
     static var failures = 0
 
     static func main() async throws {
+        try await run()
+        if failures > 0 { exit(1) }
+        print("Staged image clipboard checks passed")
+    }
+
+    static func run() async throws {
         let home = FileManager.default.homeDirectoryForCurrentUser
         let scratch = home.appendingPathComponent(".tinycast-clipboard-tests-\(UUID())")
         try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: false)
@@ -31,27 +37,23 @@ struct StagedImageClipboardTests {
 
         for (type, bytes) in [(NSPasteboard.PasteboardType.png, png), (.tiff, tiff)] {
             let staged = container.appendingPathComponent("photo-\(type.rawValue).jpg")
-            let id = store.items.first?.id
-            let before = store.items.count
-            capture(manager, source: source, file: staged, text: staged.lastPathComponent, image: (type, bytes))
-            for _ in 0..<200 {
-                if store.items.first?.id != id { break }
-                try await Task.sleep(for: .milliseconds(10))
+            try await expectImage(in: store, source: source, "staged file URL, \(type.rawValue) and filename") {
+                capture(manager, source: source, file: staged, text: staged.lastPathComponent, image: (type, bytes))
             }
-            let item = store.items.first
-            let saved = item?.imagePath.flatMap { try? Data(contentsOf: URL(fileURLWithPath: $0)) }
-            let image = saved.flatMap(NSBitmapImageRep.init(data:))
-            let outcome = item.map { String(describing: $0.kind) } ?? "no row"
-            expect(
-                store.items.count == before + 1 && item?.kind == .image && item?.sourceBundleID == source
-                    && image?.pixelsWide == 2 && image?.pixelsHigh == 2,
-                "staged file URL, \(type.rawValue) and filename must record one image, got \(outcome)")
         }
 
         let staged = container.appendingPathComponent(durable.lastPathComponent)
         let filename = staged.lastPathComponent
-        capture(manager, source: source, file: staged, text: "A real caption", image: (.png, png))
-        expect(store.items.first?.text == "A real caption", "caption beside staged pixels stays text")
+        try await expectImage(in: store, source: source, "staged filename with trailing whitespace") {
+            capture(manager, source: source, file: staged, text: filename + " \t\n", image: (.png, png))
+        }
+        try await expectImage(in: store, source: source, "pixels with whitespace-only text") {
+            capture(manager, source: source, text: " \t\n", image: (.png, png))
+        }
+
+        let caption = filename + " is the original"
+        capture(manager, source: source, file: staged, text: caption, image: (.png, png))
+        expect(store.items.first?.text == caption, "caption starting with the staged filename stays text")
 
         capture(manager, source: "test.tinycast.other-app", file: staged, text: filename, image: (.png, png))
         expect(store.items.first?.text == filename, "another app's container URL does not displace text")
@@ -59,13 +61,32 @@ struct StagedImageClipboardTests {
         capture(manager, source: source, text: "Another caption", image: (.png, png))
         expect(store.items.first?.text == "Another caption", "text beside pixels without a staged file stays text")
 
-        capture(manager, source: source, file: durable, text: filename, image: (.png, png))
+        let finder = "com.apple.finder"
+        capture(manager, source: finder, file: durable, text: filename, image: (.png, png))
         expect(
-            store.items.first?.kind == .file && store.items.first?.text == durable.path,
-            "a durable file URL still wins over both pixels and its filename")
+            store.items.first?.kind == .file && store.items.first?.text == durable.path
+                && store.items.first?.sourceBundleID == finder,
+            "a Finder file URL still wins over both pixels and its filename")
+    }
 
-        if failures > 0 { exit(1) }
-        print("Staged image clipboard checks passed")
+    static func expectImage(
+        in store: ClipboardStore, source: String, _ message: String, after capture: () -> Void
+    ) async throws {
+        let id = store.items.first?.id
+        let before = store.items.count
+        capture()
+        for _ in 0..<200 {
+            if store.items.first?.id != id { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        let item = store.items.first
+        let saved = item?.imagePath.flatMap { try? Data(contentsOf: URL(fileURLWithPath: $0)) }
+        let image = saved.flatMap(NSBitmapImageRep.init(data:))
+        let outcome = item.map { String(describing: $0.kind) } ?? "no row"
+        expect(
+            store.items.count == before + 1 && item?.kind == .image && item?.sourceBundleID == source
+                && image?.pixelsWide == 2 && image?.pixelsHigh == 2,
+            "\(message) must record one image, got \(outcome)")
     }
 
     static func capture(
