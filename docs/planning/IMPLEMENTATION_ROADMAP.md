@@ -361,17 +361,19 @@ command, and every bindable command already has a global hotkey (`LOOK.md` secti
    Measure `.accurate` against the 1 s target on a 5K capture (row 5, D39).
 4. **Model, test-first:** `LookItem`, `LookDetector` with de-duplication, scheme filtering, the
    20-item cap and next-occurrence times (D42); the URL builders; `LookPrompt` with the boundary and
-   fenced text. Fixtures from real English and Hebrew screens (row 7).
+   fenced text. Fixtures from real English and Hebrew screens (row 7); Hebrew recognition on device
+   is researched in its own session, by the owner's choice on 2026-11-21.
 5. **Service:** `ScreenRecordingPermission` (preflight, first-time request, the Settings link) and
-   `ScreenCapturer` (ScreenCaptureKit, own app excluded, 4096 px cap, image released after the
-   helper write). Cancellation and stale-result checks per Look.
+   `ScreenCapturer` (ScreenCaptureKit, own app excluded, 4096 px cap, PNG released after the
+   helper write, image kept until the Look closes); a longer deadline for the first Look. Cancellation and stale-result checks per Look.
 6. **Calendar prefill:** an optional absolute start on `EventDraft`, `createEvent(title:start:
    duration:)`, and the start shown in the editor; a calendar harness case.
 7. **Coordinator and screen:** `LookCoordinator`, `PaletteMode.look`, `LookScreen` with item rows,
    the actions menu, Copy and Translate through `Paster` and `TextTranslator`, the permission and
    no-text rows. Settle row 9 with a test call.
 8. **Ask AI:** `LookSettingsStore` with its own route defaulting to Codex under its own keys (D6), the
-   settings section; the question field; the send preview with editable text (D37); a provider built
+   settings section; the question field; the send preview with editable text and, on Codex, the screenshot (D37),
+   encoded to fit `AIAttachmentBudget`'s 10 MB; a provider built
    with no tool servers and no web search; the Claude hook note (D38). Enforce what step 1 found
    about `~/.codex/config.toml` servers.
 9. **Seam edits:** `CommandID.look`, the `runCommand` arm, consent for deep links, ⌘L, two lines in

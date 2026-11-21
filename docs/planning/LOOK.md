@@ -21,20 +21,21 @@ translated or asked about.
    gets its own global hotkey through `HotKeyAction.command(_:)`, so Look gets one with no new
    `HotKeyAction` case (section 4). Inside the open launcher, ⌘L starts it.
 2. **Capture.** One still image of the display under the pointer, taken with ScreenCaptureKit,
-   with every Spotcast window excluded. The image lives only in memory and is dropped as soon as
-   its text is read (section 3).
+   with every Spotcast window excluded. The image lives only in memory and is dropped when the Look
+   closes; until then Ask AI on Codex can send it (sections 3 and 7).
 3. **Read.** Vision's `RecognizeTextRequest` reads the text in the existing `ClipboardTextHelper`
    process, which gains a mode that takes image bytes on standard input instead of a file path.
    `NSDataDetector` then finds dates, links, phone numbers and addresses in that text.
 4. **Act.** The launcher opens on a Look screen: one row per detected item with its actions, then
    rows for the whole text (Copy, Translate, Ask AI). Nothing leaves the Mac until the person picks
    Ask AI.
-5. **Ask.** Ask AI runs one text-only turn on the route chosen for Look, by default the Codex CLI
-   route. The screen text is passed as quoted, untrusted data, with no tools, no web search and no
+5. **Ask.** Ask AI runs one turn on the route chosen for Look, by default the Codex CLI route. The
+   screen text is passed as quoted, untrusted data, on Codex with the screenshot itself (D37), with no tools, no web search and no
    MCP server in that turn (section 6).
 
 One rule holds it together: **everything up to the action list is on-device and needs no AI.** A
-model only ever sees screen text after an explicit Ask AI, and it can only answer in text.
+model only ever sees screen text, or on Codex the screenshot, after an explicit Ask AI, and it can
+only answer in text.
 
 ### What a Look does, case by case
 
@@ -136,20 +137,20 @@ A later version can add "Look at All Displays" as a second command, which costs 
 
 ### 3.4 Size
 
-The image is taken at the display's pixel size, capped at 4096 px on the long side so recognition
-matches the clipboard extractor's limits (`ClipboardTextExtractor`: 4096 px, 2048-high strips).
-A 5K display becomes 4096 × 2304; text smaller than about 9 points may then be missed (row 5).
+The image is taken at the display's pixel size, capped at 4096 px on the long side. The clipboard
+extractor then scales it to at most 2048 × 2048 pixels (`ClipboardTextExtractor`: 4096 px long
+side, 2048-high strips), so a 5K display is read at 2731 × 1536, not 4096 × 2304 (row 5, step 3).
 
 ### 3.5 Never on disk
 
 - The `CGImage` is encoded to PNG in memory and written to the helper's standard input. No file,
   no cache, no pasteboard.
 - The helper writes text, never the image, to standard output, and exits.
-- The image and the PNG data are released as soon as the write finishes; the Look state keeps only
-  the text and the detected items, and drops them when the launcher closes.
+- The PNG data is released as soon as the write finishes. The Look state keeps the image, for Ask AI
+  on Codex, with the text and the detected items, and drops them all when the launcher closes.
 - Nothing about a Look is logged, and the text is never added to clipboard history unless the
   person picks a Copy action (D40).
-- Swap is outside the app's control. The image is a few tens of megabytes held for under a second,
+- Swap is outside the app's control. The image is a few tens of megabytes held while the Look is open,
   so it is noted, not mitigated.
 
 ## 4. The trigger and its seam cost
@@ -204,12 +205,15 @@ process; `docs/features/clipboard.md` gives that as the reason the helper exists
 
 The helper takes a file path. Look must not write one, so the helper gains one mode, `image-stdin`,
 that reads PNG bytes from standard input, and `ClipboardTextWorker` gains an entry that writes
-`Data` to the pipe. About 15 lines in two upstream files (D36). The 60-second deadline, the 32 KB
-cap and cancellation stay as they are; Look sets a 5-second deadline of its own.
+`Data` to the pipe (D36). Step 3 also gave `ClipboardTextExtractor` a `Data` entry, since it read
+only from a URL: about 55 lines added and 4 changed in three upstream files. The 60-second deadline, the 32 KB
+cap and cancellation stay as they are; Look sets a 5-second deadline of its own, longer for
+the first Look after launch: Vision's first call took 45 to 73 s on the owner's Mac (step 5).
 
-Recognition levels: `.accurate` is the default. `.fast` is several times quicker but weaker on
-small and non-Latin text; it is measured in step 3 and kept as a setting only if `.accurate` misses
-the 1.2 s target (D39).
+Recognition level (D39, settled by the owner on 2026-11-21): `.accurate` as shipped, 1.8 s median
+on his Mac. On his macOS 27.2 it returns tall images mostly in fragments; 768 px strips read far
+more but take 4.1 s, and `.fast` misses 9 pt text (`BASELINE.md`, step 3). He kept the shipped read
+for the rows and has Ask AI send the screenshot to Codex instead (section 7).
 
 ### 5.2 Detection: new
 
@@ -293,22 +297,28 @@ A whole-screen capture holds far more than the thing the person meant: other win
 previews, notifications, a password manager left open, a colleague's document in a shared screen.
 On-device recognition and detection keep all of that on the Mac. Ask AI on a cloud route sends
 **all recognised text from that display**, up to 32 KB, to OpenAI through Codex (or Anthropic
-through Claude), under that provider's retention terms.
+through Claude), under that provider's retention terms. On Codex it also sends **the screenshot
+itself**.
 
 What the plan does about it:
 
 - Nothing is sent without Ask AI and Return. No automatic ask, no prefetch, no summary on open.
 - **The first Ask AI in each Look shows what will be sent** (D37): the character count, the route
   and provider by name, and an editable copy of the text. The person can delete lines before
-  sending. Later questions in the same Look reuse what was approved.
-- The detected items are not sent unless they are in the text, and no image is ever sent.
+  sending. On Codex it also shows the screenshot, which cannot be edited. Later questions in the same Look reuse what was approved.
+- The detected items are not sent unless they are in the text. Ask AI on Codex sends the screenshot
+  itself, by the owner's decision on 2026-11-21, which reverses the plan's "no image is ever sent":
+  Vision on his macOS 27.2 reads screens in fragments and no Hebrew, while Codex read his whole
+  screen, Hebrew included. Other routes stay text-only; Apple's on-device model found no text in
+  the same image, then invented some.
 - The Look settings section says, in one sentence, that Ask AI sends the screen's text to the chosen
-  provider, and offers the on-device route.
+  provider, and on Codex the screenshot, and offers the on-device route.
 - With the on-device route, nothing leaves the Mac at all, at the cost of a small context window:
   the text is trimmed to the model's reported window and the trim is shown.
 
 What it does not do: detect and redact secrets. A pattern list would miss most of them and suggest a
-safety it cannot deliver; the editable preview is the honest control.
+safety it cannot deliver; the editable preview is the honest control for text. For the screenshot, the only control is
+not to ask, or to pick another route.
 
 ## 8. What is reused and what is new
 
@@ -348,11 +358,14 @@ Measured on the owner's Mac, Release build, one 5K display, with new signposts u
 | Detection on 32 KB | 20 ms at the 95th percentile | `Look.detect` |
 | Escape during recognition | Helper gone within 1 s | `ps` and the signpost's end |
 | Resident memory | Under 100 MB at upstream's four points, with Look open as the "feature in use" point; back to baseline after close | `footprint` on the Dev build |
-| Image lifetime | No `CGImage` or PNG buffer alive after recognition returns | Instruments Allocations, one Look |
+| Image lifetime | No PNG buffer alive after recognition returns, and no `CGImage` after the Look closes | Instruments Allocations, one Look |
 | Helper memory | Under 300 MB at peak, gone after | `footprint` on the helper |
 | Idle CPU, panel hidden | Unchanged: under 0.5% over 60 s | `top -pid` |
 | Time to first AI token | 4 s through the Codex CLI, 1.5 s on device | Ten asks timed from a screen recording, as for Claude |
 | AI cancel | Streaming stops within 100 ms | Screen recording |
+
+The 1.2 s total and 1 s recognition targets predate D39: the owner accepted the shipped 1.8 s
+recognition on 2026-11-21, so the total will run past 1.2 s.
 
 ## 10. Threats added
 
@@ -380,6 +393,13 @@ Step 2 ran the spike in `Scripts/fork/look-capture-spike/` on a macOS 26.6.2 VM 
 Mac; results are in `BASELINE.md`, "Phase L step 2". The spike stood in for the Dev build, which
 cannot capture until step 5.
 
+Step 3 ran row 5 on the VM with `Scripts/fork/look-recognition-bench/`; results are in
+`BASELINE.md`, "Phase L step 3". The extractor's 2048 × 2048 pixel cap reads a 5K capture at
+2731 × 1536, not at 4096 px as row 5 assumed; on that page 9, 11 and 13 pt text was read on the VM.
+Vision on macOS 26.6 lists no Hebrew at either level, which row 7 depends on, and the owner's
+macOS 27.2 lists none either. On 2026-11-21 he chose to go on with Look and research Hebrew for the
+on-device rows in a separate session; row 7's Hebrew fixtures wait on that.
+
 - **Row 1:** not measured. The owner dropped the six-week log, so the plan assumes a monthly
   re-ask. On both machines the "bypass the system private window picker" alert came on the first
   capture after the grant.
@@ -404,7 +424,7 @@ for size only.
 | `DeepLinks/Model/DeepLinkConsentPolicy.swift` | 0 | 1 | Consent for links |
 | `Palette/PaletteMode.swift` | about 4 | 0 | The `.look` mode, its symbol and title |
 | `Palette/RootPaletteView.swift` | about 5 | 0 | The mode's screen; ⌘L |
-| `Clipboard/Service/ClipboardTextHelper.swift`, `ClipboardTextWorker.swift` | about 15 | 0 | The `image-stdin` mode |
+| `Clipboard/Service/ClipboardTextHelper.swift`, `ClipboardTextWorker.swift`, `ClipboardTextExtractor.swift` | 55 | 4 | The `image-stdin` mode and the `Data` entries (step 3) |
 | `Calendar/Model/EventDraft.swift`, `Calendar/UI/CalendarCoordinator.swift`, `EventEditorView.swift` | about 15 | 2 | Absolute start prefill |
 | `App/AppCore.swift` | 2 | 0 | Look's settings store and coordinator |
 | AI pane's settings view | 1 | 0 | `LookSettingsSection` |
