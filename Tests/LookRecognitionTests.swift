@@ -2,7 +2,7 @@ import CoreText
 import Foundation
 import ImageIO
 
-/// Look's recognition from memory: PNG bytes through the real `ClipboardTextHelper` built from source.
+/// Look's recognition from memory: PNG bytes through the real `ClipboardTextHelper`, built here.
 @main
 @MainActor
 struct LookRecognitionTests {
@@ -10,7 +10,7 @@ struct LookRecognitionTests {
     static var passes = 0
     /// No other harness draws this size, so a file of it in a temporary directory is ours.
     static let fixtureSize = (width: 1234, height: 321)
-    /// A cold Vision start on a fresh machine has taken over 60 s; the harness tests behaviour, not speed.
+    /// A cold Vision start has taken over 60 s; the harness tests behaviour, not speed.
     static let coldDeadline = Duration.seconds(180)
 
     static func main() async throws {
@@ -110,7 +110,7 @@ struct LookRecognitionTests {
         return helper
     }
 
-    /// The per-user temporary and cache folders, `/tmp` and `~/Library/Caches`: where a helper could write.
+    /// Where a helper could write: per-user temp and cache folders, `/tmp`, `~/Library/Caches`.
     static func snapshot(excluding build: URL) -> [String: [AnyHashable]] {
         let roots = Set(
             [

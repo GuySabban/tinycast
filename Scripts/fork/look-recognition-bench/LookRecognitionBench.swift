@@ -3,7 +3,7 @@ import Foundation
 import ImageIO
 import Vision
 
-/// Times `ClipboardTextWorker.extract(imageData:)`, helper start to text, on a 5K page or a given PNG.
+/// Times `ClipboardTextWorker.extract(imageData:)`, helper start to text, on a 5K page or a PNG.
 @main
 struct LookRecognitionBench {
     /// One marker per row, Hebrew far from the Latin ones, so no two share an observation.
@@ -96,7 +96,7 @@ struct LookRecognitionBench {
         }
     }
 
-    /// A busy 5120 × 2880 screen at scale 2: two columns of 11 pt body text and one marker per size.
+    /// A busy 5120 × 2880 screen at scale 2: two columns of 11 pt body text, one marker per size.
     static func testPage() -> Data {
         let width = 5120, height = 2880
         let context = CGContext(
@@ -120,7 +120,7 @@ struct LookRecognitionBench {
         return data as Data
     }
 
-    /// Varied lines, as a real screen has: Vision's `.accurate` drops lines that repeat one another.
+    /// Varied lines, as a real screen has: Vision's `.accurate` drops lines that repeat each other.
     static func bodyLine(_ index: Int) -> String {
         let words = [
             "meeting", "design", "review", "invoice", "shipping", "Thursday", "account", "budget", "launch",

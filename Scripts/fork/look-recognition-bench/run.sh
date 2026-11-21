@@ -1,5 +1,5 @@
 #!/bin/bash
-# Time Look's recognition on a 5K test page at .accurate, .fast and .accurate at 4096 px. Usage: run.sh [--runs N] [--png file]
+# Times Look's recognition at three settings (README.md). Usage: run.sh [--runs N] [--png file]
 set -euo pipefail
 
 cd "$(dirname "$0")/../../.." || exit 1
@@ -13,7 +13,7 @@ variant() {
     if cmp -s "$OUT/$2.new" "$OUT/$2"; then rm "$OUT/$2.new"; else mv "$OUT/$2.new" "$OUT/$2"; fi
 }
 variant 's/recognitionLevel = \.accurate/recognitionLevel = .fast/' FastExtractor.swift 'recognitionLevel = .fast'
-# The shipped cap is 2048 × 2048 pixels, which scales a 5K screen to 2731 px; this variant keeps 4096 px.
+# The shipped 2048 × 2048 pixel cap reads a 5K screen at 2731 px; this variant keeps 4096 px.
 variant 's/maximumPixels = 2048 \* 2048/maximumPixels = 4096 * 2304/' FullExtractor.swift 'maximumPixels = 4096 \* 2304'
 # Rebuilt only when a source is newer, so a rerun times the same binaries' first call again.
 build() {
