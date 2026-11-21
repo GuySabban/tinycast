@@ -6,23 +6,31 @@ cd "$(dirname "$0")/../../.." || exit 1
 OUT=build/look-recognition-bench
 S=Tinycast/Features/Clipboard/Service
 mkdir -p "$OUT"
-sed 's/recognitionLevel = \.accurate/recognitionLevel = .fast/' "$S/ClipboardTextExtractor.swift" > "$OUT/FastExtractor.swift"
-grep -q 'recognitionLevel = .fast' "$OUT/FastExtractor.swift"
+# A variant file is replaced only when its text changes, so it does not force a rebuild.
+variant() {
+    sed "$1" "$S/ClipboardTextExtractor.swift" > "$OUT/$2.new"
+    grep -q "$3" "$OUT/$2.new"
+    if cmp -s "$OUT/$2.new" "$OUT/$2"; then rm "$OUT/$2.new"; else mv "$OUT/$2.new" "$OUT/$2"; fi
+}
+variant 's/recognitionLevel = \.accurate/recognitionLevel = .fast/' FastExtractor.swift 'recognitionLevel = .fast'
 # The shipped cap is 2048 × 2048 pixels, which scales a 5K screen to 2731 px; this variant keeps 4096 px.
-sed 's/maximumPixels = 2048 \* 2048/maximumPixels = 4096 * 2304/' "$S/ClipboardTextExtractor.swift" > "$OUT/FullExtractor.swift"
-grep -q 'maximumPixels = 4096 \* 2304' "$OUT/FullExtractor.swift"
-xcrun swiftc -swift-version 6 -O "$S/ClipboardTextExtractor.swift" "$S/ClipboardTextHelper.swift" \
-    -o "$OUT/AccurateHelper"
-xcrun swiftc -swift-version 6 -O "$OUT/FastExtractor.swift" "$S/ClipboardTextHelper.swift" -o "$OUT/FastHelper"
-xcrun swiftc -swift-version 6 -O "$OUT/FullExtractor.swift" "$S/ClipboardTextHelper.swift" \
-    -o "$OUT/Accurate4096Helper"
-xcrun swiftc -swift-version 6 -O Tinycast/Features/Clipboard/Model/*.swift \
+variant 's/maximumPixels = 2048 \* 2048/maximumPixels = 4096 * 2304/' FullExtractor.swift 'maximumPixels = 4096 \* 2304'
+# Rebuilt only when a source is newer, so a rerun times the same binaries' first call again.
+build() {
+    local out=$1; shift
+    if [[ -x "$out" ]] && [[ -z "$(find "$@" -newer "$out" -print -quit)" ]]; then return; fi
+    xcrun swiftc -swift-version 6 -O "$@" -o "$out"
+}
+build "$OUT/AccurateHelper" "$S/ClipboardTextExtractor.swift" "$S/ClipboardTextHelper.swift"
+build "$OUT/FastHelper" "$OUT/FastExtractor.swift" "$S/ClipboardTextHelper.swift"
+build "$OUT/Accurate4096Helper" "$OUT/FullExtractor.swift" "$S/ClipboardTextHelper.swift"
+build "$OUT/LookRecognitionBench" Tinycast/Features/Clipboard/Model/*.swift \
     Tinycast/Platform/Images/ImageDerivative.swift Tinycast/Features/Quicklinks/Model/QuicklinkDestination.swift \
     "$S/ClipboardTextWorker.swift" Tinycast/Platform/ProcessExit.swift \
-    Scripts/fork/look-recognition-bench/LookRecognitionBench.swift -o "$OUT/LookRecognitionBench"
+    Scripts/fork/look-recognition-bench/LookRecognitionBench.swift
 sw_vers | tr '\n' ' '; sysctl -n machdep.cpu.brand_string
 xcode-select -p
 # One helper failing must not cost the others' timings.
 for helper in AccurateHelper FastHelper Accurate4096Helper; do
-    "$OUT/LookRecognitionBench" "$OUT/$helper" "$@" || echo "$helper: bench exited $?"
+    "$OUT/LookRecognitionBench" "$OUT/$helper" --dump "$OUT/$helper.txt" "$@" || echo "$helper: bench exited $?"
 done

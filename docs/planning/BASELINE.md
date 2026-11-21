@@ -543,6 +543,26 @@ real screen. Vision listed the same 30 `.accurate` and six `.fast` languages as 
 - One `.accurate` run on his screen took 24.1 s; the other nine were 1.0 to 1.6 s.
 - Hebrew was not read at any setting.
 
+Three of these results were checked against the bench on 2026-11-21. The first bench put all four
+markers on one row, 1250 px apart, the 13 pt one beside the Hebrew line. Rerun on the VM with each
+marker on a row of its own, `.accurate` read 13 pt as "MARKER 13031" where it had read "VAJAEK
+13031", and `.fast` read 11 pt exactly where it had read "MAAKEA"; `.accurate` still read all
+three Latin markers, at both caps, in every run. So the shared row is the likely cause of the
+13 pt miss next to a read 11 pt one, which macOS 27.2 cannot confirm from the VM. Not explained by
+the bench:
+
+- `.accurate` returning 126 and 55 lines where `.fast` returned 143 of the same page. Every helper
+  read the same PNG through the same code, the shipped cap reads the page as one strip, and on the
+  VM all three return 144 to 166 lines; the 4096 px helper is the only one that cuts the page into
+  two strips.
+- `.fast` taking 4.6 s on the page and 0.95 s on his screen. Its time follows the text it returns
+  (15 KB against 2 KB); the old bench did not log run order or thermal state, so a hot Mac after
+  `.accurate`'s 49 s first call cannot be ruled out.
+
+The bench now also prints the thermal state, every run's time and line count, how many runs read
+each marker, and keeps each helper's text; it no longer rebuilds unchanged helpers, so a second
+run tells whether the 47 to 73 s first call comes back for an unchanged binary.
+
 ## Repository
 
 On 2026-11-13 the clone was arranged as `RISKS_AND_DECISIONS.md` section 4 describes. `upstream` is

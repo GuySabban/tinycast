@@ -15,7 +15,9 @@ From the repository root, in Terminal, with Xcode 27 selected (`xcode-select -p`
 ./Scripts/fork/look-recognition-bench/run.sh --runs 20
 ```
 
-It builds three helpers into the ignored `build/look-recognition-bench/` and runs each in turn:
+It builds three helpers into the ignored `build/look-recognition-bench/` and runs each in turn. A
+helper is rebuilt only when one of its sources is newer than it, so a second run times the same
+binaries' first call again.
 
 | Helper | Is |
 | --- | --- |
@@ -24,9 +26,11 @@ It builds three helpers into the ignored `build/look-recognition-bench/` and run
 | `Accurate4096Helper` | `.accurate` with the cap raised to 4096 × 2304, the size `LOOK.md` row 5 assumed |
 
 The test page is 5120 × 2880, a 5K display at scale 2: two columns of 140 lines of 11 pt body text,
-plus one marker each at 9, 11 and 13 pt and an 11 pt Hebrew line (`LOOK.md` section 12, row 5). Each
-run prints the macOS build, chip and selected Xcode, the languages Vision recognizes at each level,
-the first (cold) run on its own, then the median, 95th percentile, minimum and maximum of the rest,
-and which markers came back. A failed run is listed and skipped, and a failed helper does not stop
-the next one, so the output always has timings for whatever succeeded. Each call has a 180 s
-deadline. Nothing is written but the binaries.
+plus one marker each at 9, 11 and 13 pt on rows of their own above the text and an 11 pt Hebrew
+line below it (`LOOK.md` section 12, row 5). Each run prints the macOS build, chip and selected
+Xcode, the languages Vision recognizes at each level, and per helper: the thermal state before and
+after, the first (cold) run on its own, every timed run in order, the median, 95th percentile,
+minimum and maximum, the line count of every run, and in how many runs each marker came back. A
+failed run is listed and skipped, and a failed helper does not stop the next one, so the output
+always has timings for whatever succeeded. Each call has a 180 s deadline. The last run's text is
+kept as `build/look-recognition-bench/<helper>.txt`.
