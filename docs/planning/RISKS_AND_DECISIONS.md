@@ -43,10 +43,10 @@ step 1:
 
 | # | Threat | Safeguard |
 | --- | --- | --- |
-| T22 | Screen text reaches a cloud provider the person did not think about | On-device by default up to the action list; Ask AI only on Return; the first ask in each Look previews and allows editing the exact text, naming the provider (`LOOK.md` section 7) |
+| T22 | Screen text reaches a cloud provider the person did not think about | On-device by default up to the action list; Ask AI only on Return; the first ask in each Look previews and allows editing the exact text, naming the provider; on Codex the screenshot itself is sent and shown, by the owner's decision (`LOOK.md` section 7) |
 | T23 | Instructions on screen steer the model | No tools, no MCP, no web search in Look's turn; the boundary; the answer drawn as text; links in it need a click (`LOOK.md` section 6.3) |
 | T24 | A detected link, number or address is hostile | Only `http`, `https` and `mailto` links; the row shows the host first; nothing opens without Return; `tel:` and `sms:` hand to the system, which asks before calling |
-| T25 | A capture outlives its use | In memory only, released after recognition; passed to the helper by pipe; text dropped on close; nothing logged (`LOOK.md` section 3.5) |
+| T25 | A capture outlives its use | In memory only, the PNG released after recognition and the image when the Look closes; passed to the helper by pipe; text dropped on close; nothing logged (`LOOK.md` section 3.5) |
 | T26 | The Screen Recording grant is used by other code | No capture API in the extension runtime; merge checklist searches for capture APIs; the grant's breadth stated in Settings (`LOOK.md` section 2.4) |
 | T27 | A link from another app starts a capture | `.look` requires deep-link consent |
 
@@ -94,7 +94,8 @@ Each has a recommendation. D1 is the only one that blocks Phase 0.
 
 D16 to D31 are still in `UNIVERSAL_INSTALL.md` section 8 until U1 step 1 moves them. Look's
 decisions, D32 to D42, moved here from `LOOK.md` section 11 in Phase L step 1. D41 is set by the
-brief, and the owner settled D32 and D35 on 2026-11-20; the others wait on the owner.
+brief, and the owner settled D32 and D35 on 2026-11-20, and D39 and what Ask AI sends on 2026-11-21; the
+others wait on the owner.
 
 | # | Decision | Alternatives | Recommendation |
 | --- | --- | --- | --- |
@@ -103,9 +104,9 @@ brief, and the owner settled D32 and D35 on 2026-11-20; the others wait on the o
 | D34 | The key inside the launcher | ⌘L; Tab; none | ⌘L: free, and L for Look |
 | D35 | Capture route | Direct capture with a monthly re-ask; the system picker every time | **Settled by the owner, 2026-11-20:** direct capture |
 | D36 | Where recognition runs | A stdin mode in the existing helper; in the app; a new helper target | The existing helper: Vision's memory leaves with it, and a new target would edit `project.yml` |
-| D37 | Consent before a cloud ask | Preview on the first ask of each Look; once ever; never | Each Look |
+| D37 | Consent before a cloud ask | Preview on the first ask of each Look; once ever; never | Each Look. **The owner, 2026-11-21:** Ask AI on Codex also sends the screenshot, so the preview shows it too (`LOOK.md` section 7) |
 | D38 | Claude for Look before the hook fix | Allowed, with a note; hidden until the fix | Allowed with a note; it is the owner's own Mac and hooks |
-| D39 | Recognition level | `.accurate`; `.fast`; a setting | `.accurate`, unless it misses the target |
+| D39 | Recognition level | `.accurate`; `.fast`; a setting | **Settled by the owner, 2026-11-21:** `.accurate` as shipped, 1.8 s median on his Mac; he turned down 768 px strips (4.1 s) and `.fast` |
 | D40 | Copy and clipboard history | Into history like any copy; marked to skip history | Into history: it is the person's own copy, and only text |
 | D41 | Look's AI route | Its own setting defaulting to Codex; the general default | **Set by the brief:** its own setting, Codex by default |
 | D42 | An undated time ("at 3") | Today; the next such time; ignored | The next such time, shown on the row so a wrong guess is visible |

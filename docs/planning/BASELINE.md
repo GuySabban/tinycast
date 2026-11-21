@@ -609,6 +609,18 @@ Short strips are the lever on macOS 27.2: the 768 px helper read every Latin mar
 the words of the shipped helper, though lines still break where an observation ends (225 lines for
 140), and it took 4.1 s, four times the 1 s target. `AccurateHelper` paid its 46 s first call a third
 time without a rebuild.
+
+#### The owner's decision, 2026-11-21
+
+He kept the shipped `.accurate` read for Look's rows (D39) and chose to send the screenshot itself to
+Codex when he picks Ask AI, accepting that the image goes to OpenAI. On his Mac, with one screenshot
+holding English, Hebrew and small text:
+
+- `codex exec "Transcribe all text on this screen." -i look-img.png` (codex-cli 0.171.0, gpt-6.2-sol,
+  low reasoning) read the whole screen, Hebrew included: 38.0 s, 48,899 tokens. It ran in another
+  project with its `AGENTS.md` and hooks loaded, so it is not Look's speed.
+- `fm respond --image` (Apple's on-device model) returned "no text detected" in 2.7 s, then
+  unrelated invented text in 5.3 s.
 It also prints `building <helper>` when it rebuilds one.
 
 ## Repository
