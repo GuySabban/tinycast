@@ -102,6 +102,11 @@ struct LookTests {
             Thursday 3 December 2026 at 14:00, i.e. 3 Dec 2026 14:00.
             """)
         expect(links(found).count == 1, "one link: \(links(found))")
+        let distinct = links(items("""
+            https://example.com/Report https://example.com/report
+            https://example.com/find?q=a/ https://example.com/find?q=a
+            """))
+        expect(distinct.count == 4, "path and query case and slashes stay distinct: \(distinct)")
         expect(phones(found).count == 1, "one phone: \(phones(found))")
         expect(found.filter { $0.kind == .address }.count == 1, "one address")
         expect(dates(found).count == 1, "one date: \(dates(found).map(\.text))")

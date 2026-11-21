@@ -93,19 +93,22 @@ enum LookDetector {
     private static func identity(of value: LookItem.Value, matched: String) -> String {
         switch value {
         case .date(let date): "date \(date.start.timeIntervalSinceReferenceDate)"
-        case .link(let url): "link " + url.absoluteString.lowercased().trimmingSuffix("/")
+        case .link(let url): "link " + linkIdentity(url)
         case .phoneNumber(let number): "phone " + number.filter { $0.isASCII && ($0.isNumber || $0 == "+") }
         case .address: "address " + matched.lowercased().split(whereSeparator: \.isWhitespace).joined(separator: " ")
         }
     }
 
+    /// Only the scheme and host are case-insensitive: `/Report` and `/report` are different pages.
+    private static func linkIdentity(_ url: URL) -> String {
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url.absoluteString }
+        components.scheme = components.scheme?.lowercased()
+        components.host = components.host?.lowercased()
+        if components.path.hasSuffix("/") { components.path.removeLast() }
+        return components.string ?? url.absoluteString
+    }
+
     private static func line(around range: NSRange, in source: NSString) -> String {
         source.substring(with: source.lineRange(for: range)).trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-}
-
-private extension String {
-    func trimmingSuffix(_ suffix: String) -> String {
-        hasSuffix(suffix) ? String(dropLast(suffix.count)) : self
     }
 }
