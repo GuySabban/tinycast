@@ -594,6 +594,21 @@ The bench now has a fourth helper, `Accurate768StripHelper`: the shipped cap rea
 (192 px overlap), to show whether short strips read the whole page on macOS 27.2 and at what cost.
 On the VM it reads every line and all three Latin markers, at 6.2 s against 4.8 s for the shipped
 helper; 512 px strips lost the markers there, so 768 px is the shortest that held up on both.
+
+The owner ran it on 2026-11-21 (same Mac, thermal nominal throughout). Counting the body words each
+helper's text gets right, out of the 1680 drawn:
+
+| Helper | First run | Median, p95 | Lines | Markers | Body words read |
+| --- | ---: | ---: | ---: | --- | ---: |
+| `.accurate`, shipped (2731 × 1536, one strip) | 46.3 s | 1.79 s, 3.03 s | 98 | 13 pt | 24 % |
+| `.fast`, shipped | 5.5 s | 4.62 s, 5.79 s | 144 | 11, 13 pt | 17 % |
+| `.accurate`, 4096 px (2048 and 512 px strips) | 72.9 s | 1.91 s, 2.01 s | 53 | none | 15 % |
+| `.accurate`, shipped cap in 768 px strips | 53.6 s | 4.08 s, 4.43 s | 225 | 9, 11, 13 pt | 61 % |
+
+Short strips are the lever on macOS 27.2: the 768 px helper read every Latin marker and 2.5 times
+the words of the shipped helper, though lines still break where an observation ends (225 lines for
+140), and it took 4.1 s, four times the 1 s target. `AccurateHelper` paid its 46 s first call a third
+time without a rebuild.
 It also prints `building <helper>` when it rebuilds one.
 
 ## Repository
