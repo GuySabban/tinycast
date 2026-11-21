@@ -18,7 +18,7 @@ enum LookDetector {
         |\b\d{4}[./-]\d{1,2}[./-]\d{1,2}(?!\d)|\b\d{1,2}/\d{1,2}\b|\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b|\b\d{1,2}(st|nd|rd|th)\b
         """#
 
-    /// `now` must be the system clock: `NSDataDetector` reads "today" from it, not from here.
+    /// `now` must be the system clock: `NSDataDetector` reads "today" from it (D44).
     static func items(in text: String, now: Date, calendar: Calendar) -> [LookItem] {
         // Not Sendable, so each call builds its own.
         guard let detector = try? NSDataDetector(types: types.rawValue) else { return [] }

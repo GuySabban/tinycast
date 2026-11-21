@@ -10,7 +10,7 @@ translated or asked about.
 - **Basis:** the fork at `5b6461e6` on `universal-launcher`, read on 2026-11-19. Facts about
   Spotcast's code below were read in the source, not run. Facts about macOS behaviour that this
   plan could not check are marked as needing a run and listed in section 12.
-- **Related documents:** threats T22 to T27 and decisions D32 to D43 continue the numbering of
+- **Related documents:** threats T22 to T27 and decisions D32 to D44 continue the numbering of
   `UNIVERSAL_INSTALL.md` and are in `RISKS_AND_DECISIONS.md`, moved there in step 1. The AI routes
   are described in `ARCHITECTURE_AUDIT.md` section 3.3; the Claude hook finding is `UNIVERSAL_INSTALL.md`
   section 10, row 24.
@@ -234,7 +234,8 @@ calendar's hot path. Look runs it once per Look, on at most 32 KB, off the main 
 - at most 20 items, in reading order.
 
 `Features/Look/Model/` may import Foundation, which holds `NSDataDetector`, so the detector and its
-mapping live in `Model/` and are covered by a harness, as AGENTS.md requires.
+mapping live in `Model/` and are covered by a harness, as AGENTS.md requires. The detector reads
+"today" from the system clock, not the injected `now`: the owner accepted that exception (D44).
 
 ## 6. Ask AI
 
@@ -379,8 +380,8 @@ T22 to T27 are in `RISKS_AND_DECISIONS.md` section 1, moved there in step 1.
 
 ## 11. Decisions
 
-D32 to D42 are in `RISKS_AND_DECISIONS.md` section 3, moved there in step 1; D43 was added there
-in step 4.
+D32 to D42 are in `RISKS_AND_DECISIONS.md` section 3, moved there in step 1; D43 and D44 were
+added there in step 4.
 
 ## 12. Assumptions that need a run
 

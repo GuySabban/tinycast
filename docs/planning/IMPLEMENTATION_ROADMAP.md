@@ -329,7 +329,7 @@ and failure mapping. `WebSearchSessionTests` uses an in-process `URLProtocol` fo
 **Objective.** A hotkey, or ⌘L in the open launcher, reads the display under the pointer and shows
 what is on it as actions: create an event from a date, open a link, call or copy a number, get
 directions to an address, copy or translate the text, or ask AI about it. Everything before Ask AI
-is on-device. The design is in `LOOK.md`; threats T22 to T27 and decisions D32 to D43 are in
+is on-device. The design is in `LOOK.md`; threats T22 to T27 and decisions D32 to D44 are in
 `RISKS_AND_DECISIONS.md`.
 
 **Needs.** Phase 0 only. It can run before or after Phase 2; it is placed here because it is sized
