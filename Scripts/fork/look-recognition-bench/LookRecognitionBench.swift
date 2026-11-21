@@ -12,23 +12,34 @@ struct LookRecognitionBench {
         ("13 pt", "MARKER 13031", "13031", 26.0, 2615), ("11 pt Hebrew", "בדיקה עברית 22022", "עברית", 22.0, 100)
     ]
 
+    static func usage(_ problem: String? = nil) -> Never {
+        if let problem { print(problem) }
+        print("usage: LookRecognitionBench <helper> [--runs N] [--png file] [--dump file]")
+        exit(2)
+    }
+
     static func main() async throws {
         var arguments = Array(CommandLine.arguments.dropFirst())
-        guard let helper = arguments.first.map(URL.init(fileURLWithPath:)) else {
-            print("usage: LookRecognitionBench <helper> [--runs N] [--png file]")
-            exit(2)
-        }
+        guard let helper = arguments.first.map(URL.init(fileURLWithPath:)) else { usage() }
         arguments.removeFirst()
         var runs = 10
         var png: Data?
         var dump: URL?
         while let flag = arguments.first {
             arguments.removeFirst()
+            guard let value = arguments.first else { usage("\(flag) needs a value") }
+            arguments.removeFirst()
             switch flag {
-            case "--runs": runs = Int(arguments.removeFirst()) ?? runs
-            case "--png": png = try Data(contentsOf: URL(fileURLWithPath: arguments.removeFirst()))
-            case "--dump": dump = URL(fileURLWithPath: arguments.removeFirst())
-            default: print("unknown flag \(flag)"); exit(2)
+            case "--runs":
+                guard let count = Int(value), count > 0 else { usage("--runs needs a positive count") }
+                runs = count
+            case "--png":
+                guard let data = try? Data(contentsOf: URL(fileURLWithPath: value)) else {
+                    usage("cannot read \(value)")
+                }
+                png = data
+            case "--dump": dump = URL(fileURLWithPath: value)
+            default: usage("unknown flag \(flag)")
             }
         }
         for level in [RecognizeTextRequest.RecognitionLevel.accurate, .fast] {
