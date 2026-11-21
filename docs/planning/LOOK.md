@@ -209,6 +209,7 @@ that reads PNG bytes from standard input, and `ClipboardTextWorker` gains an ent
 only from a URL: about 55 lines added and 4 changed in three upstream files. The 60-second deadline, the 32 KB
 cap and cancellation stay as they are; Look sets a 5-second deadline of its own, longer for
 the first Look after launch: Vision's first call took 45 to 73 s on the owner's Mac (step 5).
+Step 5 made that 120 s, also after a timeout or 15 minutes with no read (`LookRecognitionDeadline`).
 
 Recognition level (D39, settled by the owner on 2026-11-21): `.accurate` as shipped, 1.8 s median
 on his Mac. On his macOS 27.2 it returns tall images mostly in fragments; 768 px strips read far
@@ -399,7 +400,7 @@ added there in step 4.
 
 Step 2 ran the spike in `Scripts/fork/look-capture-spike/` on a macOS 26.6.2 VM and on the owner's
 Mac; results are in `BASELINE.md`, "Phase L step 2". The spike stood in for the Dev build, which
-cannot capture until step 5.
+cannot capture until step 5; step 5 deleted it once `ScreenCapturer` replaced it.
 
 Step 3 ran row 5 on the VM with `Scripts/fork/look-recognition-bench/`; results are in
 `BASELINE.md`, "Phase L step 3". The extractor's 2048 × 2048 pixel cap reads a 5K capture at

@@ -72,6 +72,12 @@ struct LookTests {
         promptKeepsTheBoundary()
         fenceOutrunsTheText()
         modelIsSendable()
+        firstLookWaitsLonger()
+        readsKeepItWarm()
+        timeoutOrIdleGoesCold()
+        failuresLeaveTheDeadline()
+        captureKeepsDisplayPixels()
+        captureCapsTheLongSide()
 
         print("\(passes) passed, \(failures) failed")
         if failures > 0 { exit(1) }
@@ -322,10 +328,69 @@ struct LookTests {
         expect(message.hasSuffix("````\n" + text + "\n````"), "text cannot close the fence")
     }
 
+    static func firstLookWaitsLonger() {
+        let deadline = LookRecognitionDeadline()
+        let now = ContinuousClock.now
+        expect(deadline.limit(at: now) == LookRecognitionDeadline.coldLimit, "first Look is cold")
+        expect(LookRecognitionDeadline.coldLimit > .seconds(75), "cold limit clears the slowest first read")
+        expect(LookRecognitionDeadline.warmLimit < .seconds(60), "a warm Look fails sooner than the worker's own deadline")
+    }
+
+    static func readsKeepItWarm() {
+        var deadline = LookRecognitionDeadline()
+        let start = ContinuousClock.now
+        deadline.record(.recognized, at: start)
+        expect(deadline.limit(at: start + .seconds(1)) == LookRecognitionDeadline.warmLimit, "warm after a read")
+        let late = start + LookRecognitionDeadline.staysWarm - .seconds(1)
+        expect(deadline.limit(at: late) == LookRecognitionDeadline.warmLimit, "still warm inside the window")
+        deadline.record(.recognized, at: late)
+        let later = late + LookRecognitionDeadline.staysWarm - .seconds(1)
+        expect(deadline.limit(at: later) == LookRecognitionDeadline.warmLimit, "each read restarts the window")
+    }
+
+    static func timeoutOrIdleGoesCold() {
+        var deadline = LookRecognitionDeadline()
+        let start = ContinuousClock.now
+        deadline.record(.recognized, at: start)
+        let idle = start + LookRecognitionDeadline.staysWarm
+        expect(deadline.limit(at: idle) == LookRecognitionDeadline.coldLimit, "cold after the window")
+        deadline.record(.timedOut, at: start + .seconds(2))
+        expect(deadline.limit(at: start + .seconds(3)) == LookRecognitionDeadline.coldLimit, "cold after a timeout")
+    }
+
+    static func failuresLeaveTheDeadline() {
+        var deadline = LookRecognitionDeadline()
+        let start = ContinuousClock.now
+        deadline.record(.failed, at: start)
+        deadline.record(.cancelled, at: start)
+        expect(deadline.limit(at: start) == LookRecognitionDeadline.coldLimit, "a failure does not warm it")
+        deadline.record(.recognized, at: start)
+        deadline.record(.failed, at: start + .seconds(1))
+        deadline.record(.cancelled, at: start + .seconds(1))
+        expect(deadline.limit(at: start + .seconds(2)) == LookRecognitionDeadline.warmLimit, "nor cools it")
+    }
+
+    static func captureKeepsDisplayPixels() {
+        let retina = LookCaptureSize.pixels(width: 1512, height: 982, scale: 2)
+        expect(retina.width == 3024 && retina.height == 1964, "built-in Retina at pixel size: \(retina)")
+        let plain = LookCaptureSize.pixels(width: 1920, height: 1080, scale: 1)
+        expect(plain.width == 1920 && plain.height == 1080, "non-Retina unchanged: \(plain)")
+    }
+
+    static func captureCapsTheLongSide() {
+        let wide = LookCaptureSize.pixels(width: 3008, height: 1692, scale: 2)
+        expect(wide.width == 4096 && wide.height == 2304, "6K capped to 4096: \(wide)")
+        let tall = LookCaptureSize.pixels(width: 1080, height: 2560, scale: 2)
+        expect(tall.height == 4096 && tall.width == 1728, "portrait caps its height: \(tall)")
+        let tiny = LookCaptureSize.pixels(width: 1, height: 1, scale: 0.25)
+        expect(tiny.width == 1 && tiny.height == 1, "never zero: \(tiny)")
+    }
+
     static func modelIsSendable() {
         func requireSendable<T: Sendable>(_: T.Type) {}
         requireSendable(LookItem.self)
         requireSendable(LookDate.self)
+        requireSendable(LookRecognitionDeadline.self)
         expect(true, "LookItem and LookDate are Sendable")
     }
 }

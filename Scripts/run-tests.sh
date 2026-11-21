@@ -980,6 +980,11 @@ run slow LookRecognitionTests Tinycast/Features/Clipboard/Model/*.swift Tinycast
                              Tinycast/Features/Clipboard/Service/ClipboardTextWorker.swift \
                              Tinycast/Platform/ProcessExit.swift
 run LookTests              Tinycast/Features/Look/Model/*.swift
+run LookReaderTests        Tinycast/Features/Look/Model/*.swift Tinycast/Features/Look/Service/*.swift \
+                           Tinycast/Features/Clipboard/Model/*.swift Tinycast/Platform/Images/ImageDerivative.swift $Q \
+                           Tinycast/Features/Clipboard/Service/ClipboardTextWorker.swift \
+                           Tinycast/Platform/ProcessExit.swift Tinycast/Platform/ScreenTarget.swift \
+                           Tinycast/Platform/Signposts.swift
 
 if [ "$emit_db" -eq 1 ]; then
     printf ']\n' >> "$DB"

@@ -640,6 +640,19 @@ an English and a Hebrew test page shown in Chrome, menu bar and all, and the Heb
 `NSDataDetector` also returns `ftp`, `file`, `javascript`, `tel`, `sms` and custom schemes as links;
 `LookDetector` drops them. It reads a date with no time as noon, which the model moves to 09:00.
 
+## Phase L step 5: permission and capture (2026-11-22)
+
+Same kind of VM: macOS 26.6.2, Xcode 27 RC, Dark. Nothing in the app calls `LookReader` until
+step 7, so a throwaway program, not committed, compiled the shipped Look sources and ran one Look.
+
+| Check | On the VM |
+| --- | --- |
+| `LookTests`, `LookReaderTests` | **Pass**, alone and inside the full suite of 126 |
+| Full suite, lint, model purity, Debug build `CODE_SIGNING_ALLOWED=NO` | **Pass.** No new compiler warnings |
+| One live Look, display under the pointer | Preflight true (the VM's shell is granted). 1600 × 1200 still in 0.27 s, 359 characters through `image-stdin` in 2.4 s, the menu-bar clock found as a date |
+
+The owner's Mac has not run step 5; its checks wait for step 7, which gives Look a hotkey.
+
 ## Repository
 
 On 2026-11-13 the clone was arranged as `RISKS_AND_DECISIONS.md` section 4 describes. `upstream` is
