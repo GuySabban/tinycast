@@ -563,6 +563,39 @@ The bench now also prints the thermal state, every run's time and line count, ho
 each marker, and keeps each helper's text; it no longer rebuilds unchanged helpers, so a second
 run tells whether the 47 to 73 s first call comes back for an unchanged binary.
 
+#### Rerun with the corrected bench
+
+The owner ran the corrected bench twice in a row on 2026-11-21, same Mac, thermal state nominal
+before and after every helper, and sent each helper's text from the second run. The two runs agree:
+
+| Helper | First run, run 1 and 2 | Median, run 1 and 2 | Lines | Markers, all 11 runs |
+| --- | ---: | ---: | ---: | --- |
+| `.accurate`, shipped cap | 46.8 s, 45.5 s | 1.59 s, 1.60 s | 98 | 13 pt read; 9 and 11 pt missed |
+| `.fast`, shipped cap | 5.6 s, 4.4 s | 5.17 s, 4.99 s | 144 | 11 and 13 pt read; 9 pt missed |
+| `.accurate`, 4096 px | 74.6 s, 2.0 s | 2.05 s, 2.07 s | 53 | all missed |
+
+The text explains all three anomalies, and none is a bench fault:
+
+- **`.accurate` reads most of the page only in fragments.** Of 140 body lines it returned 5 whole,
+  and 49 room numbers; most lines came back as their right-hand ends ("ow at 2:10 pm, room 1B"). The
+  same page and code on macOS 26.6 return every line whole, so this is Vision on macOS 27.2.
+- **The 4096 px helper's text is the clue.** Its 18 whole lines are exactly rows 61 to 69 of each
+  column, the lines its second strip owns. That strip is 4096 × 512; the first is 4096 × 2048 and,
+  like the shipped helper's single 2731 × 1536 strip, came back in fragments. So on macOS 27.2
+  `.accurate` reads text fully in a short strip and badly in a tall one, which also explains the
+  markers it missed: they are all in the first strip.
+- **`.fast` returns every line, garbled**, which is why it is slower than `.accurate` here: it has
+  more text to read. Its time follows the text it returns, as on his screen.
+- **The first `.accurate` call comes back for an unchanged binary:** `AccurateHelper` took 45.5 s
+  again on the second run, which did not rebuild it, while the 4096 px helper's dropped to 2.0 s.
+  The 60 s default deadline is therefore not safe for the first Look of a session.
+
+The bench now has a fourth helper, `Accurate768StripHelper`: the shipped cap read in 768 px strips
+(192 px overlap), to show whether short strips read the whole page on macOS 27.2 and at what cost.
+On the VM it reads every line and all three Latin markers, at 6.2 s against 4.8 s for the shipped
+helper; 512 px strips lost the markers there, so 768 px is the shortest that held up on both.
+It also prints `building <helper>` when it rebuilds one.
+
 ## Repository
 
 On 2026-11-13 the clone was arranged as `RISKS_AND_DECISIONS.md` section 4 describes. `upstream` is

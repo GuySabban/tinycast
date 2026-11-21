@@ -15,15 +15,16 @@ From the repository root, in Terminal, with Xcode 27 selected (`xcode-select -p`
 ./Scripts/fork/look-recognition-bench/run.sh --runs 20
 ```
 
-It builds three helpers into the ignored `build/look-recognition-bench/` and runs each in turn. A
-helper is rebuilt only when one of its sources is newer than it, so a second run times the same
-binaries' first call again.
+It builds four helpers into the ignored `build/look-recognition-bench/` and runs each in turn. A
+helper is rebuilt only when one of its sources is newer than it, and the run prints `building <helper>`
+when it is, so a second run times the same binaries' first call again.
 
 | Helper | Is |
 | --- | --- |
 | `AccurateHelper` | The shipped extractor: `.accurate`, pixel cap 2048 × 2048, so a 5K page is read at 2731 × 1536 |
 | `FastHelper` | The same at `.fast` (D39) |
 | `Accurate4096Helper` | `.accurate` with the cap raised to 4096 × 2304, the size `LOOK.md` row 5 assumed |
+| `Accurate768StripHelper` | The shipped extractor read in 768 px strips with 192 px overlap instead of 2048 and 256 |
 
 The test page is 5120 × 2880, a 5K display at scale 2: two columns of 140 lines of 11 pt body text,
 plus one marker each at 9, 11 and 13 pt on rows of their own above the text and an 11 pt Hebrew
