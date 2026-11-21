@@ -519,8 +519,29 @@ as a failed case, its success cases allow 180 s, and the bench times the first (
 lists failed runs and goes on to the next helper. The no-disk check also walks the per-user cache
 folder and `~/Library/Caches`, where the helper writes small Metal shader caches but no image.
 
-Not yet run on the owner's Mac. His display is 3420 × 2224 at scale 2, not 5K, so the bench's
-synthetic 5K page stands in for row 5, and `--png` with his own screenshot gives a real screen.
+### The owner's Mac
+
+The owner ran the bench on his MacBook Air on 2026-11-21: macOS 27.2 (26B118), Apple M3,
+`/Applications/Xcode.app`, 10 timed runs each. His display is 3420 × 2224 at scale 2, not 5K, so
+the synthetic 5K page stands in for row 5, and `--png` with his own screenshot (4.2 MB PNG) gives a
+real screen. Vision listed the same 30 `.accurate` and six `.fast` languages as the VM: no Hebrew.
+
+| Helper | 5K page: first run | 5K page: median, p95 | 5K page: markers | His screen: first run | His screen: median, p95 |
+| --- | ---: | ---: | --- | ---: | ---: |
+| `.accurate`, shipped cap | 49.4 s | 1.90 s, 2.17 s | 11 pt read; 9 and 13 pt missed; 126 lines | 61.0 s | 1.30 s, 24.1 s |
+| `.fast`, shipped cap | 5.6 s | 4.63 s, 6.52 s | 11 pt as "MAAKEA", 13 pt read; 9 pt missed; 143 lines | 1.5 s | 0.95 s, 1.14 s |
+| `.accurate`, 4096 px | 46.7 s | 1.65 s, 1.93 s | all missed; 55 lines | 73.0 s | 1.53 s, 1.74 s |
+
+- **`.accurate` misses the 1 s median** on his Mac: 1.30 s on his screen, 1.90 s on the 5K page.
+  `.fast` meets it on his screen (0.95 s) but not on the 5K page (4.63 s).
+- **The first `.accurate` call took 47 to 73 s**, past the worker's 60 s default deadline; the
+  timed runs after it, each a new helper process, took 1 to 2 s. `run.sh` rebuilds the helpers each
+  time, so whether this repeats for an unchanged binary is not known yet.
+- **`.accurate` read less of the 5K page than on the VM** (126 lines, against 151 on the VM, and
+  55 at 4096 px), with the 13 pt marker gone. On his own screen the three helpers returned about the
+  same amount of text (1.7 to 2.1 KB, 93 to 104 lines).
+- One `.accurate` run on his screen took 24.1 s; the other nine were 1.0 to 1.6 s.
+- Hebrew was not read at any setting.
 
 ## Repository
 
