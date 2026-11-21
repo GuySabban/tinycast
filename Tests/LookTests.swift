@@ -189,18 +189,19 @@ struct LookTests {
         for text in ["3pm", "9 am", "15:00", "10:00–10:30", "8 o'clock", "14h30", "10-11am", "starts 10:30:00"] {
             expect(!LookDetector.namesADay(text), "time only: \(text)")
         }
-        for text in ["today at 9am", "Fri 8pm", "3 Dec 2026 14:00", "tomorrow 10:00", "tonight", "3/12", "26.11.2026"] {
+        for text in ["today at 9am", "Fri 8pm", "3 Dec 2026 14:00", "tomorrow 10:00", "tonight", "3/12", "26.11.2026", "2026-11-21 10:00", "2026-11-21T10:00"] {
             expect(LookDetector.namesADay(text), "names a day: \(text)")
         }
         let noon = date(2026, 12, 18, 12)
         expect(!LookDetector.hasTime(noon, matched: "18 December 2026", calendar: calendar), "noon read as no time")
         expect(LookDetector.hasTime(noon, matched: "Dec 18 at noon", calendar: calendar), "a written noon")
         expect(LookDetector.hasTime(noon, matched: "Dec 18 12pm", calendar: calendar), "a written 12pm")
+        expect(LookDetector.hasTime(noon, matched: "Dec 18 at 12:00", calendar: calendar), "a written 12:00")
     }
 
     static func keepsTheDetectorsTimes() {
         let cases: [(String, Int, Int, Bool)] = [
-            ("Lunch at 3 tomorrow", 15, 0, false), ("Fri at 3", 15, 0, false), ("Dec 12 at noon", 12, 0, false),
+            ("Lunch at 3 tomorrow", 15, 0, false), ("Fri at 3", 15, 0, false), ("Dec 12 at noon", 12, 0, false), ("tomorrow at 12:00", 12, 0, false),
             ("8 o'clock", 20, 0, true), ("14h30", 14, 30, true), ("at 1500 hours", 15, 0, true),
             ("10-11am", 10, 0, true), ("11.30 a.m.", 11, 30, true), ("starts 10:30:00", 10, 30, true),
         ]
@@ -215,6 +216,12 @@ struct LookTests {
             expect(clock.hour == hour && clock.minute == minute, "\(text): keeps \(hour):\(minute), got \(clock)")
             expect(found.date.dayIsGuessed == guessed, "\(text): day guessed is \(guessed)")
             if guessed { expect(found.date.start >= now, "\(text): not in the past") }
+        }
+        let isoToday = Date.ISO8601FormatStyle(timeZone: calendar.timeZone).year().month().day().format(now) + " 00:01"
+        if let iso = dates(LookDetector.items(in: isoToday, now: now, calendar: calendar)).first {
+            expect(!iso.date.dayIsGuessed && calendar.isDate(iso.date.start, inSameDayAs: now), "\(isoToday): stays today")
+        } else {
+            expect(false, "\(isoToday): a date found")
         }
         guard let tonight = dates(LookDetector.items(in: "tonight 8", now: now, calendar: calendar)).first else {
             return expect(false, "tonight found")

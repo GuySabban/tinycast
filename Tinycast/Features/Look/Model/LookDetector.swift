@@ -8,14 +8,14 @@ enum LookDetector {
     static let defaultDuration: TimeInterval = 60 * 60
 
     private static let types: NSTextCheckingResult.CheckingType = [.date, .link, .phoneNumber, .address]
-    private static let noonPattern = #"\b(noon|midday)\b|\b12(:00)?\s?(p\.?m|o'?clock|h\b)"#
+    private static let noonPattern = #"\b(noon|midday)\b|\b12([:.h]00|\s?(p\.?m|o'?clock|h\b))"#
     private static let dayPattern = #"""
         \b(today|tonight|tomorrow|yesterday|this\s+(morning|afternoon|evening)\#
         |mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun\#
         |monday|tuesday|wednesday|thursday|friday|saturday|sunday\#
         |jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec\#
         |january|february|march|april|june|july|august|september|october|november|december)\b\#
-        |\b\d{1,2}/\d{1,2}\b|\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b|\b\d{1,2}(st|nd|rd|th)\b
+        |\b\d{4}[./-]\d{1,2}[./-]\d{1,2}(?!\d)|\b\d{1,2}/\d{1,2}\b|\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b|\b\d{1,2}(st|nd|rd|th)\b
         """#
 
     /// `now` must be the system clock: `NSDataDetector` reads "today" from it, not from here.
