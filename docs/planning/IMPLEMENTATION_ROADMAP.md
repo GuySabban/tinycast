@@ -329,7 +329,7 @@ and failure mapping. `WebSearchSessionTests` uses an in-process `URLProtocol` fo
 **Objective.** A hotkey, or ⌘L in the open launcher, reads the display under the pointer and shows
 what is on it as actions: create an event from a date, open a link, call or copy a number, get
 directions to an address, copy or translate the text, or ask AI about it. Everything before Ask AI
-is on-device. The design is in `LOOK.md`; threats T22 to T27 and decisions D32 to D42 are in
+is on-device. The design is in `LOOK.md`; threats T22 to T27 and decisions D32 to D43 are in
 `RISKS_AND_DECISIONS.md`.
 
 **Needs.** Phase 0 only. It can run before or after Phase 2; it is placed here because it is sized
@@ -361,8 +361,8 @@ command, and every bindable command already has a global hotkey (`LOOK.md` secti
    Measure `.accurate` against the 1 s target on a 5K capture (row 5, D39).
 4. **Model, test-first:** `LookItem`, `LookDetector` with de-duplication, scheme filtering, the
    20-item cap and next-occurrence times (D42); the URL builders; `LookPrompt` with the boundary and
-   fenced text. Fixtures from real English and Hebrew screens (row 7); Hebrew recognition on device
-   is researched in its own session, by the owner's choice on 2026-11-21.
+   fenced text. Fixtures from real English and Hebrew screens (row 7). The owner settled Hebrew on
+   2026-11-22 (D43): a Homebrew Tesseract when installed, built as step 12.
 5. **Service:** `ScreenRecordingPermission` (preflight, first-time request, the Settings link) and
    `ScreenCapturer` (ScreenCaptureKit, own app excluded, 4096 px cap, PNG released after the
    helper write, image kept until the Look closes); a longer deadline for the first Look. Cancellation and stale-result checks per Look.
@@ -383,6 +383,9 @@ command, and every bindable command already has a global hotkey (`LOOK.md` secti
 11. **Feature document:** `docs/features/look.md` with its invariants (never on disk, never Spotcast's
     windows, nothing sent before Ask AI, no tools in Look's AI turn), and the lines in
     `FORK_LEDGER.md`.
+12. **Hebrew through Homebrew (D43):** when a Homebrew `tesseract` is installed, the helper also
+    reads the capture with it (`heb+eng`) and the rows use that text; Vision alone otherwise. Nothing
+    is bundled. Measure it on the owner's Mac first (`LOOK_HEBREW_OCR.md`, owner checks).
 
 ### Risks
 
@@ -435,6 +438,7 @@ the absolute start. Capture, permission and the AI turn are hands-on.
 | 9. Seam edits | 2–5 |
 | 10. Strings, checks, hands-on run, merge | 6–11 |
 | 11. Feature document and ledger | 1–3 |
+| 12. Hebrew through Homebrew (D43) | Not sized |
 | **Total** | **43–88** |
 
 ## Phases 3 to 7

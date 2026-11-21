@@ -623,6 +623,23 @@ holding English, Hebrew and small text:
   unrelated invented text in 5.3 s.
 It also prints `building <helper>` when it rebuilds one.
 
+## Phase L step 4: the detection model (2026-11-22)
+
+`Tests/LookTests.swift` ran in the same kind of Devin macOS VM: macOS 26.6.2, Xcode 27 RC. Its
+fixtures in `Tests/look-fixtures/` are `ClipboardTextHelper image-stdin`'s text of a screenshot of
+an English and a Hebrew test page shown in Chrome, menu bar and all, and the Hebrew page's own text.
+
+| Check | On the VM |
+| --- | --- |
+| `LookTests` | **Pass**, alone and inside the full suite of 125 |
+| Full suite, lint, model purity, Debug build `CODE_SIGNING_ALLOWED=NO` | **Pass.** No new compiler warnings |
+| English screen through Vision | 11 items: the menu-bar clock, the review at 14:00, the 10:00–10:30 standup (30 min), the untimed party (09:00), "3pm" as a guessed day, the agenda link once, a bare host, the sender as `mailto`, two phones and the Cupertino address; `ftp` and `file` links dropped |
+| Hebrew screen through Vision | Vision turns the Hebrew into Thai-looking letters. Both phone numbers survive; the Zoom link comes back with misread Hebrew glued on (`…/j/123456:0127107`); "10:00" is lost |
+| Hebrew text | Link and phones found. "ביום חמישי 3 בדצמבר 2026 בשעה 14:00" gives only "14:00", a guessed day; "נדבר מחר ב-10:00" gives nothing; "רחוב הרצל 10, תל אביב" is not an address |
+
+`NSDataDetector` also returns `ftp`, `file`, `javascript`, `tel`, `sms` and custom schemes as links;
+`LookDetector` drops them. It reads a date with no time as noon, which the model moves to 09:00.
+
 ## Repository
 
 On 2026-11-13 the clone was arranged as `RISKS_AND_DECISIONS.md` section 4 describes. `upstream` is
