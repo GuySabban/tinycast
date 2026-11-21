@@ -6,7 +6,7 @@ import Vision
 /// Times `ClipboardTextWorker.extract(imageData:)`, helper start to text, on a 5K page or a given PNG.
 @main
 struct LookRecognitionBench {
-    /// One marker per row, the Hebrew one far from the Latin ones, so no two can share an observation.
+    /// One marker per row, Hebrew far from the Latin ones, so no two share an observation.
     static let markers = [
         ("9 pt", "MARKER 90901", "90901", 18.0, 2740), ("11 pt", "MARKER 11011", "11011", 22.0, 2680),
         ("13 pt", "MARKER 13031", "13031", 26.0, 2615), ("11 pt Hebrew", "בדיקה עברית 22022", "עברית", 22.0, 100)
