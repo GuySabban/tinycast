@@ -93,9 +93,9 @@ Each has a recommendation. D1 is the only one that blocks Phase 0.
 | D15 | WebP output in Phase 5 (R15) | Vendor libwebp's encoder as source, the app's first third-party code, with its licence added to `NOTICE.md`; call an installed `cwebp` from Homebrew when present; leave WebP out and offer HEIC or AVIF, which ImageIO writes | Leave WebP out of Phase 5's first version. Upstream has zero third-party dependencies, and vendoring C code adds a build step and a licence duty for one format. Revisit if WebP is asked for by name. | The owner, when Phase 5 is re-planned |
 
 D16 to D31 are still in `UNIVERSAL_INSTALL.md` section 8 until U1 step 1 moves them. Look's
-decisions, D32 to D42, moved here from `LOOK.md` section 11 in Phase L step 1. D41 is set by the
-brief, and the owner settled D32 and D35 on 2026-11-20, and D39 and what Ask AI sends on 2026-11-21; the
-others wait on the owner.
+decisions, D32 to D42, moved here from `LOOK.md` section 11 in Phase L step 1; D43 and D44 were
+added in step 4. D41 is set by the brief, and the owner settled D32 and D35 on 2026-11-20, D39 and
+what Ask AI sends on 2026-11-21, and D43 and D44 on 2026-11-22; the others wait on the owner.
 
 | # | Decision | Alternatives | Recommendation |
 | --- | --- | --- | --- |
@@ -110,6 +110,8 @@ others wait on the owner.
 | D40 | Copy and clipboard history | Into history like any copy; marked to skip history | Into history: it is the person's own copy, and only text |
 | D41 | Look's AI route | Its own setting defaulting to Codex; the general default | **Set by the brief:** its own setting, Codex by default |
 | D42 | An undated time ("at 3") | Today; the next such time; ignored | The next such time, shown on the row so a wrong guess is visible |
+| D43 | Hebrew for Look's rows (Vision reads none) | Tesseract bundled; a Tesseract the person installs with Homebrew, Vision alone without it; no Hebrew | **Settled by the owner, 2026-11-22:** optional, via Homebrew; nothing bundled. Built after Phase L step 11 (`LOOK_HEBREW_OCR.md`) |
+| D44 | Look's dates and the injected clock (AGENTS.md: a `Model/` file takes the clock as a parameter) | Our own date parser, honouring `now`; `NSDataDetector`, which reads "today" and "tomorrow" from the system clock and has no API to take another | **Settled by the owner, 2026-11-22:** accept the exception. `LookDetector` keeps `NSDataDetector` on the system clock; its own day and time rules (D42, the 09:00 start) take the injected `now` and `Calendar`. Writing our own date parser was turned down |
 
 ## 4. Upstream sync strategy
 

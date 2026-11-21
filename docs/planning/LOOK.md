@@ -10,7 +10,7 @@ translated or asked about.
 - **Basis:** the fork at `5b6461e6` on `universal-launcher`, read on 2026-11-19. Facts about
   Spotcast's code below were read in the source, not run. Facts about macOS behaviour that this
   plan could not check are marked as needing a run and listed in section 12.
-- **Related documents:** threats T22 to T27 and decisions D32 to D42 continue the numbering of
+- **Related documents:** threats T22 to T27 and decisions D32 to D44 continue the numbering of
   `UNIVERSAL_INSTALL.md` and are in `RISKS_AND_DECISIONS.md`, moved there in step 1. The AI routes
   are described in `ARCHITECTURE_AUDIT.md` section 3.3; the Claude hook finding is `UNIVERSAL_INSTALL.md`
   section 10, row 24.
@@ -215,6 +215,12 @@ on his Mac. On his macOS 27.2 it returns tall images mostly in fragments; 768 px
 more but take 4.1 s, and `.fast` misses 9 pt text (`BASELINE.md`, step 3). He kept the shipped read
 for the rows and has Ask AI send the screenshot to Codex instead (section 7).
 
+Hebrew (D43, settled by the owner on 2026-11-22): optional, through Homebrew. When a `tesseract`
+the person installed with Homebrew is present, Look also reads the capture with it (`heb+eng`) for
+the rows; when it is absent, Look uses Vision alone and reads no Hebrew. Nothing is bundled, so the
+app keeps zero third-party dependencies. It is built after step 11; the research behind it is in
+`LOOK_HEBREW_OCR.md`.
+
 ### 5.2 Detection: new
 
 Nothing in Spotcast uses `NSDataDetector` today; `MeetingLink.swift` avoids it on purpose for the
@@ -228,7 +234,8 @@ calendar's hot path. Look runs it once per Look, on at most 32 KB, off the main 
 - at most 20 items, in reading order.
 
 `Features/Look/Model/` may import Foundation, which holds `NSDataDetector`, so the detector and its
-mapping live in `Model/` and are covered by a harness, as AGENTS.md requires.
+mapping live in `Model/` and are covered by a harness, as AGENTS.md requires. The detector reads
+"today" from the system clock, not the injected `now`: the owner accepted that exception (D44).
 
 ## 6. Ask AI
 
@@ -373,7 +380,8 @@ T22 to T27 are in `RISKS_AND_DECISIONS.md` section 1, moved there in step 1.
 
 ## 11. Decisions
 
-D32 to D42 are in `RISKS_AND_DECISIONS.md` section 3, moved there in step 1.
+D32 to D42 are in `RISKS_AND_DECISIONS.md` section 3, moved there in step 1; D43 and D44 were
+added there in step 4.
 
 ## 12. Assumptions that need a run
 
@@ -398,7 +406,13 @@ Step 3 ran row 5 on the VM with `Scripts/fork/look-recognition-bench/`; results 
 2731 × 1536, not at 4096 px as row 5 assumed; on that page 9, 11 and 13 pt text was read on the VM.
 Vision on macOS 26.6 lists no Hebrew at either level, which row 7 depends on, and the owner's
 macOS 27.2 lists none either. On 2026-11-21 he chose to go on with Look and research Hebrew for the
-on-device rows in a separate session; row 7's Hebrew fixtures wait on that.
+on-device rows in a separate session, and on 2026-11-22 he settled it: a Homebrew Tesseract when
+installed, Vision alone otherwise (D43, section 5.1).
+
+Step 4 ran row 7 in `Tests/LookTests.swift` on the VM, against Vision's text of an English and a
+Hebrew page shown in Chrome (`Tests/look-fixtures/`) and against the Hebrew page's own text, which
+stands in for what a Hebrew-reading recogniser would give. Results are in `BASELINE.md`, "Phase L
+step 4".
 
 - **Row 1:** not measured. The owner dropped the six-week log, so the plan assumes a monthly
   re-ask. On both machines the "bypass the system private window picker" alert came on the first
@@ -411,6 +425,13 @@ on-device rows in a separate session; row 7's Hebrew fixtures wait on that.
   process that was just granted.
 - **Row 6:** yes: one still shows the menu-bar indicator for about 3 s, and Control Center names no
   app.
+- **Row 7:** half true on the VM. English dates, links, phones and addresses are found. In Hebrew
+  text, links and phone numbers are found, but no Hebrew date or address: "ביום חמישי 3 בדצמבר 2026
+  בשעה 14:00" gives only "14:00", which becomes a guessed-day time (D42). D43's Tesseract text will
+  still need a Hebrew date and address reader of its own, or rows without them.
+- **Detector limits found in review:** "15.30" and a bare "midnight" are not read as times, "tonight
+  8" reads as 19:00, and "054-1234567 ext. 12" comes back with `;12` on the end, which
+  `LookActionURL` refuses, so that row can copy the number but not call it.
 
 ## 13. Seam budget
 
