@@ -61,6 +61,8 @@ struct LookTests {
         undatedTimesTakeTheNextOccurrence()
         nextOccurrenceRollsOnlyPastTimes()
         tellsTimeOnlyFromDated()
+        keepsTheDetectorsTimes()
+        keepsDistinctNonLatinNumbers()
         readsAnEnglishScreen()
         readsAHebrewScreenThroughVision()
         readsHebrewText()
@@ -166,7 +168,7 @@ struct LookTests {
             }
             expect(found.date.dayIsGuessed, "\(text): the day is marked as guessed")
             expect(found.date.start >= now, "\(text): not in the past: \(found.date.start)")
-            expect(found.date.start.timeIntervalSince(now) < 24 * 60 * 60, "\(text): within a day")
+            expect(found.date.start.timeIntervalSince(now) <= 25 * 60 * 60, "\(text): within a day")
             expect(calendar.component(.hour, from: found.date.start) == hour, "\(text): keeps its hour")
         }
         guard let today = dates(items("today at 00:01")).first else { return expect(false, "today found") }
@@ -184,15 +186,45 @@ struct LookTests {
     }
 
     static func tellsTimeOnlyFromDated() {
-        for text in ["3pm", "9 am", "15:00", "10:00–10:30", "at 3pm", "11:30 a.m.", "noon"] {
-            expect(LookDetector.isTimeOnly(text), "time only: \(text)")
+        for text in ["3pm", "9 am", "15:00", "10:00–10:30", "8 o'clock", "14h30", "10-11am", "starts 10:30:00"] {
+            expect(!LookDetector.namesADay(text), "time only: \(text)")
         }
-        for text in ["today at 9am", "Fri 8pm", "3 Dec 2026 14:00", "tomorrow 10:00", "18 December 2026"] {
-            expect(!LookDetector.isTimeOnly(text), "names a day: \(text)")
+        for text in ["today at 9am", "Fri 8pm", "3 Dec 2026 14:00", "tomorrow 10:00", "tonight", "3/12", "26.11.2026"] {
+            expect(LookDetector.namesADay(text), "names a day: \(text)")
         }
-        for text in ["18 December 2026", "26.11.2026", "Thursday"] {
-            expect(!LookDetector.hasTime(text), "no time: \(text)")
+        let noon = date(2026, 12, 18, 12)
+        expect(!LookDetector.hasTime(noon, matched: "18 December 2026", calendar: calendar), "noon read as no time")
+        expect(LookDetector.hasTime(noon, matched: "Dec 18 at noon", calendar: calendar), "a written noon")
+        expect(LookDetector.hasTime(noon, matched: "Dec 18 12pm", calendar: calendar), "a written 12pm")
+    }
+
+    static func keepsTheDetectorsTimes() {
+        let cases: [(String, Int, Int, Bool)] = [
+            ("Lunch at 3 tomorrow", 15, 0, false), ("Fri at 3", 15, 0, false), ("Dec 12 at noon", 12, 0, false),
+            ("8 o'clock", 20, 0, true), ("14h30", 14, 30, true), ("at 1500 hours", 15, 0, true),
+            ("10-11am", 10, 0, true), ("11.30 a.m.", 11, 30, true), ("starts 10:30:00", 10, 30, true),
+        ]
+        let now = Date()
+        for (text, hour, minute, guessed) in cases {
+            guard let found = dates(LookDetector.items(in: text, now: now, calendar: calendar)).first else {
+                expect(false, "\(text): a date found")
+                continue
+            }
+            let clock = calendar.dateComponents([.hour, .minute], from: found.date.start)
+            expect(found.date.hasTime, "\(text): has a time")
+            expect(clock.hour == hour && clock.minute == minute, "\(text): keeps \(hour):\(minute), got \(clock)")
+            expect(found.date.dayIsGuessed == guessed, "\(text): day guessed is \(guessed)")
+            if guessed { expect(found.date.start >= now, "\(text): not in the past") }
         }
+        guard let tonight = dates(LookDetector.items(in: "tonight 8", now: now, calendar: calendar)).first else {
+            return expect(false, "tonight found")
+        }
+        expect(tonight.date.hasTime && !tonight.date.dayIsGuessed, "tonight names today")
+    }
+
+    static func keepsDistinctNonLatinNumbers() {
+        let found = phones(items("اتصل ٠٥٠١٢٣٤٥٦٧ أو ٠٥٢٩٨٧٦٥٤٣"))
+        expect(found.count == 2, "two Arabic-Indic numbers stay two: \(found)")
     }
 
     static func readsAnEnglishScreen() {

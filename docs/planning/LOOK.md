@@ -428,6 +428,9 @@ step 4".
   text, links and phone numbers are found, but no Hebrew date or address: "ביום חמישי 3 בדצמבר 2026
   בשעה 14:00" gives only "14:00", which becomes a guessed-day time (D42). D43's Tesseract text will
   still need a Hebrew date and address reader of its own, or rows without them.
+- **Detector limits found in review:** "15.30" and a bare "midnight" are not read as times, "tonight
+  8" reads as 19:00, and "054-1234567 ext. 12" comes back with `;12` on the end, which
+  `LookActionURL` refuses, so that row can copy the number but not call it.
 
 ## 13. Seam budget
 
