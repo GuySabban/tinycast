@@ -647,8 +647,9 @@ step 7, so a throwaway program, not committed, compiled the shipped Look sources
 
 | Check | On the VM |
 | --- | --- |
-| `LookTests`, `LookReaderTests` | **Pass**, alone and inside the full suite of 126 |
+| `LookTests`, `LookReaderTests` | **Pass**, alone and inside the full suite of 126 (rerun after review: 126 in 126 s) |
 | Full suite, lint, model purity, Debug build `CODE_SIGNING_ALLOWED=NO` | **Pass.** No new compiler warnings |
+| PNG lifetime, real worker and a stand-in helper that reads at once then waits 1 s | Freed within 0.5 s, before the helper answers. With the worker's old borrowed `input`, it was freed only at helper exit |
 | One live Look, display under the pointer | Preflight true (the VM's shell is granted). 1600 × 1200 still in 0.27 s, 359 characters through `image-stdin` in 2.4 s, the menu-bar clock found as a date |
 
 The owner's Mac has not run step 5; its checks wait for step 7, which gives Look a hotkey.

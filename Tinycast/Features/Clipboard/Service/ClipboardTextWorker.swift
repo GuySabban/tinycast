@@ -27,12 +27,12 @@ nonisolated enum ClipboardTextWorker {
     }
 
     /// Look's entry: the PNG goes through the helper's standard input, never through a file.
-    static func extract(imageData: Data, executable: URL, timeout: Duration) async throws -> String {
-        try await run(["image-stdin"], input: imageData, executable: executable, timeout: timeout)
+    static func extract(imageData: consuming Data, executable: URL, timeout: Duration) async throws -> String {
+        try await run(["image-stdin"], input: consume imageData, executable: executable, timeout: timeout)
     }
 
     private static func run(
-        _ arguments: [String], input: Data?, executable: URL, timeout: Duration
+        _ arguments: [String], input: consuming Data?, executable: URL, timeout: Duration
     ) async throws -> String {
         try Task.checkCancellation()
         let process = Process()
@@ -49,7 +49,8 @@ nonisolated enum ClipboardTextWorker {
             throw Failure.recognition
         }
         guard let exit = try? process.runObservingExit() else { throw Failure.recognition }
-        if let stdin, let input { write(input, to: stdin) }
+        // Consumed, so the bytes are freed once the helper has read them, not when it exits.
+        if let stdin, let input = consume input { write(input, to: stdin) }
         // Cancellation can land between the check above and the launch, which nothing else catches.
         if Task.isCancelled { terminate(process) }
         let deadline = Task.detached(priority: .background) {

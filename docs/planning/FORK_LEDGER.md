@@ -64,6 +64,7 @@ before resolving it. New files the fork owns (`Scripts/fork/`, `docs/planning/`)
 | L3 | `Scripts/run-tests.sh` | fork harness block, after `StagedImageClipboardTests` | Added a three-line `run slow LookRecognitionTests` entry | The harness compiles the real helper from `ClipboardTextExtractor.swift` and `ClipboardTextHelper.swift` at run time, so a merge that adds a source to `project.yml`'s `ClipboardTextHelper` target must add it to `buildHelper` too |
 | L4 | `Scripts/run-tests.sh` | fork harness block, after `LookRecognitionTests` | Added a one-line `run LookTests` entry | Compiles `Tinycast/Features/Look/Model/*.swift`, which is fork-owned; reads its fixtures from `Tests/look-fixtures/` |
 | L5 | `Scripts/run-tests.sh` | fork harness block, after `LookTests` | Added a five-line `run LookReaderTests` entry | Drives Look's capture-to-items run with stand-in steps. It compiles upstream's `ClipboardTextWorker`, `ProcessExit`, `ScreenTarget` and `Signposts`, so a merge that renames one breaks this entry |
+| L5 | `Tinycast/Features/Clipboard/Service/ClipboardTextWorker.swift` | `extract(imageData:executable:timeout:)`, `run(_:input:executable:timeout:)` | `imageData` and `input` became `consuming`, and `run` consumes `input` into `write(_:to:)` | Look's PNG is freed once the helper has read it, not when the helper exits up to 120 s later (`LOOK.md` 3.5). The file entry passes `nil`, so its behaviour is unchanged |
 
 `Tinycast.xcodeproj/project.pbxproj` is regenerated from `project.yml` by `xcodegen generate` and is
 never edited by hand.

@@ -82,6 +82,7 @@ struct LookReaderTests {
         await cancelDeliversNothing()
         await firstLookWaitsLonger()
         await timeoutGoesColdAgain()
+        await pngFreedOnceTheHelperReadIt()
         await asksForPermissionOnce()
         await refusalNeedsAFailedCapture()
 
@@ -154,22 +155,58 @@ struct LookReaderTests {
     static func timeoutGoesColdAgain() async {
         let log = Log()
         let clock = Clock()
-        let fail = Log()
+        let calls = Log()
         let reader = LookReader(
             steps: steps(log: log, clock: clock) { limit in
-                guard fail.all.isEmpty else { return "text" }
-                fail.add("once")
-                clock.advance(limit)
-                throw Stand.timedOut
+                calls.add("call")
+                switch calls.all.count {
+                case 2: throw Stand.failed
+                case 3:
+                    clock.advance(limit)
+                    throw Stand.timedOut
+                default: return "text"
+                }
             })
-        reader.start(on: 2) { _ in }
-        await settle(reader)
-        reader.start(on: 2) { _ in }
-        await settle(reader)
-        reader.start(on: 2) { _ in }
-        await settle(reader)
+        for _ in 0..<4 {
+            reader.start(on: 2) { _ in }
+            await settle(reader)
+        }
         let cold = LookRecognitionDeadline.coldLimit
-        expect(log.allLimits == [cold, cold, LookRecognitionDeadline.warmLimit], "\(log.allLimits)")
+        let warm = LookRecognitionDeadline.warmLimit
+        expect(log.allLimits == [cold, warm, warm, cold], "a quick failure stays warm, a timeout goes cold: \(log.allLimits)")
+    }
+
+    /// The real worker and a helper that reads its input at once, then takes a second to answer.
+    static func pngFreedOnceTheHelperReadIt() async {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let helper = directory.appendingPathComponent("helper")
+        try? "#!/bin/sh\ncat > /dev/null\nsleep 1\nprintf text\n".write(to: helper, atomically: true, encoding: .utf8)
+        try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
+        let events = Log()
+        let started = ContinuousClock.now
+        @Sendable func elapsed() -> String { (ContinuousClock.now - started) < .milliseconds(500) ? "at once" : "late" }
+        var live = steps(log: Log())
+        live.encode = { _ in
+            let count = 4 << 20
+            let bytes = UnsafeMutableRawPointer.allocate(byteCount: count, alignment: 1)
+            return Data(bytesNoCopy: bytes, count: count, deallocator: .custom { pointer, _ in
+                events.add("freed \(elapsed())")
+                pointer.deallocate()
+            })
+        }
+        live.recognize = { png, limit in
+            let text = try await ClipboardTextWorker.extract(imageData: consume png, executable: helper, timeout: limit)
+            events.add("answered \(elapsed())")
+            return text
+        }
+        let reader = LookReader(steps: live)
+        var text: String?
+        reader.start(on: 2) { if case .read(let reading) = $0 { text = reading.text } }
+        for _ in 0..<300 where reader.isReading { try? await Task.sleep(for: .milliseconds(10)) }
+        expect(text == "text", "the helper's answer is the reading: \(String(describing: text))")
+        expect(events.all == ["freed at once", "answered late"], "PNG freed when read, not when the helper exits: \(events.all)")
     }
 
     static func asksForPermissionOnce() async {

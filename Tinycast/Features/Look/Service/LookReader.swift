@@ -22,7 +22,7 @@ final class LookReader {
         var requestPermission: @Sendable () -> Void
         var capture: @Sendable (CGDirectDisplayID) async throws -> CGImage
         var encode: @Sendable (CGImage) throws -> Data
-        var recognize: @Sendable (Data, Duration) async throws -> String
+        var recognize: @Sendable (consuming Data, Duration) async throws -> String
         var detect: @Sendable (String) -> [LookItem]
         var now: @Sendable () -> ContinuousClock.Instant
     }
@@ -92,13 +92,13 @@ final class LookReader {
         return (.read(Reading(image: image, text: text, items: items)), .recognized)
     }
 
-    /// Owns the PNG, so it is released when recognition returns rather than when the Look closes.
+    /// Hands the PNG on, so it is freed once the helper has read it rather than when the Look closes.
     private nonisolated static func recognize(
         _ image: CGImage, steps: Steps, limit: Duration
     ) async throws -> String {
         let png = try steps.encode(image)
         try Task.checkCancellation()
-        return try await steps.recognize(png, limit)
+        return try await steps.recognize(consume png, limit)
     }
 }
 
@@ -110,7 +110,7 @@ extension LookReader.Steps {
         encode: { try ScreenCapturer.png($0) },
         recognize: { png, limit in
             try await ClipboardTextWorker.extract(
-                imageData: png, executable: ClipboardTextWorker.executable, timeout: limit)
+                imageData: consume png, executable: ClipboardTextWorker.executable, timeout: limit)
         },
         // The system clock, as the detector itself reads it (D44).
         detect: { LookDetector.items(in: $0, now: Date(), calendar: .current) },
