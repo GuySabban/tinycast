@@ -976,6 +976,9 @@ run StagedImageClipboardTests Tinycast/Features/Clipboard/Model/ClipboardStore.s
                              Tinycast/Features/Clipboard/Service/ClipboardManager.swift \
                              Tinycast/Platform/Images/ImageDerivative.swift \
                              Tinycast/Platform/NotificationToken.swift Tinycast/Platform/PasteboardFiles.swift
+run slow LookRecognitionTests Tinycast/Features/Clipboard/Model/*.swift Tinycast/Platform/Images/ImageDerivative.swift $Q \
+                             Tinycast/Features/Clipboard/Service/ClipboardTextWorker.swift \
+                             Tinycast/Platform/ProcessExit.swift
 
 if [ "$emit_db" -eq 1 ]; then
     printf ']\n' >> "$DB"

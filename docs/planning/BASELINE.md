@@ -493,6 +493,124 @@ Also seen:
   and 10, so one filter covers the palette, menu, HUD and dialog levels.
 - Capture of a 1600 × 1200 display took 16 to 84 ms after `SCShareableContent` (6 to 32 ms).
 
+## Phase L step 3: recognition from memory (2026-11-20)
+
+`ClipboardTextHelper image-stdin` and `ClipboardTextWorker.extract(imageData:executable:timeout:)`
+ran in a Devin macOS VM: macOS 26.6.2 (25G83), Apple M4 Pro (Virtual), Xcode 27 RC. The VM has no
+Neural Engine and runs a remote-desktop recorder, so its timings are not measurements of the
+owner's Mac.
+
+| Check | On the VM |
+| --- | --- |
+| `LookRecognitionTests` | **Pass**, alone and inside the full suite of 124. It builds the real helper from source and feeds it PNG bytes: text comes back, no file of the fixture appears under `$TMPDIR` or `/tmp` (a control written to a file is seen), a 1.4 MB 5K page outgrows the pipe buffer and its 11 and 13 pt lines are read, bad and empty input fail, a 50 ms deadline and a cancel each leave no helper within 1 s, and a helper that never reads fails the call instead of `SIGPIPE`. With `F_SETNOSIGPIPE` removed the harness dies of signal 13 |
+| Full suite, lint, model purity, Debug build `CODE_SIGNING_ALLOWED=NO` | **Pass.** No compiler warnings; only the two AppIntents lines |
+| Bench, `.accurate`, shipped 2048 × 2048 cap (5K page read at 2731 × 1536) | Median 4.99 s, 95th percentile 6.05 s, 10 runs. 9, 11 and 13 pt markers read; the 13 pt word came back as "VAJAEK" |
+| Bench, `.fast`, same cap | Median 1.46 s, 95th percentile 1.86 s. 9 pt missed; 11 pt read as "MAAKEA" |
+| Bench, `.accurate`, cap raised to 4096 × 2304 | Median 6.54 s, 95th percentile 7.47 s. All three Latin markers read exactly |
+| Hebrew | Not read at any setting. Vision lists no Hebrew: `.accurate` has 30 languages including Arabic, `.fast` six Latin ones |
+
+Earlier bench runs on the same VM gave `.accurate` medians from 2.3 s to 5.2 s, so the VM is noisy as
+well as slow. A first test page of near-identical lines lost most of its lines at `.accurate`;
+the bench now draws varied lines, as a screen has.
+
+An independent review on a cold VM once saw a recognition failure after 88 s crash the harness and
+then stop the bench with no timings; it did not reproduce. The harness now reports a failed call
+as a failed case, its success cases allow 180 s, and the bench times the first (cold) run apart,
+lists failed runs and goes on to the next helper. The no-disk check also walks the per-user cache
+folder and `~/Library/Caches`, where the helper writes small Metal shader caches but no image.
+
+### The owner's Mac
+
+The owner ran the bench on his MacBook Air on 2026-11-21: macOS 27.2 (26B118), Apple M3,
+`/Applications/Xcode.app`, 10 timed runs each. His display is 3420 × 2224 at scale 2, not 5K, so
+the synthetic 5K page stands in for row 5, and `--png` with his own screenshot (4.2 MB PNG) gives a
+real screen. Vision listed the same 30 `.accurate` and six `.fast` languages as the VM: no Hebrew.
+
+| Helper | 5K page: first run | 5K page: median, p95 | 5K page: markers | His screen: first run | His screen: median, p95 |
+| --- | ---: | ---: | --- | ---: | ---: |
+| `.accurate`, shipped cap | 49.4 s | 1.90 s, 2.17 s | 11 pt read; 9 and 13 pt missed; 126 lines | 61.0 s | 1.30 s, 24.1 s |
+| `.fast`, shipped cap | 5.6 s | 4.63 s, 6.52 s | 11 pt as "MAAKEA", 13 pt read; 9 pt missed; 143 lines | 1.5 s | 0.95 s, 1.14 s |
+| `.accurate`, 4096 px | 46.7 s | 1.65 s, 1.93 s | all missed; 55 lines | 73.0 s | 1.53 s, 1.74 s |
+
+- **`.accurate` misses the 1 s median** on his Mac: 1.30 s on his screen, 1.90 s on the 5K page.
+  `.fast` meets it on his screen (0.95 s) but not on the 5K page (4.63 s).
+- **The first `.accurate` call took 47 to 73 s**, past the worker's 60 s default deadline; the
+  timed runs after it, each a new helper process, took 1 to 2 s. `run.sh` rebuilds the helpers each
+  time, so whether this repeats for an unchanged binary is not known yet.
+- **`.accurate` read less of the 5K page than on the VM** (126 lines, against 151 on the VM, and
+  55 at 4096 px), with the 13 pt marker gone. On his own screen the three helpers returned about the
+  same amount of text (1.7 to 2.1 KB, 93 to 104 lines).
+- One `.accurate` run on his screen took 24.1 s; the other nine were 1.0 to 1.6 s.
+- Hebrew was not read at any setting.
+
+Three of these results were checked against the bench on 2026-11-21. The first bench put all four
+markers on one row, 1250 px apart, the 13 pt one beside the Hebrew line. Rerun on the VM with each
+marker on a row of its own, `.accurate` read 13 pt as "MARKER 13031" where it had read "VAJAEK
+13031", and `.fast` read 11 pt exactly where it had read "MAAKEA"; `.accurate` still read all
+three Latin markers, at both caps, in every run. So the shared row is the likely cause of the
+13 pt miss next to a read 11 pt one, which macOS 27.2 cannot confirm from the VM. Not explained by
+the bench:
+
+- `.accurate` returning 126 and 55 lines where `.fast` returned 143 of the same page. Every helper
+  read the same PNG through the same code, the shipped cap reads the page as one strip, and on the
+  VM all three return 144 to 166 lines; the 4096 px helper is the only one that cuts the page into
+  two strips.
+- `.fast` taking 4.6 s on the page and 0.95 s on his screen. Its time follows the text it returns
+  (15 KB against 2 KB); the old bench did not log run order or thermal state, so a hot Mac after
+  `.accurate`'s 49 s first call cannot be ruled out.
+
+The bench now also prints the thermal state, every run's time and line count, how many runs read
+each marker, and keeps each helper's text; it no longer rebuilds unchanged helpers, so a second
+run tells whether the 47 to 73 s first call comes back for an unchanged binary.
+
+#### Rerun with the corrected bench
+
+The owner ran the corrected bench twice in a row on 2026-11-21, same Mac, thermal state nominal
+before and after every helper, and sent each helper's text from the second run. The two runs agree:
+
+| Helper | First run, run 1 and 2 | Median, run 1 and 2 | Lines | Markers, all 11 runs |
+| --- | ---: | ---: | ---: | --- |
+| `.accurate`, shipped cap | 46.8 s, 45.5 s | 1.59 s, 1.60 s | 98 | 13 pt read; 9 and 11 pt missed |
+| `.fast`, shipped cap | 5.6 s, 4.4 s | 5.17 s, 4.99 s | 144 | 11 and 13 pt read; 9 pt missed |
+| `.accurate`, 4096 px | 74.6 s, 2.0 s | 2.05 s, 2.07 s | 53 | all missed |
+
+The text explains all three anomalies, and none is a bench fault:
+
+- **`.accurate` reads most of the page only in fragments.** Of 140 body lines it returned 5 whole,
+  and 49 room numbers; most lines came back as their right-hand ends ("ow at 2:10 pm, room 1B"). The
+  same page and code on macOS 26.6 return every line whole, so this is Vision on macOS 27.2.
+- **The 4096 px helper's text is the clue.** Its 18 whole lines are exactly rows 61 to 69 of each
+  column, the lines its second strip owns. That strip is 4096 × 512; the first is 4096 × 2048 and,
+  like the shipped helper's single 2731 × 1536 strip, came back in fragments. So on macOS 27.2
+  `.accurate` reads text fully in a short strip and badly in a tall one, which also explains the
+  markers it missed: they are all in the first strip.
+- **`.fast` returns every line, garbled**, which is why it is slower than `.accurate` here: it has
+  more text to read. Its time follows the text it returns, as on his screen.
+- **The first `.accurate` call comes back for an unchanged binary:** `AccurateHelper` took 45.5 s
+  again on the second run, which did not rebuild it, while the 4096 px helper's dropped to 2.0 s.
+  The 60 s default deadline is therefore not safe for the first Look of a session.
+
+The bench now has a fourth helper, `Accurate768StripHelper`: the shipped cap read in 768 px strips
+(192 px overlap), to show whether short strips read the whole page on macOS 27.2 and at what cost.
+On the VM it reads every line and all three Latin markers, at 6.2 s against 4.8 s for the shipped
+helper; 512 px strips lost the markers there, so 768 px is the shortest that held up on both.
+
+The owner ran it on 2026-11-21 (same Mac, thermal nominal throughout). Counting the body words each
+helper's text gets right, out of the 1680 drawn:
+
+| Helper | First run | Median, p95 | Lines | Markers | Body words read |
+| --- | ---: | ---: | ---: | --- | ---: |
+| `.accurate`, shipped (2731 × 1536, one strip) | 46.3 s | 1.79 s, 3.03 s | 98 | 13 pt | 24 % |
+| `.fast`, shipped | 5.5 s | 4.62 s, 5.79 s | 144 | 11, 13 pt | 17 % |
+| `.accurate`, 4096 px (2048 and 512 px strips) | 72.9 s | 1.91 s, 2.01 s | 53 | none | 15 % |
+| `.accurate`, shipped cap in 768 px strips | 53.6 s | 4.08 s, 4.43 s | 225 | 9, 11, 13 pt | 61 % |
+
+Short strips are the lever on macOS 27.2: the 768 px helper read every Latin marker and 2.5 times
+the words of the shipped helper, though lines still break where an observation ends (225 lines for
+140), and it took 4.1 s, four times the 1 s target. `AccurateHelper` paid its 46 s first call a third
+time without a rebuild.
+It also prints `building <helper>` when it rebuilds one.
+
 ## Repository
 
 On 2026-11-13 the clone was arranged as `RISKS_AND_DECISIONS.md` section 4 describes. `upstream` is

@@ -26,9 +26,22 @@ nonisolated enum ClipboardTextExtractor {
         return bounded(try await recognize(image))
     }
 
+    /// Look's capture arrives as PNG bytes and is never written to a file.
+    static func extract(imageData: Data) async throws -> String {
+        try Task.checkCancellation()
+        guard imageData.count <= maximumFileBytes else { return "" }
+        guard let source = CGImageSourceCreateWithData(imageData as CFData, nil),
+            let image = autoreleasepool(invoking: { image(from: source) })
+        else { throw Failure.unreadable }
+        return bounded(try await recognize(image))
+    }
+
     private static func image(at url: URL) -> CGImage? {
-        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-            let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+        CGImageSourceCreateWithURL(url as CFURL, nil).flatMap(image(from:))
+    }
+
+    private static func image(from source: CGImageSource) -> CGImage? {
+        guard let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
             let width = properties[kCGImagePropertyPixelWidth] as? Double,
             let height = properties[kCGImagePropertyPixelHeight] as? Double,
             width.isFinite, height.isFinite, width > 0, height > 0
