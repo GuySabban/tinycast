@@ -195,7 +195,11 @@ struct LookTests {
         for text in ["3pm", "9 am", "15:00", "10:00–10:30", "8 o'clock", "14h30", "10-11am", "starts 10:30:00"] {
             expect(!LookDetector.namesADay(text), "time only: \(text)")
         }
-        for text in ["today at 9am", "Fri 8pm", "3 Dec 2026 14:00", "tomorrow 10:00", "tonight", "3/12", "26.11.2026", "2026-11-21 10:00", "2026-11-21T10:00"] {
+        let dated = [
+            "today at 9am", "Fri 8pm", "3 Dec 2026 14:00", "tomorrow 10:00", "tonight", "3/12", "26.11.2026",
+            "2026-11-21 10:00", "2026-11-21T10:00",
+        ]
+        for text in dated {
             expect(LookDetector.namesADay(text), "names a day: \(text)")
         }
         let noon = date(2026, 12, 18, 12)
@@ -207,7 +211,8 @@ struct LookTests {
 
     static func keepsTheDetectorsTimes() {
         let cases: [(String, Int, Int, Bool)] = [
-            ("Lunch at 3 tomorrow", 15, 0, false), ("Fri at 3", 15, 0, false), ("Dec 12 at noon", 12, 0, false), ("tomorrow at 12:00", 12, 0, false),
+            ("Lunch at 3 tomorrow", 15, 0, false), ("Fri at 3", 15, 0, false),
+            ("Dec 12 at noon", 12, 0, false), ("tomorrow at 12:00", 12, 0, false),
             ("8 o'clock", 20, 0, true), ("14h30", 14, 30, true), ("at 1500 hours", 15, 0, true),
             ("10-11am", 10, 0, true), ("11.30 a.m.", 11, 30, true), ("starts 10:30:00", 10, 30, true),
         ]

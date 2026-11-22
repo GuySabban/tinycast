@@ -649,6 +649,7 @@ step 7, so a throwaway program, not committed, compiled the shipped Look sources
 | --- | --- |
 | `LookTests`, `LookReaderTests` | **Pass**, alone and inside the full suite of 126 (rerun after review: 126 in 126 s) |
 | Full suite, lint, model purity, Debug build `CODE_SIGNING_ALLOWED=NO` | **Pass.** No new compiler warnings |
+| Lint warnings | 78 again: the two `line_length` warnings step 4 added in `LookTests.swift` are wrapped |
 | PNG lifetime, real worker and a stand-in helper that reads at once then waits 1 s | Freed within 0.5 s, before the helper answers. With the worker's old borrowed `input`, it was freed only at helper exit |
 | One live Look, display under the pointer | Preflight true (the VM's shell is granted). 1600 × 1200 still in 0.27 s, 359 characters through `image-stdin` in 2.4 s, the menu-bar clock found as a date |
 
