@@ -329,9 +329,10 @@ and failure mapping. `WebSearchSessionTests` uses an in-process `URLProtocol` fo
 
 **Status.** Rewritten on 2026-11-22 to the owner's new design and **waiting for his approval**.
 Steps 1 to 4 are merged and were built for the earlier, on-device design; step 5 of that design
-(PR #14) is open and on hold. Nothing from step 6 on starts until the owner has answered the open
-decisions (D37, D39, D43 to D53), and step 9 cannot start until D49 changes the rule in
-`AGENT_RULES.md`.
+(PR #14) is open and on hold. Nothing from step 5 on starts until the owner has answered the open
+decisions (D37, D39, D43 to D53). Steps 5 and 9 put a tool in an AI turn that carries a screenshot,
+so neither starts until D49 changes the rule in `AGENT_RULES.md`; the rule has no exception for a
+throwaway spike.
 
 **Objective.** A hotkey, or ⌘L in the open launcher, captures the display under the pointer and
 sends it to the AI. The AI offers up to three actions, the person picks one or writes their own, and
@@ -371,7 +372,8 @@ New:
    server with one harmless tool given to a Codex turn that also carries a screenshot, and a
    suggest turn over ten real screens. Settles `LOOK.md` section 12 rows 5 to 8 and 10 to 12, and
    reads whether the AI service files need a seam edit. If rows 7 or 11 fail, stop and choose
-   another way from `LOOK.md` section 6.4 before going on.
+   another way from `LOOK.md` section 6.4 before going on. **Needs D49**, and the owner's yes to
+   D37 for his own screens.
 6. **Remove the on-device reading** (D45): the helper's `image-stdin` mode and the `Data` entries,
    `LookItem`, `LookDetector`, `LookDate`, `LookRecognitionTests`, the fixtures, the recognition
    bench and the capture spike; `LOOK_HEBREW_OCR.md` marked withdrawn; the ledger rows for L3

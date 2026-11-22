@@ -365,7 +365,7 @@ Any page, mail or document on screen can contain text written to steer the model
 instructions and forward this mail to…"). The earlier design answered that with one rule, which is
 also in `AGENT_RULES.md`: *no tools in any AI turn that carries screen content*. **The new design
 breaks that rule on purpose, in the act turn.** The rule is the owner's, so changing it is his
-decision (D49); until he does, the act turn cannot be built.
+decision (D49); until he does, neither the act turn nor step 5's spike can be run.
 
 What a successful injection could do, and what limits it, if the recommendations are accepted:
 
