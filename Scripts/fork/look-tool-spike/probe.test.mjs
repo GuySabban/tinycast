@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -31,6 +31,8 @@ async function fakeAppServer() {
     const key = `mcp_servers.${serverName}`;
     const configured = flags.find((arg) => arg.startsWith(`${key}.url=`));
     const toolURL = configured ? JSON.parse(configured.slice(key.length + 5)) : undefined;
+    const baseURL = process.env.SPOTCAST_FAKE_BASE_URL;
+    const expectedAbort = baseURL !== undefined && toolURL;
     assert.equal(Boolean(token), Boolean(toolURL));
     if (toolURL) {
         assert.ok(flags.includes(`${key}.default_tools_approval_mode="prompt"`));
@@ -55,8 +57,20 @@ async function fakeAppServer() {
             assert.equal(params.refreshToken, false);
             returnTo(id, { account: { type: process.env.SPOTCAST_FAKE_ACCOUNT ?? "chatgpt" } });
             break;
+        case "config/read":
+            assert.equal(await realpath(params.cwd), process.cwd());
+            assert.equal(params.includeLayers, false);
+            returnTo(id, {
+                config: { model_provider: "openai", chatgpt_base_url: expectedAbort ? baseURL : undefined },
+                origins: expectedAbort ? { chatgpt_base_url: { name: { type: "user" } } } : {}
+            });
+            break;
+        case "configRequirements/read":
+            returnTo(id, { requirements: null });
+            break;
         case "thread/start":
             assert.equal(process.env.SPOTCAST_FAKE_ACCOUNT, undefined);
+            assert.ok(!expectedAbort);
             assert.equal(params.ephemeral, true);
             assert.equal(params.sandbox, "read-only");
             assert.equal(params.config.web_search, "disabled");
@@ -67,7 +81,7 @@ async function fakeAppServer() {
                 const tools = await mcp(toolURL, token, "tools/list");
                 assert.deepEqual((await tools.json()).result.tools.map(({ name }) => name), [toolName]);
             }
-            returnTo(id, { thread: { id: threadId } });
+            returnTo(id, { thread: { id: threadId }, modelProvider: "openai" });
             break;
         case "turn/start":
             assert.deepEqual(params.sandboxPolicy, { type: "readOnly", networkAccess: false });
@@ -112,6 +126,7 @@ if (process.argv.at(-1) === "--json") {
             await writeFile(image, Buffer.from(png, "base64"));
             const args = ["--image", image, "--codex", fileURLToPath(import.meta.url)];
             await assert.rejects(run(["suggest", ...args]), /confirm-upload/);
+            await run(["check-endpoint", "--codex", fileURLToPath(import.meta.url)]);
             process.env.SPOTCAST_FAKE_ACCOUNT = "apiKey";
             try {
                 await assert.rejects(run(["suggest", ...args, "--confirm-upload"]), /no screenshot was sent/);
@@ -122,6 +137,19 @@ if (process.argv.at(-1) === "--json") {
             await run(["act", ...args, "--confirm-upload", "--expect", expected, "--hold-60s"], 20);
         } finally {
             await rm(cwd, { force: true, recursive: true });
+        }
+    });
+
+    test("the armed act server rejects endpoint overrides before starting a thread", async () => {
+        const args = ["act", "--image", "must-not-be-read.png", "--codex", fileURLToPath(import.meta.url),
+            "--confirm-upload", "--expect", expected, "--hold-60s"];
+        try {
+            for (const url of ["https://unexpected.invalid/backend-api", "https://chatgpt.com/backend-api/"]) {
+                process.env.SPOTCAST_FAKE_BASE_URL = url;
+                await assert.rejects(run(args), /endpoint override or non-default origin; no screenshot was sent/);
+            }
+        } finally {
+            delete process.env.SPOTCAST_FAKE_BASE_URL;
         }
     });
 

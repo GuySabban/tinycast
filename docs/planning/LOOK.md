@@ -4,8 +4,10 @@ Spotcast takes a screenshot, sends it to the AI, and the AI offers three things 
 is on screen. The person picks one, or writes their own, and the AI carries it out with tools
 Spotcast gives it: calendar, mail, the browser, and later wider control of the Mac.
 
-- **Status:** rewritten on 2026-11-22 to the owner's new design, and **waiting for his approval;
-  nothing below is built**. The earlier design read the screen on-device (Vision, `NSDataDetector`,
+- **Status:** rewritten on 2026-11-22 to the owner's new design. The owner approved the
+  decisions listed in section 13 by merging PR #15 or, for D49, by explicitly choosing (a).
+  Step 5 has a standalone spike; owner validation is pending and the app feature is not built.
+  The earlier design read the screen on-device (Vision, `NSDataDetector`,
   an optional Tesseract) and showed one row per detected item. The owner dropped it the same day:
   on his Mac `LookTests` failed three Hebrew checks (140 passed: Hebrew text gave times only, no day
   and no address) and the helper's `image-stdin` mode returned no text at all for an English Gmail

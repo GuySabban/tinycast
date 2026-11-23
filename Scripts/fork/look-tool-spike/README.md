@@ -31,7 +31,7 @@ The Look feature's in-memory capture and TCC checks are later steps, not covered
    configured servers privately; note which ones launch a program and which use an HTTP host
    and port. Leave them configured for the exclusion check. Pause other Codex sessions so they
    are not confused with the probe. Use the normal OpenAI backend (no custom provider, endpoint
-   or API key). The probe checks the ChatGPT account before uploading.
+   or API key). ChatGPT login alone does not verify the upload destination.
 2. In Terminal at repo root, set up the probe and a private fixture directory. Set `model` to the
    exact Codex model ID you want to test; use it for both turns (D53).
 
@@ -41,19 +41,32 @@ The Look feature's in-memory capture and TCC checks are later steps, not covered
    model='REPLACE_WITH_YOUR_CODEX_MODEL_ID'
    ```
 
-3. On the main display, put a TextEdit document on screen with
-   `LOOK SPIKE: M3 "dry-run" שלום 5271` in a single clearly visible line, or choose your own
-   harmless marker. Start the first command in Terminal, switch to the document within five
-   seconds, and allow Terminal screen capture if prompted; then verify the file in Preview.
-   Use the part **after** `LOOK SPIKE: ` exactly as `--expect`. That value is compared locally
-   and is not placed in the prompt. If Codex is not on PATH, add `--codex /absolute/path/to/codex`.
+   Run this endpoint preflight. It sends no screenshot and starts no turn. If Codex is not on
+   PATH, add `--codex /absolute/path/to/codex` to this and the later probe commands.
 
    ```sh
-   screencapture -x -m -T 5 "$shots/act.png"
+   node "$probe" check-endpoint
+   ```
+
+   Proceed only if it reports `Verified Codex endpoint: provider=openai, base URL=https://chatgpt.com/backend-api/.`
+   If it fails or reports an override, stop without uploading. Each act or suggest run repeats
+   the check on the app-server that would handle the image, including the armed server for act.
+
+3. On the main display, put a TextEdit document on screen with
+   `LOOK SPIKE: M3 "dry-run" שלום 5271` in a single clearly visible line, or choose your own
+   harmless marker. Run the local-only capture block in Terminal, switch to the document within
+   five seconds, and allow Terminal screen capture if prompted.
+
+   ```sh
+   act_image="$shots/act.png"
+   screencapture -x -m -T 5 "$act_image" && open -a Preview "$act_image"
    ```
 
    If the capture is above 10 MiB, convert it with `sips -s format jpeg -s formatOptions 85
-   -Z 4096 "$shots/act.png" --out "$shots/act.jpg"` and pass the JPEG instead.
+   -Z 4096 "$shots/act.png" --out "$shots/act.jpg"` and set `act_image="$shots/act.jpg"`.
+   Inspect the exact file selected for upload in Preview. Proceed only if it shows the marker
+   clearly and contains nothing sensitive or unintended; otherwise recapture. Use the part
+   **after** `LOOK SPIKE: ` exactly as `--expect`. It is compared locally, not put in the prompt.
 
 4. For row 10, start both event traces **before invoking the probe**. In two separate Terminal
    tabs, set `shots` to the private directory created in step 2 (`printf '%s\n' "$shots"` in
@@ -79,8 +92,10 @@ The Look feature's in-memory capture and TCC checks are later steps, not covered
    Confirm the first trace has the `/usr/bin/true` exec and the second has the PID-attributed
    `nc` attempt to port 9 (a refused connection is fine). Leave both traces running.
 
+   Only after the endpoint and Preview checks in steps 2 and 3, run this upload block:
+
    ```sh
-   node "$probe" act --confirm-upload --image "$shots/act.png" --model "$model" \
+   node "$probe" act --confirm-upload --image "$act_image" --model "$model" \
      --expect 'M3 "dry-run" שלום 5271'
    ```
 
@@ -149,7 +164,8 @@ The Look feature's in-memory capture and TCC checks are later steps, not covered
    `01`. Make a large (up to 4096 px long side) and a compact (up to 2048 px) version of each
    same capture. Verify actual dimensions and encoded byte counts; if the variants have the
    same size, make the compact one smaller. Keep either file at or below 10 MiB (lower JPEG
-   quality as needed).
+   quality as needed). Open both final files in Preview and verify neither contains anything
+   sensitive or unintended before running the separate upload block in step 9.
 
    ```sh
    id=01
@@ -160,7 +176,8 @@ The Look feature's in-memory capture and TCC checks are later steps, not covered
    stat -f '%z bytes: %N' "$shots/$id-large.jpg" "$shots/$id-compact.jpg"
    ```
 
-9. Run these two commands for each ID (twenty turns total); use the actual app, bundle ID,
+9. After checking the endpoint in step 2 and previewing both files, run this upload block for
+   each ID (twenty turns total); use the actual app, bundle ID,
    safe window title and chosen interface language for each capture, consistently between sizes.
    `--language he-IL` can check Hebrew output; Hebrew input reading should also work with
    `--language en-US`. Do not put the expected text from the body of the screen in the context.
