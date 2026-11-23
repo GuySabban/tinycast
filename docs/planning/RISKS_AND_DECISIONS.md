@@ -38,17 +38,22 @@ hardening" is worth doing when the named later feature arrives.
 | T13 | Changes arriving by merge | An upstream commit adds a network host, a permission or a behaviour the owner would not accept | Merge at upstream's stable tags, read the diff of the seam files, and list new outbound hosts after each merge with one search. | A small script that reports new hosts, entitlements and usage strings between two commits. |
 
 T14 to T21, for installs beyond Homebrew, are still in `UNIVERSAL_INSTALL.md` section 7 until U1
-step 1 moves them. Look (Phase L) adds T22 to T27, moved here from `LOOK.md` section 10 in Phase L
-step 1:
+step 1 moves them. Look (Phase L) adds T22 to T31. T22 to T25 were rewritten and T28 to T31 added on
+2026-11-22 for the owner's new design, in which every Look sends the screen to the AI and the AI
+acts through tools (`LOOK.md`); they describe a design that waits for his approval:
 
 | # | Threat | Safeguard |
 | --- | --- | --- |
-| T22 | Screen text reaches a cloud provider the person did not think about | On-device by default up to the action list; Ask AI only on Return; the first ask in each Look previews and allows editing the exact text, naming the provider; on Codex the screenshot itself is sent and shown, by the owner's decision (`LOOK.md` section 7) |
-| T23 | Instructions on screen steer the model | No tools, no MCP, no web search in Look's turn; the boundary; the answer drawn as text; links in it need a click (`LOOK.md` section 6.3) |
-| T24 | A detected link, number or address is hostile | Only `http`, `https` and `mailto` links; the row shows the host first; nothing opens without Return; `tel:` and `sms:` hand to the system, which asks before calling |
-| T25 | A capture outlives its use | In memory only, the PNG released after recognition and the image when the Look closes; passed to the helper by pipe; text dropped on close; nothing logged (`LOOK.md` section 3.5) |
+| T22 | The screen reaches a cloud provider the person did not think about | Only the Look hotkey, ⌘L or the command captures and sends; a one-time notice names what is sent, to whom, and that every Look does it; the provider is named on the Look screen; Look is off by default; nothing kept on disk and the Codex thread is ephemeral (`LOOK.md` section 9, D37 reopened) |
+| T23 | Instructions on screen steer the model, which now has tools | The suggest turn has no tools. The act turn has only Spotcast's typed tools: no shell, no script, no network or file tool, the person's own MCP servers off; calls that send, change or read private data show every argument in a dialog first; 8 calls and 60 s per Look. Depends on D49 (`LOOK.md` section 8) |
+| T24 | A tool call carries hostile arguments (a link, a recipient, a date) | A fixed schema per tool, validated in Spotcast; only `http` and `https` in `open_url`, shown in full and opened on Return; drafts are unsent; arguments are never joined into a command (`LOOK.md` section 7) |
+| T25 | A capture outlives its use | In memory only, passed to the route as a data URL, dropped when the Look closes; nothing logged (`LOOK.md` section 3.5) |
 | T26 | The Screen Recording grant is used by other code | No capture API in the extension runtime; merge checklist searches for capture APIs; the grant's breadth stated in Settings (`LOOK.md` section 2.4) |
 | T27 | A link from another app starts a capture | `.look` requires deep-link consent |
+| T28 | The model does more than the person picked, or the wrong thing (wrong recipient, wrong day) | Hand-over tools end in a window the person finishes; changing tools ask with the real arguments; each call is listed on the Look screen; no standing approval |
+| T29 | Screen content leaves through a tool's arguments (a URL's query, a draft's recipient, an invitee) | `open_url` shows the whole URL and needs Return; drafts and draft events are unsent and have no invitees; sending tools are tier B |
+| T30 | Another local process calls Look's tool server | Loopback only, a random bearer token per turn, alive only during an act turn, refuses calls once the turn ends |
+| T31 | The person's Codex configuration (MCP servers, plugins) loads into the act turn | The route lists them and switches each off at launch and does not start Codex if it cannot; read in the source, to be checked at the process level in step 5 (`LOOK.md` section 12, row 10) |
 
 ## 2. The audit's risks, carried forward
 
@@ -93,9 +98,11 @@ Each has a recommendation. D1 is the only one that blocks Phase 0.
 | D15 | WebP output in Phase 5 (R15) | Vendor libwebp's encoder as source, the app's first third-party code, with its licence added to `NOTICE.md`; call an installed `cwebp` from Homebrew when present; leave WebP out and offer HEIC or AVIF, which ImageIO writes | Leave WebP out of Phase 5's first version. Upstream has zero third-party dependencies, and vendoring C code adds a build step and a licence duty for one format. Revisit if WebP is asked for by name. | The owner, when Phase 5 is re-planned |
 
 D16 to D31 are still in `UNIVERSAL_INSTALL.md` section 8 until U1 step 1 moves them. Look's
-decisions, D32 to D42, moved here from `LOOK.md` section 11 in Phase L step 1; D43 and D44 were
-added in step 4. D41 is set by the brief, and the owner settled D32 and D35 on 2026-11-20, D39 and
-what Ask AI sends on 2026-11-21, and D43 and D44 on 2026-11-22; the others wait on the owner.
+decisions are D32 to D53. D32 to D44 belong to the earlier on-device design; the owner settled D32
+and D35 on 2026-11-20 and they stand. On 2026-11-22 he replaced that design: the screenshot goes to
+the AI, which offers three actions and carries one out with tools. That reopens D37, makes D39, D43
+and D44 moot if he confirms, and adds D45 to D53. **None of D37, D39 and D43 to D53 is settled; the
+recommendations are the plan's, the decisions are his.**
 
 | # | Decision | Alternatives | Recommendation |
 | --- | --- | --- | --- |
@@ -103,15 +110,24 @@ what Ask AI sends on 2026-11-21, and D43 and D44 on 2026-11-22; the others wait 
 | D33 | How the hotkey is added | A `HotKeyAction.look` case; a `CommandID.look` | `CommandID.look`: 7 lines in three files instead of about 10 in six, and no `HotKeyAction` switch changes |
 | D34 | The key inside the launcher | ⌘L; Tab; none | ⌘L: free, and L for Look |
 | D35 | Capture route | Direct capture with a monthly re-ask; the system picker every time | **Settled by the owner, 2026-11-20:** direct capture |
-| D36 | Where recognition runs | A stdin mode in the existing helper; in the app; a new helper target | The existing helper: Vision's memory leaves with it, and a new target would edit `project.yml` |
-| D37 | Consent before a cloud ask | Preview on the first ask of each Look; once ever; never | Each Look. **The owner, 2026-11-21:** Ask AI on Codex also sends the screenshot, so the preview shows it too (`LOOK.md` section 7) |
-| D38 | Claude for Look before the hook fix | Allowed, with a note; hidden until the fix | Allowed with a note; it is the owner's own Mac and hooks |
-| D39 | Recognition level | `.accurate`; `.fast`; a setting | **Settled by the owner, 2026-11-21:** `.accurate` as shipped, 1.8 s median on his Mac; he turned down 768 px strips (4.1 s) and `.fast` |
-| D40 | Copy and clipboard history | Into history like any copy; marked to skip history | Into history: it is the person's own copy, and only text |
-| D41 | Look's AI route | Its own setting defaulting to Codex; the general default | **Set by the brief:** its own setting, Codex by default |
-| D42 | An undated time ("at 3") | Today; the next such time; ignored | The next such time, shown on the row so a wrong guess is visible |
-| D43 | Hebrew for Look's rows (Vision reads none) | Tesseract bundled; a Tesseract the person installs with Homebrew, Vision alone without it; no Hebrew | **Settled by the owner, 2026-11-22:** optional, via Homebrew; nothing bundled. Built after Phase L step 11 (`LOOK_HEBREW_OCR.md`) |
-| D44 | Look's dates and the injected clock (AGENTS.md: a `Model/` file takes the clock as a parameter) | Our own date parser, honouring `now`; `NSDataDetector`, which reads "today" and "tomorrow" from the system clock and has no API to take another | **Settled by the owner, 2026-11-22:** accept the exception. `LookDetector` keeps `NSDataDetector` on the system clock; its own day and time rules (D42, the 09:00 start) take the injected `now` and `Calendar`. Writing our own date parser was turned down |
+| D36 | Where recognition runs | — | **Withdrawn 2026-11-22** with on-device reading, if the owner confirms D39, D43 and D44 |
+| D37 | **Reopened 2026-11-22.** What leaves the Mac, and when. Before: nothing until Ask AI and Return, with a preview. The new design sends the screenshot to OpenAI through Codex on every Look | (a) Send on the hotkey, after a one-time notice, provider named on the Look screen. (b) Send on the hotkey with no notice. (c) Show the capture and wait for Return on every Look | **Open, the owner's.** Recommended (a): it is what he described, and the notice costs one key press once. (c) keeps the old promise but puts a key press before every suggestion |
+| D38 | Claude for Look before the hook fix | — | Deferred into D51 |
+| D39 | Recognition level (settled 2026-11-21: `.accurate`) | (a) Withdraw: nothing is recognised on-device. (b) Keep on-device reading as a fallback when Codex is unavailable | **Open, the owner's.** Recommended (a). His message of 2026-11-22 says the OCR parts are not needed; (b) keeps code that failed on his Mac |
+| D40 | Copy and clipboard history | Into history like any copy; marked to skip history | Unchanged: into history. Now applies to the `copy_text` tool |
+| D41 | Look's AI route | Its own setting defaulting to Codex; the general default | **Set by the brief:** its own setting, Codex by default. Other routes are D51 |
+| D42 | An undated time ("at 3") | — | **Withdrawn 2026-11-22:** the model reads dates; the editor shows the date before saving |
+| D43 | Hebrew through a Homebrew Tesseract (settled 2026-11-22, earlier the same day) | (a) Withdraw: the model reads Hebrew. (b) Keep it as planned | **Open, the owner's.** Recommended (a). Codex read his Hebrew screen on 2026-11-21, and Tesseract was only for the on-device rows |
+| D44 | `NSDataDetector` and the injected-clock exception (settled 2026-11-22) | (a) Withdraw with `LookDetector`, so the exception to AGENTS.md ends. (b) Keep | **Open, the owner's.** Recommended (a). `LookTests` failed three Hebrew checks on his Mac |
+| D45 | The merged on-device code (steps 3 and 4) and PR #14 | (a) Delete what the new design does not use, close PR #14, and bring permission and capture back in a smaller PR. (b) Leave it in place unused. (c) Keep it as an offline fallback | **Open, the owner's.** Recommended (a): it takes about 59 lines back out of three upstream clipboard files, and unused code still has to survive every merge. What survives is in `LOOK.md` section 10 |
+| D46 | How the AI gets tools | (a) A Spotcast-owned loopback MCP server given to Codex. (b) No tools: the act turn returns a list of calls that Spotcast shows and runs. (c) Spotcast's own tool loop on a key-based route. (d) Loosen Codex's sandbox so it uses its shell. (e) Third-party MCP servers | **Open.** Recommended (a) if step 5's spike passes, else (b). Not (d): it runs AI-generated scripts, against `AGENT_RULES.md`. Not (e): D50. `LOOK.md` section 6 |
+| D47 | Which tools, and how far "general control of the computer" goes | (a) Hand-over tools first (event editor, mail draft, open a page, directions, copy), then calendar, reminders, Safari and Mail tools one step at a time; click, type and scripts not planned. (b) All of calendar, mail and Safari control in the first release. (c) Also click and type through Accessibility. (d) Also AppleScript or shell written by the model | **Open, the owner's.** Recommended (a). (c) needs its own design: the model must see the screen after each step. (d) is not recommended at any stage. `LOOK.md` section 7 |
+| D48 | What asks before it runs | (a) Nothing: the pick is the consent. (b) By tier: hand-over tools run, anything that sends, changes, deletes or reads private data shows its arguments and waits for Return, with no "always allow". (c) Every call asks | **Open, the owner's.** Recommended (b). (a) lets one injected instruction send mail. (c) makes a draft take two confirmations |
+| D49 | The rule in `AGENT_RULES.md`: "no tools in any AI turn that carries" screen content. The new design breaks it in the act turn | (a) Change the rule to allow Look's act turn, with Spotcast's typed tools only and D48's confirmations. (b) Keep the rule: the act turn gets the chosen action but not the screenshot. (c) Keep the rule: no tools, the plan of D46 (b) | **Open, the owner's, and needed before steps 5 and 9** (the spike in step 5 already pairs a screenshot with a tool). Recommended (a) with the limits in `LOOK.md` section 8, because he asked for the image to be sent again with tools. (b) and (c) are safer and do less. The rule file is changed only by him or on his word |
+| D50 | The zero third-party dependency rule (AGENTS.md) | (a) Keep it: every tool is Spotcast code on Apple frameworks, and Tesseract is no longer wanted. (b) Allow third-party MCP servers or libraries for calendar, mail or browser control | **Open, the owner's.** Recommended (a). The new design needs no dependency; (b) would run others' code with access to mail and calendar. Codex itself stays what it is today: a tool the person installs, not bundled |
+| D51 | Routes other than Codex for Look | (a) Codex only for now. (b) Also key-based routes through `AIToolLoopProvider`. (c) Also Claude through the CLI, with the hook note of D38 | Recommended (a) until Look is usable (step 12), then (b). Each route needs its own check that the person's own tools stay out of the turn |
+| D52 | When Codex is missing, signed out, offline or over its limit | (a) One row that says why; no Look. (b) An on-device fallback that reads text and offers Copy | Recommended (a), following D39 |
+| D53 | The model for the suggest turn | (a) Look's chosen model for both turns. (b) A faster, cheaper model for suggestions and the chosen one to act | Recommended (a) to start; measure in step 5 and move to (b) if suggestions miss 4 s |
 
 ## 4. Upstream sync strategy
 
