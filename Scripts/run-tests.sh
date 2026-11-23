@@ -981,6 +981,11 @@ run slow LookRecognitionTests Tinycast/Features/Clipboard/Model/*.swift Tinycast
                              Tinycast/Platform/ProcessExit.swift
 run LookTests              Tinycast/Features/Look/Model/*.swift
 
+if [ "$emit_db" -eq 0 ] && { [ -z "$only" ] || [ "$only" = "LookToolSpikeTests" ]; }; then
+    node --test Scripts/fork/look-tool-spike/probe.test.mjs || exit 1
+    [ "$only" = "LookToolSpikeTests" ] && exit 0
+fi
+
 if [ "$emit_db" -eq 1 ]; then
     printf ']\n' >> "$DB"
     [ -f .compile ] || echo '[]' > .compile

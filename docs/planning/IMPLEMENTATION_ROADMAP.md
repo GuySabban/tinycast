@@ -327,12 +327,11 @@ and failure mapping. `WebSearchSessionTests` uses an in-process `URLProtocol` fo
 
 ## Phase L. Look
 
-**Status.** Rewritten on 2026-11-22 to the owner's new design and **waiting for his approval**.
-Steps 1 to 4 are merged and were built for the earlier, on-device design; step 5 of that design
-(PR #14) is open and on hold. Nothing from step 5 on starts until the owner has answered the open
-decisions (D37, D39, D43 to D53). Steps 5 and 9 put a tool in an AI turn that carries a screenshot,
-so neither starts until D49 changes the rule in `AGENT_RULES.md`; the rule has no exception for a
-throwaway spike.
+**Status.** Steps 1 to 4 are merged and were built for the earlier, on-device design; step 5 of
+that design (PR #14) remains open and on hold until step 6. The owner accepted the new design's
+recommended options for D37, D39, D43 to D48 and D50 to D53 by merging PR #15. He explicitly chose
+D49 (a), so `AGENT_RULES.md` now allows tools in Look's act turn only. The rewritten step 5 has a
+standalone probe; results from the owner's Mac are still needed before proceeding.
 
 **Objective.** A hotkey, or ⌘L in the open launcher, captures the display under the pointer and
 sends it to the AI. The AI offers up to three actions, the person picks one or writes their own, and
@@ -371,9 +370,10 @@ New:
 5. **Tool spike on the owner's Mac**, throwaway code on a branch, no app change: a loopback MCP
    server with one harmless tool given to a Codex turn that also carries a screenshot, and a
    suggest turn over ten real screens. Settles `LOOK.md` section 12 rows 5 to 8 and 10 to 12, and
-   reads whether the AI service files need a seam edit. If rows 7 or 11 fail, stop and choose
-   another way from `LOOK.md` section 6.4 before going on. **Needs D49**, and the owner's yes to
-   D37 for his own screens.
+   reads whether the AI service files need a seam edit. If row 7 or 11 fails, stop and
+   ask the owner to choose another way from `LOOK.md` section 6.4 before going on. D49 and D37
+   are decided; the [owner checklist](../../Scripts/fork/look-tool-spike/README.md) describes
+   the runs that still need the owner's signed-in Codex and screens.
 6. **Remove the on-device reading** (D45): the helper's `image-stdin` mode and the `Data` entries,
    `LookItem`, `LookDetector`, `LookDate`, `LookRecognitionTests`, the fixtures, the recognition
    bench and the capture spike; `LOOK_HEBREW_OCR.md` marked withdrawn; the ledger rows for L3
@@ -385,7 +385,7 @@ New:
    `LookPrompt` for both turns; `LookActionURL` kept. `LookTests` rewritten around hostile input.
 9. **The two turns:** the suggest turn with no tools; `LookToolServer` on loopback with a per-turn
    token; the act turn with `copy_text` only, the 8-call and 60 s bounds, cancellation, and the
-   person's own MCP servers off. **Needs D49.**
+   person's own MCP servers off. D49 (a) allows these tools only under `LOOK.md` section 8.
 10. **Coordinator, screen and seam edits:** `LookCoordinator`, `PaletteMode.look`, `LookScreen`
     (suggestions, the "Write your own action" field, result lines, the permission and no-Codex
     rows), the one-time notice (D37), `LookSettingsStore`, `CommandID.look`, deep-link consent, ⌘L.
