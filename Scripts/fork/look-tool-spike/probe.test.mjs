@@ -55,15 +55,25 @@ async function fakeAppServer() {
             break;
         case "account/read":
             assert.equal(params.refreshToken, false);
-            returnTo(id, { account: { type: process.env.SPOTCAST_FAKE_ACCOUNT ?? "chatgpt" } });
+            returnTo(id, {
+                account: { type: process.env.SPOTCAST_FAKE_ACCOUNT ?? "chatgpt" },
+                workspaceRouting: {
+                    backendOrigin: override?.backendOrigin ?? "https://chatgpt.com",
+                    accountRoutingOverride: "NO_CONSTRAINT", chatgptAccountId: "workspace"
+                }
+            });
             break;
         case "config/read":
             assert.equal(await realpath(params.cwd), process.cwd());
             assert.equal(params.includeLayers, false);
-            const defaults = toolURL ? {} : { chatgpt_base_url: "https://chatgpt.com/backend-api/" };
             returnTo(id, {
-                config: { model_provider: "openai", ...defaults, ...override?.config },
-                origins: { chatgpt_base_url: { name: { type: override ? "user" : "packagedDefaults" } } }
+                config: {
+                    model_provider: "openai", chatgpt_base_url: "https://chatgpt.com/backend-api/",
+                    openai_base_url: null, model_providers: {},
+                    mcp_servers: { personal: { enabled: false, url: "https://mcp.invalid/server" } },
+                    ...override?.config
+                },
+                origins: override?.origins ?? {}
             });
             break;
         case "configRequirements/read":
@@ -145,19 +155,35 @@ if (process.argv.at(-1) === "--json") {
     test("the armed act server rejects endpoint overrides before starting a thread", async () => {
         const args = ["act", "--image", "must-not-be-read.png", "--codex", fileURLToPath(import.meta.url),
             "--confirm-upload", "--expect", expected, "--hold-60s"];
-        const url = "https://unexpected.invalid/backend-api";
+        const url = "https://user:secret@unexpected.invalid:8443/private?token=secret#fragment";
+        const origin = "(https://unexpected.invalid)";
         const overrides = [
-            { config: { chatgpt_base_url: url } },
-            { config: { chatgpt_base_url: "https://chatgpt.com/backend-api/" } },
-            { config: { openai_base_url: url } },
-            { config: { model_providers: { openai: { base_url: url } } } },
-            { config: { model_providers: { custom: { base_url: url } } } },
-            { requirements: { model_providers: { custom: { base_url: url } } } }
+            [{ config: { chatgpt_base_url: url } }, [`config.chatgpt_base_url ${origin}`]],
+            [{ origins: { chatgpt_base_url: { name: { type: "user", file: "/private/config.toml" } } } },
+                ["config.chatgpt_base_url (https://chatgpt.com)"]],
+            [{ config: { chatgpt_base_url: "https://chatgpt.com/backend-api" } },
+                ["config.chatgpt_base_url (https://chatgpt.com)"]],
+            [{ config: { openai_base_url: url } }, [`config.openai_base_url ${origin}`]],
+            [{ config: { model_providers: { openai: { base_url: url } } } },
+                [`config.model_providers.openai.base_url ${origin}`]],
+            [{ config: { model_providers: { custom: { base_url: url } } } },
+                [`config.model_providers.custom.base_url ${origin}`]],
+            [{ requirements: { model_providers: { custom: { base_url: url } } } },
+                [`requirements.model_providers.custom.base_url ${origin}`]],
+            [{ requirements: { chatgpt_base_url: "https://chatgpt.com/backend-api/" } },
+                ["requirements.chatgpt_base_url (https://chatgpt.com)"]],
+            [{ backendOrigin: "https://chatgpt.com:8443", config: { openai_base_url: url } },
+                ["account/read.workspaceRouting.backendOrigin (https://chatgpt.com)", `config.openai_base_url ${origin}`]]
         ];
         try {
-            for (const override of overrides) {
+            for (const [override, findings] of overrides) {
                 process.env.SPOTCAST_FAKE_ENDPOINT = JSON.stringify(override);
-                await assert.rejects(run(args), /endpoint override or non-default origin; no screenshot was sent/);
+                await assert.rejects(run(args), ({ message }) => {
+                    assert.match(message, /^Codex endpoint check refused: .*; no screenshot was sent\.$/);
+                    for (const finding of findings) assert.ok(message.includes(finding), message);
+                    assert.doesNotMatch(message, /secret|private|token|fragment|8443/);
+                    return true;
+                });
             }
         } finally {
             delete process.env.SPOTCAST_FAKE_ENDPOINT;
@@ -165,13 +191,16 @@ if (process.argv.at(-1) === "--json") {
     });
 
     test("endpoint preflight rejects base-URL overrides from the environment", async () => {
-        for (const key of ["OPENAI_BASE_URL", "CODEX_OPENAI_BASE_URL"]) {
-            try {
+        const keys = ["OPENAI_BASE_URL", "CODEX_OPENAI_BASE_URL"];
+        try {
+            for (const key of keys) {
                 process.env[key] = "https://unexpected.invalid";
-                await assert.rejects(run(["check-endpoint"]), new RegExp(`${key} is set; no screenshot was sent`));
-            } finally {
-                delete process.env[key];
             }
+            await assert.rejects(run(["check-endpoint"]), {
+                message: "Codex endpoint check refused: env.OPENAI_BASE_URL; env.CODEX_OPENAI_BASE_URL; no screenshot was sent."
+            });
+        } finally {
+            for (const key of keys) delete process.env[key];
         }
     });
 

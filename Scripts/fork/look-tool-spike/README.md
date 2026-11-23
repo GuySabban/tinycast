@@ -53,6 +53,9 @@ The Look feature's in-memory capture and TCC checks are later steps, not covered
    base-URL overrides, including `openai_base_url`, `chatgpt_base_url`, and provider `base_url`
    entries, as well as environment overrides such as `OPENAI_BASE_URL`. Each act or suggest run repeats
    the check on the app-server that would handle the image, including the armed server for act.
+   A refusal names the settings that failed the check. For URLs, it shows only the scheme and
+   host; for environment variables, only their names. Keep the output private and share only
+   the setting names, not the displayed hosts.
 
 3. On the main display, put a TextEdit document on screen with
    `LOOK SPIKE: M3 "dry-run" שלום 5271` in a single clearly visible line, or choose your own
