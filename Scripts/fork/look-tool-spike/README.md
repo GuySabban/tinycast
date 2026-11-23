@@ -49,7 +49,9 @@ The Look feature's in-memory capture and TCC checks are later steps, not covered
    ```
 
    Proceed only if it reports `Verified Codex endpoint: provider=openai, base URL=https://chatgpt.com/backend-api/.`
-   If it fails or reports an override, stop without uploading. Each act or suggest run repeats
+   If it fails or reports an override, stop without uploading. The probe rejects configured
+   base-URL overrides, including `openai_base_url`, `chatgpt_base_url`, and provider `base_url`
+   entries, as well as environment overrides such as `OPENAI_BASE_URL`. Each act or suggest run repeats
    the check on the app-server that would handle the image, including the armed server for act.
 
 3. On the main display, put a TextEdit document on screen with

@@ -31,8 +31,8 @@ async function fakeAppServer() {
     const key = `mcp_servers.${serverName}`;
     const configured = flags.find((arg) => arg.startsWith(`${key}.url=`));
     const toolURL = configured ? JSON.parse(configured.slice(key.length + 5)) : undefined;
-    const baseURL = process.env.SPOTCAST_FAKE_BASE_URL;
-    const expectedAbort = baseURL !== undefined && toolURL;
+    const endpoint = process.env.SPOTCAST_FAKE_ENDPOINT;
+    const override = endpoint !== undefined && toolURL ? JSON.parse(endpoint) : undefined;
     assert.equal(Boolean(token), Boolean(toolURL));
     if (toolURL) {
         assert.ok(flags.includes(`${key}.default_tools_approval_mode="prompt"`));
@@ -60,18 +60,19 @@ async function fakeAppServer() {
         case "config/read":
             assert.equal(await realpath(params.cwd), process.cwd());
             assert.equal(params.includeLayers, false);
+            const defaults = toolURL ? {} : { chatgpt_base_url: "https://chatgpt.com/backend-api/" };
             returnTo(id, {
-                config: { model_provider: "openai", chatgpt_base_url: expectedAbort ? baseURL : undefined },
-                origins: expectedAbort ? { chatgpt_base_url: { name: { type: "user" } } } : {}
+                config: { model_provider: "openai", ...defaults, ...override?.config },
+                origins: { chatgpt_base_url: { name: { type: override ? "user" : "packagedDefaults" } } }
             });
             break;
         case "configRequirements/read":
             assert.equal(params, undefined);
-            returnTo(id, { requirements: null });
+            returnTo(id, { requirements: override?.requirements ?? null });
             break;
         case "thread/start":
             assert.equal(process.env.SPOTCAST_FAKE_ACCOUNT, undefined);
-            assert.ok(!expectedAbort);
+            assert.equal(override, undefined);
             assert.equal(params.ephemeral, true);
             assert.equal(params.sandbox, "read-only");
             assert.equal(params.config.web_search, "disabled");
@@ -144,13 +145,33 @@ if (process.argv.at(-1) === "--json") {
     test("the armed act server rejects endpoint overrides before starting a thread", async () => {
         const args = ["act", "--image", "must-not-be-read.png", "--codex", fileURLToPath(import.meta.url),
             "--confirm-upload", "--expect", expected, "--hold-60s"];
+        const url = "https://unexpected.invalid/backend-api";
+        const overrides = [
+            { config: { chatgpt_base_url: url } },
+            { config: { chatgpt_base_url: "https://chatgpt.com/backend-api/" } },
+            { config: { openai_base_url: url } },
+            { config: { model_providers: { openai: { base_url: url } } } },
+            { config: { model_providers: { custom: { base_url: url } } } },
+            { requirements: { model_providers: { custom: { base_url: url } } } }
+        ];
         try {
-            for (const url of ["https://unexpected.invalid/backend-api", "https://chatgpt.com/backend-api/"]) {
-                process.env.SPOTCAST_FAKE_BASE_URL = url;
+            for (const override of overrides) {
+                process.env.SPOTCAST_FAKE_ENDPOINT = JSON.stringify(override);
                 await assert.rejects(run(args), /endpoint override or non-default origin; no screenshot was sent/);
             }
         } finally {
-            delete process.env.SPOTCAST_FAKE_BASE_URL;
+            delete process.env.SPOTCAST_FAKE_ENDPOINT;
+        }
+    });
+
+    test("endpoint preflight rejects base-URL overrides from the environment", async () => {
+        for (const key of ["OPENAI_BASE_URL", "CODEX_OPENAI_BASE_URL"]) {
+            try {
+                process.env[key] = "https://unexpected.invalid";
+                await assert.rejects(run(["check-endpoint"]), new RegExp(`${key} is set; no screenshot was sent`));
+            } finally {
+                delete process.env[key];
+            }
         }
     });
 

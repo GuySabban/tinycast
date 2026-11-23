@@ -103,6 +103,11 @@ function configuration(codex, cwd) {
     return [...flags, ...entries.flatMap(({ name }) => ["-c", `mcp_servers.${name}.enabled=false`])];
 }
 
+function hasBaseURLOverride(config) {
+    return config != null && typeof config === "object" && Object.entries(config).some(([key, value]) =>
+        value != null && (/(?:^|_)base_url$/.test(key) || hasBaseURLOverride(value)));
+}
+
 async function verifyEndpoint(client, cwd) {
     const { account, workspaceRouting } = await client.request("account/read", { refreshToken: false });
     if (account?.type !== "chatgpt") {
@@ -110,16 +115,18 @@ async function verifyEndpoint(client, cwd) {
     }
     const { config, origins } = await client.request("config/read", { cwd, includeLayers: false });
     const { requirements } = await client.request("configRequirements/read");
-    if (config?.model_provider !== "openai" || config.model_providers?.openai != null ||
-        requirements?.model_providers?.openai != null) {
+    if (config?.model_provider !== "openai") {
         throw new ProbeFailure("Codex did not report the built-in OpenAI provider; no screenshot was sent.");
     }
-    const base = config.chatgpt_base_url;
-    if (requirements?.chatgpt_base_url != null ||
+    const { chatgpt_base_url: base, ...otherConfig } = config;
+    if (hasBaseURLOverride(otherConfig) || hasBaseURLOverride(requirements) ||
         (base != null && base !== chatgptBase && base !== `${chatgptBase}/`) ||
         (base != null && origins?.chatgpt_base_url?.name?.type !== "packagedDefaults") ||
         (workspaceRouting != null && workspaceRouting.backendOrigin !== new URL(chatgptBase).origin)) {
-        throw new ProbeFailure("Codex reported a ChatGPT endpoint override or non-default origin; no screenshot was sent.");
+        throw new ProbeFailure("Codex reported an endpoint override or non-default origin; no screenshot was sent.");
+    }
+    if (config.model_providers?.openai != null || requirements?.model_providers?.openai != null) {
+        throw new ProbeFailure("Codex did not report the built-in OpenAI provider; no screenshot was sent.");
     }
     console.log(`Verified Codex endpoint: provider=openai, base URL=${chatgptBase}/.`);
 }
@@ -339,8 +346,9 @@ function prompt(options, act) {
 
 export async function run(argv, testHoldMS) {
     const opts = settings(argv);
-    if (process.env.OPENAI_BASE_URL !== undefined) {
-        throw new ProbeFailure("OPENAI_BASE_URL is set; no screenshot was sent.");
+    const endpointEnv = Object.keys(process.env).find((key) => /^(OPENAI|CHATGPT|CODEX)_(.*_)?BASE_URL$/.test(key));
+    if (endpointEnv) {
+        throw new ProbeFailure(`${endpointEnv} is set; no screenshot was sent.`);
     }
     const trialHoldMS = testHoldMS ?? (opts["hold-60s"] ? holdMS : 0);
     const cwd = mkdtempSync(join(tmpdir(), "spotcast-look-spike-"));
