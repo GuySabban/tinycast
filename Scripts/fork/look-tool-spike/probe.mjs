@@ -322,8 +322,10 @@ export async function run(argv, testHoldMS) {
     let bridge;
     let restartStarted;
     try {
+        if (opts.mode === "act") console.log(`Trace root (probe PID): ${process.pid}.`);
         const flags = configuration(opts.codex, cwd);
         client = new Codex(opts.codex, flags, cwd);
+        console.log(`App-server PID (initial): ${client.pid}.`);
         await client.initialize();
         if (opts.mode === "act") {
             restartStarted = performance.now();
@@ -338,6 +340,7 @@ export async function run(argv, testHoldMS) {
             const refreshed = configuration(opts.codex, cwd);
             client = new Codex(opts.codex, [...refreshed, ...overrides.flatMap((value) => ["-c", value])],
                 cwd, bridge.token);
+            console.log(`App-server PID (armed): ${client.pid}.`);
             await client.initialize();
             console.log(`Restart through initialize: ${Math.round(performance.now() - restartStarted)} ms.`);
             console.log(`Expected MCP connection: ${bridge.url} (token omitted).`);
@@ -356,7 +359,6 @@ export async function run(argv, testHoldMS) {
         if (restartStarted !== undefined) {
             console.log(`Restart through thread/start: ${Math.round(performance.now() - restartStarted)} ms.`);
         }
-        console.log(`App-server PID: ${client.pid}.`);
         const result = await turn(client, thread.id, [{ type: "text", text: prompt(opts, bridge) }, image],
             opts, bridge, abort.signal);
         if (!bridge) {

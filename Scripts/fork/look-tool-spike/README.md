@@ -28,9 +28,10 @@ The Look feature's in-memory capture and TCC checks are later steps, not covered
 1. In the PR checkout, confirm `sw_vers -productVersion`, `system_profiler SPHardwareDataType`
    (check the Chip field), `node --version` (Node 22+), `codex --version`, and
    `codex login status` (signed in through ChatGPT). Run `codex mcp list` to identify your normal
-   configured servers privately; leave them configured for the exclusion check. Pause other
-   Codex sessions so they are not confused with the probe. Use the normal OpenAI backend (no
-   custom provider, endpoint or API key). The probe checks the ChatGPT account before uploading.
+   configured servers privately; note which ones launch a program and which use an HTTP host
+   and port. Leave them configured for the exclusion check. Pause other Codex sessions so they
+   are not confused with the probe. Use the normal OpenAI backend (no custom provider, endpoint
+   or API key). The probe checks the ChatGPT account before uploading.
 2. In Terminal at repo root, set up the probe and a private fixture directory. Set `model` to the
    exact Codex model ID you want to test; use it for both turns (D53).
 
@@ -49,40 +50,82 @@ The Look feature's in-memory capture and TCC checks are later steps, not covered
 
    ```sh
    screencapture -x -m -T 5 "$shots/act.png"
-   node "$probe" act --confirm-upload --image "$shots/act.png" --model "$model" \
-     --expect 'M3 "dry-run" שלום 5271'
    ```
 
    If the capture is above 10 MiB, convert it with `sips -s format jpeg -s formatOptions 85
    -Z 4096 "$shots/act.png" --out "$shots/act.jpg"` and pass the JPEG instead.
 
-4. First check that the short act run completed, with exactly one accepted elicitation, no
-   subsequent approval request, and one exact marker match. This settles rows 7 and 11
-   independently of row 8. If it fails, follow the stop rule in step 6 instead of running the hold.
-   Otherwise rerun the same command with `--hold-60s` appended. During
-   `withholding reply for 60000 ms`, in a second Terminal tab, substitute the printed
-   **App-server PID** and run the following. It lists the app-server and descendants by PID,
-   parent PID and command name (no arguments), then their live network connections.
+4. For row 10, start both event traces **before invoking the probe**. In two separate Terminal
+   tabs, set `shots` to the private directory created in step 2 (`printf '%s\n' "$shots"` in
+   the original tab). Run the first block in one tab and the second in the other. Terminal
+   needs Full Disk Access for `eslogger`; the traces use `sudo` and `jq`. If you cannot collect
+   both traces, mark row 10 inconclusive rather than substituting a snapshot.
 
    ```sh
-   pid=REPLACE_WITH_APP_SERVER_PID
-   ps -axo pid=,ppid= | awk -v root="$pid" '
-       { parent[$1] = $2 }
-       END {
-           for (p in parent)
-               for (q = p; q in parent && parent[q] != q; q = parent[q])
-                   if (q == root) { print p; break }
-       }' | while IFS= read -r child; do
-       ps -p "$child" -o pid=,ppid=,comm=
-       lsof -nP -a -p "$child" -i
-   done
+   sudo /usr/bin/eslogger fork exec exit | jq --unbuffered -c '
+     {seq: .global_seq_num, pid: .process.audit_token.pid, ppid: .process.ppid,
+      child: .event.fork.child.audit_token.pid, image: .event.exec.target.executable.path,
+      exit: (.event | has("exit"))}
+   ' > "$shots/mcp-process.jsonl"
    ```
 
-   For row 10, verify no process belonging to a personal stdio MCP server and no connection to a
-   personal HTTP MCP server. The loopback connection should match the printed address; Codex's
-   normal provider connection is expected. Record the disabled count and pass/fail, not names
-   or addresses. A missed sampling window or a run with no personal servers configured does not
-   settle row 10.
+   ```sh
+   sudo /usr/sbin/tcpdump -i pktap,all -nnlq -k INPD 'ip or ip6' > "$shots/mcp-network.txt"
+   ```
+
+   The first trace keeps process IDs, exec paths and lifecycle events, not arguments or
+   environment; the second writes packet summaries, not payloads. Keep both files private.
+   Before launch, run `/usr/bin/true; /usr/bin/nc -z -w 1 127.0.0.1 9` in the original tab.
+   Confirm the first trace has the `/usr/bin/true` exec and the second has the PID-attributed
+   `nc` attempt to port 9 (a refused connection is fine). Leave both traces running.
+
+   ```sh
+   node "$probe" act --confirm-upload --image "$shots/act.png" --model "$model" \
+     --expect 'M3 "dry-run" שלום 5271'
+   ```
+
+   Check that the short act completed with one accepted elicitation, no subsequent approval
+   request, and one exact marker match (rows 7 and 11). If it fails, follow step 6. Otherwise
+   rerun the same command with `--hold-60s` appended. Keep both traces running until the probe
+   exits, then stop both with Ctrl-C. Note the **Trace root** and both **App-server PID** values
+   for each run.
+
+   Check that the process sequence is complete (`true` on success) and tcpdump reports zero
+   packets dropped by the kernel.
+
+   ```sh
+   jq -se 'map(.seq) | sort | . as $n |
+     length > 0 and all(.[]; type == "number") and
+     all(range(1; length); . as $i | $n[$i] == ($n[$i-1] + 1))
+   ' "$shots/mcp-process.jsonl"
+   ```
+
+   For each run, substitute the trace-root PID into the following to list its entire recorded
+   process tree, including brief children:
+
+   ```sh
+   pid=REPLACE_WITH_TRACE_ROOT_PID
+   jq -nc --argjson root "$pid" '
+     reduce inputs as $e ({pids: [$root], events: []};
+       if (.pids | index($e.pid)) != null or (.pids | index($e.ppid)) != null then
+         .pids += ([$e.pid, $e.child] | map(select(. != null))) | .events += [$e]
+       else . end) | .events[]
+   ' < "$shots/mcp-process.jsonl"
+   ```
+
+   Check the recorded forks and execs from before the initial and armed app-server launches
+   through their exits. Match both app-server PIDs and every descendant PID to the outbound
+   packet summaries, including startup, thread creation, and the time before the tool call.
+   For example, with PIDs 123 and 456, use
+   `grep -E 'proc [^,]*:(123|456)([, )]|$)' "$shots/mcp-network.txt"` to find attributed packets;
+   also check for unattributed traffic matching a personal endpoint.
+   The expected peers are the normal provider and the printed loopback address. **Fail row 10**
+   if any personal stdio MCP process or any connection attempt to a personal HTTP MCP endpoint
+   appears at any point, even if gone by the hold. If the launch/exit or loopback evidence is
+   missing, either trace dropped events (process sequence gaps or nonzero tcpdump kernel drops),
+   attribution cannot distinguish a potential personal endpoint, or no personal servers were
+   configured, mark the row inconclusive. Share only the disabled count and result, not traces,
+   process names or addresses.
 5. In the probe Terminal, record whether there was a tool reply at or beyond 60,000 ms and the
    model returned its receipt (8). Record the actual hold time and both restart timings. For row 12 use
    **Restart through initialize**, including stopping the warm process, enumerating personal
@@ -142,7 +185,8 @@ The Look feature's in-memory capture and TCC checks are later steps, not covered
     rejected or the score misses, record that result before trying the same samples with
     `--no-schema`; report that second cohort separately. Do not silently replace a failed run.
 11. Share aggregate results and failures only, with the OS/chip, model and Codex version. Delete
-    the test fixtures in Finder (the folder is in `$shots`), then empty Trash if appropriate.
+    the test fixtures and traces in Finder (the folder is in `$shots`), then empty Trash if
+    appropriate. Remove Terminal's Full Disk Access if you granted it just for this check.
 
 ## Decisions if the evidence misses a gate
 

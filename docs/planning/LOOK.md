@@ -457,7 +457,7 @@ recognition and `NSDataDetector` are withdrawn.
 | 7 | One Codex turn accepts an image and MCP tools together | One act turn with `copy_text` | 5 |
 | 8 | Codex waits on a tool call while a person reads a confirmation (at least 60 s) | Hold a call for 60 s in the spike | 5 |
 | 9 | Two image turns per Look fit the owner's ChatGPT plan for normal use | Count Looks against Codex's usage display for a week | 12 |
-| 10 | With Look's server added, the person's own MCP servers stay off, checked at the process level and not by asking the model | List the app-server's child processes and connections during an act turn | 5 |
+| 10 | With Look's server added, the person's own MCP servers stay off, checked at the process level and not by asking the model | Trace process lifecycles and PID-attributed network traffic from before the app-server launches through act completion and process exit; incomplete or unattributed evidence does not settle the row | 5 |
 | 11 | Accepting Codex's elicitation for Look's server lets the call through with no second prompt, and the call's arguments reach Spotcast's server unchanged | The spike logs both | 5 |
 | 12 | Restarting the app-server to add Look's server costs under 1 s, or the server can be present from launch | Time it | 5 |
 | 13 | Apple Events to Safari and Mail work from a menu-bar app signed as Spotcast is, with one Automation prompt per app | A spike per app | 14, 15 |
