@@ -66,6 +66,7 @@ async function fakeAppServer() {
             });
             break;
         case "configRequirements/read":
+            assert.equal(params, undefined);
             returnTo(id, { requirements: null });
             break;
         case "thread/start":

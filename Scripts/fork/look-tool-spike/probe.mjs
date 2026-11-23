@@ -167,7 +167,7 @@ class Codex {
         }
     }
 
-    async request(method, params = {}) {
+    async request(method, params) {
         if (this.#failure) throw this.#failure;
         const id = ++this.#sequence;
         let timer;
