@@ -10,6 +10,7 @@ import { listen, receipt, toolName } from "./loopback.mjs";
 import { run } from "./probe.mjs";
 
 const expected = 'שלום "Look" \\ ?';
+const privateReceived = "NeverPrintThisMarker94726";
 const serverName = "tinycast-look-spike";
 const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j2iQAAAAASUVORK5CYII=";
 const threadId = "fake-thread";
@@ -114,7 +115,17 @@ async function fakeAppServer() {
         case undefined: {
             assert.equal(id, "approval");
             assert.deepEqual(result, { action: "accept" });
-            const response = await mcp(toolURL, token, "tools/call", { name: toolName, arguments: { text: expected } });
+            const mismatch = process.env.SPOTCAST_FAKE_MARKER_MISMATCH === "1";
+            const response = await mcp(toolURL, token, "tools/call", {
+                name: toolName, arguments: { text: mismatch ? privateReceived : expected }
+            });
+            if (mismatch) {
+                assert.deepEqual((await response.json()).result, {
+                    isError: true, content: [{ type: "text", text: "Dry run rejected: marker mismatch." }]
+                });
+                finish(privateReceived);
+                break;
+            }
             assert.deepEqual((await response.json()).result, { content: [{ type: "text", text: receipt }] });
             finish(receipt);
             break;
@@ -205,7 +216,8 @@ if (process.argv.at(-1) === "--json") {
     });
 
     test("loopback requires the bearer, rejects bad arguments and closes", async () => {
-        const bridge = await listen(expected, 0, () => {});
+        const messages = [];
+        const bridge = await listen(expected, 0, (message) => messages.push(message));
         try {
             assert.equal(new URL(bridge.url).hostname, "127.0.0.1");
             const denied = await mcp(bridge.url, "not-our-token", "tools/list");
@@ -215,15 +227,94 @@ if (process.argv.at(-1) === "--json") {
             const wrong = await mcp(bridge.url, bridge.token, "tools/call", {
                 name: toolName, arguments: { text: expected, unsupported: true }
             });
-            assert.equal((await wrong.json()).result.isError, true);
+            const wrongResult = (await wrong.json()).result;
+            assert.equal(wrongResult.isError, true);
+            assert.match(wrongResult.content[0].text, /invalid arguments \(additional properties are not allowed\)/);
             const repeated = await mcp(bridge.url, bridge.token, "tools/call", {
                 name: toolName, arguments: { text: expected }
             });
-            assert.equal((await repeated.json()).result.isError, true);
+            const repeatedResult = (await repeated.json()).result;
+            assert.equal(repeatedResult.isError, true);
+            assert.match(repeatedResult.content[0].text, /repeated call/);
+            assert.ok(messages.includes("Tool call rejected: repeated call."));
             assert.equal(bridge.evidence.matched, false);
         } finally {
             bridge.close();
         }
         await assert.rejects(mcp(bridge.url, bridge.token, "tools/list"));
+    });
+
+    async function rejectedCall(target, args, reason, { armed = true, name = toolName } = {}) {
+        const messages = [];
+        const bridge = await listen(target, 0, (message) => messages.push(message));
+        try {
+            if (armed) bridge.arm();
+            const response = await mcp(bridge.url, bridge.token, "tools/call", { name, arguments: args });
+            assert.deepEqual((await response.json()).result, {
+                isError: true, content: [{ type: "text", text: "Dry run rejected: " + reason + "." }]
+            });
+            assert.ok(messages.includes("Tool call rejected: " + reason + "."));
+            assert.equal(bridge.evidence.matched, false);
+            return messages;
+        } finally {
+            bridge.close();
+        }
+    }
+
+    test("loopback names not-armed and individual argument-schema rejections without echoing values", async () => {
+        await rejectedCall(expected, { text: expected }, "not armed", { armed: false });
+        await rejectedCall(expected, { text: expected }, "invalid arguments (tool name must be copy_text)",
+            { name: privateReceived });
+        for (const [args, rule] of [
+            [null, "arguments must be an object"],
+            [[privateReceived], "arguments must be an object"],
+            [{}, "text is required"],
+            [{ text: { value: privateReceived } }, "text must be a string"],
+            [{ text: "" }, "text minLength is 1 code point"],
+            [{ text: "😀".repeat(201) }, "text maxLength is 200 code points"]
+        ]) {
+            const messages = await rejectedCall(expected, args, "invalid arguments (" + rule + ")");
+            assert.doesNotMatch(messages.join("\n"), /NeverPrintThisMarker|94726|😀|U\+1F600/);
+        }
+    });
+
+    test("mismatch diagnostics distinguish transformations and redact letters and digits", async () => {
+        for (const [target, text, ...diagnostics] of [
+            ["é", "e\u0301", "code-point length received=2 expected=1", "NFC match=true"],
+            ['"a-b c"', "“a—b\u00A0c”", "ASCII punctuation/NBSP match=true", "received=Pi U+201C, expected=Po U+0022"],
+            ["a b", "a\u00A0b", "received=Zs U+00A0, expected=Zs U+0020"],
+            ["a b", " a \t b ", "collapsed whitespace match=true"],
+            ["abc", "\u200E\u200F\u202A\u202B\u202C\u202D\u202E\u2066\u2067\u2068\u2069abc",
+                "without bidi/format characters match=true", "received=Cf U+200E, expected=redacted"],
+            ["abc", "LOOK SPIKE: abc", "expected substring=true", "first differing index (0-based)=0"],
+            ["😀a", "😀" + privateReceived, "code-point length received=26 expected=2",
+                "first differing index (0-based)=1, received=redacted, expected=redacted"],
+            ["a", "7", "first differing index (0-based)=0, received=redacted, expected=redacted"],
+            ["abc", "ab", "received=end of marker, expected=redacted"]
+        ]) {
+            const output = (await rejectedCall(target, { text }, "marker mismatch")).join("\n");
+            for (const diagnostic of diagnostics) assert.ok(output.includes(diagnostic), output);
+            assert.doesNotMatch(output, /NeverPrintThisMarker|94726|LOOK SPIKE|U\+004E|U\+0061|U\+0037|😀/);
+        }
+    });
+
+    test("act prints the bridge diagnosis but not a model reply echoing the rejected marker", async (t) => {
+        const cwd = await mkdtemp(join(tmpdir(), "spotcast-look-mismatch-"));
+        const messages = [];
+        t.mock.method(console, "log", (...args) => messages.push(args.join(" ")));
+        try {
+            const image = join(cwd, "screen.png");
+            await writeFile(image, Buffer.from(png, "base64"));
+            process.env.SPOTCAST_FAKE_MARKER_MISMATCH = "1";
+            await assert.rejects(run(["act", "--image", image, "--codex", fileURLToPath(import.meta.url),
+                "--confirm-upload", "--expect", expected, "--hold-60s"], 20), /Act evidence incomplete/);
+            const output = messages.join("\n");
+            assert.match(output, /Tool call rejected: marker mismatch/);
+            assert.match(output, /Marker diagnosis: code-point length/);
+            assert.doesNotMatch(output, /NeverPrintThisMarker|94726|U\+004E/);
+        } finally {
+            delete process.env.SPOTCAST_FAKE_MARKER_MISMATCH;
+            await rm(cwd, { force: true, recursive: true });
+        }
     });
 }

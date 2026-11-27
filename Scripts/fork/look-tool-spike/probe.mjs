@@ -7,7 +7,7 @@ import { createInterface } from "node:readline";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { listen, receipt, toolName } from "./loopback.mjs";
+import { listen, maxMarkerLength, receipt, toolName } from "./loopback.mjs";
 
 const serverName = "tinycast-look-spike";
 const tokenVariable = "SPOTCAST_LOOK_SPIKE_BEARER";
@@ -59,8 +59,9 @@ function settings(argv) {
     if (!values["confirm-upload"] || !values.image) {
         throw new ProbeFailure("Supply --image and --confirm-upload to send that screenshot to OpenAI.");
     }
-    if (mode === "act" && (!values.expect || values.expect.length > 200 || values["no-schema"])) {
-        throw new ProbeFailure("Act requires a benign --expect marker of 1–200 characters and no schema option.");
+    if (mode === "act" && (!values.expect || [...values.expect].length > maxMarkerLength || values["no-schema"])) {
+        throw new ProbeFailure("Act requires a benign --expect marker of 1–" + maxMarkerLength +
+            " code points and no schema option.");
     }
     if (mode === "suggest" && (values.expect !== undefined || values["hold-60s"])) {
         throw new ProbeFailure("--expect and --hold-60s are only available for act.");

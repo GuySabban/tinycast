@@ -57,8 +57,9 @@ The Look feature's in-memory capture and TCC checks are later steps, not covered
    host; for environment variables, only their names. Keep the output private and share only
    the setting names, not the displayed hosts.
 
-3. On the main display, put a TextEdit document on screen with
-   `LOOK SPIKE: M3 "dry-run" שלום 5271` in a single clearly visible line, or choose your own
+3. In TextEdit, turn off Smart Quotes under **Edit ▸ Substitutions** before typing. On the main
+   display, put a TextEdit document on screen with
+   `LOOK SPIKE: M3TEST5271 שלום` in a single clearly visible line, or choose your own
    harmless marker. Run the local-only capture block in Terminal, switch to the document within
    five seconds, and allow Terminal screen capture if prompted.
 
@@ -101,12 +102,15 @@ The Look feature's in-memory capture and TCC checks are later steps, not covered
 
    ```sh
    node "$probe" act --confirm-upload --image "$act_image" --model "$model" \
-     --expect 'M3 "dry-run" שלום 5271'
+     --expect 'M3TEST5271 שלום'
    ```
 
    Check that the short act completed with one accepted elicitation, no subsequent approval
-   request, and one exact marker match (rows 7 and 11). If it fails, follow step 6. Otherwise
-   rerun the same command with `--hold-60s` appended. Keep both traces running until the probe
+   request, and one exact marker match (rows 7 and 11). If it fails, follow step 6. The probe
+   names any tool rejection; for a mismatch it prints lengths, comparison results and the first
+   difference (only punctuation, space and format code points are shown), not the received text.
+   A match after any diagnostic transformation is still a failure. Only after a successful
+   short act, rerun the same command with `--hold-60s` appended. Keep both traces running until the probe
    exits, then stop both with Ctrl-C. Note the **Trace root** and both **App-server PID** values
    for each run.
 

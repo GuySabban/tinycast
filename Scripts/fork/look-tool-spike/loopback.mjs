@@ -5,16 +5,68 @@ import { setTimeout as delay } from "node:timers/promises";
 
 export const toolName = "copy_text";
 export const receipt = "look-spike-tool-returned";
+export const maxMarkerLength = 200;
 const versions = ["2025-11-25", "2025-06-18", "2025-03-26"];
 const tool = {
     name: toolName,
     description: "Dry run: accepts a visible test marker without copying it or changing anything.",
     inputSchema: {
-        type: "object", properties: { text: { type: "string", minLength: 1, maxLength: 200 } },
+        type: "object", properties: { text: { type: "string", minLength: 1, maxLength: maxMarkerLength } },
         required: ["text"], additionalProperties: false
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false }
 };
+
+const reportableCategories = [
+    ["Pc", /\p{Pc}/u], ["Pd", /\p{Pd}/u], ["Ps", /\p{Ps}/u], ["Pe", /\p{Pe}/u],
+    ["Pi", /\p{Pi}/u], ["Pf", /\p{Pf}/u], ["Po", /\p{Po}/u],
+    ["Zs", /\p{Zs}/u], ["Zl", /\p{Zl}/u], ["Zp", /\p{Zp}/u], ["Cf", /\p{Cf}/u]
+];
+
+function describeDifference(character) {
+    if (character === undefined) return "end of marker";
+    const category = reportableCategories.find(([, pattern]) => pattern.test(character))?.[0];
+    if (!category) return "redacted";
+    return category + " U+" + character.codePointAt(0).toString(16).toUpperCase().padStart(4, "0");
+}
+
+function asciiPunctuation(text) {
+    return text.replace(/[\u2018-\u201B]/gu, "'").replace(/[\u201C-\u201F]/gu, '"')
+        .replace(/[\p{Pd}\u2212]/gu, "-").replace(/[\u00A0\u202F]/gu, " ");
+}
+
+function collapseWhitespace(text) {
+    return text.replace(/\p{White_Space}+/gu, " ").trim();
+}
+
+function markerDiagnosis(received, expected) {
+    const actual = [...received];
+    const target = [...expected];
+    let index = 0;
+    while (index < actual.length && actual[index] === target[index]) index += 1;
+    return [
+        "Marker diagnosis: code-point length received=" + actual.length + " expected=" + target.length,
+        "NFC match=" + (received.normalize("NFC") === expected.normalize("NFC")),
+        "ASCII punctuation/NBSP match=" + (asciiPunctuation(received) === asciiPunctuation(expected)),
+        "collapsed whitespace match=" + (collapseWhitespace(received) === collapseWhitespace(expected)),
+        "without bidi/format characters match=" + (received.replace(/\p{Cf}/gu, "") === expected.replace(/\p{Cf}/gu, "")),
+        "expected substring=" + received.includes(expected),
+        "first differing index (0-based)=" + index +
+            ", received=" + describeDifference(actual[index]) + ", expected=" + describeDifference(target[index])
+    ].join("; ") + ".";
+}
+
+function argumentRule(params) {
+    if (params?.name !== toolName) return "tool name must be copy_text";
+    const args = params.arguments;
+    if (!args || typeof args !== "object" || Array.isArray(args)) return "arguments must be an object";
+    if (!Object.hasOwn(args, "text")) return "text is required";
+    if (Object.keys(args).length !== 1) return "additional properties are not allowed";
+    if (typeof args.text !== "string") return "text must be a string";
+    if (args.text.length === 0) return "text minLength is 1 code point";
+    if ([...args.text].length > maxMarkerLength) return "text maxLength is " + maxMarkerLength + " code points";
+    return null;
+}
 
 function reply(response, status, payload) {
     response.writeHead(status, payload === undefined ? {} : { "Content-Type": "application/json" });
@@ -69,12 +121,17 @@ export async function listen(expected, holdMS, report) {
             return send({ tools: [tool] });
         case "tools/call": {
             evidence.calls += 1;
-            const args = params?.arguments;
-            if (!mayCall || evidence.calls !== 1 || params?.name !== toolName ||
-                !args || Object.keys(args).length !== 1 ||
-                typeof args.text !== "string" || args.text.length > 200 || args.text !== expected) {
-                report("Tool call rejected (not armed, repeated, invalid, or marker mismatch).");
-                return send({ isError: true, content: [{ type: "text", text: "Dry run rejected." }] });
+            const reject = (reason) => {
+                report("Tool call rejected: " + reason + ".");
+                return send({ isError: true, content: [{ type: "text", text: "Dry run rejected: " + reason + "." }] });
+            };
+            if (!mayCall) return reject("not armed");
+            if (evidence.calls !== 1) return reject("repeated call");
+            const rule = argumentRule(params);
+            if (rule) return reject("invalid arguments (" + rule + ")");
+            if (params.arguments.text !== expected) {
+                report(markerDiagnosis(params.arguments.text, expected));
+                return reject("marker mismatch");
             }
             evidence.matched = true;
             report(`Tool call 1: arguments match; withholding reply for ${holdMS} ms.`);
