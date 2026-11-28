@@ -412,16 +412,16 @@ accepted option (a), with the following limits:
 
 ## 10. What happens to steps 1 to 5
 
-Steps 1 to 4 are merged; old step 5 is PR #14, open and on hold until step 6. The owner accepted D45
-(a); the table describes what stays and what step 6 removes.
+Steps 1 to 4 are merged; old step 5 was PR #14, closed in step 6. The owner accepted D45 (a); the
+table describes what stays and what step 6 removed (2026-11-28).
 
 | Step | What it built | Under the new design |
 | --- | --- | --- |
 | 1. Codex route check | Checks on the owner's Mac (`BASELINE.md`) | **Survives.** Its findings are section 6.1's evidence |
-| 2. Capture spike | `Scripts/fork/look-capture-spike/`, findings on permission and exclusion | **Findings survive.** The spike itself was already due for deletion in step 5 |
-| 3. Recognition from memory | The helper's `image-stdin` mode, `extract(imageData:)`, `LookRecognitionTests`, `Scripts/fork/look-recognition-bench/` | **Removed.** No on-device reading. It also returned no text for the owner's English Gmail screenshot, a failure that is recorded, not investigated. Removing it takes about 59 lines back out of three upstream clipboard files |
+| 2. Capture spike | `Scripts/fork/look-capture-spike/`, findings on permission and exclusion | **Findings survive.** The spike itself was deleted in step 6 |
+| 3. Recognition from memory | The helper's `image-stdin` mode, `extract(imageData:)`, `LookRecognitionTests`, `Scripts/fork/look-recognition-bench/` | **Removed.** No on-device reading. It also returned no text for the owner's English Gmail screenshot, a failure that is recorded, not investigated. Step 6 took its 55 added and 4 changed lines back out of three upstream clipboard files |
 | 4. Detection model | `LookItem`, `LookDetector`, `LookDate`, `LookActionURL`, `LookPrompt`, `LookTests`, `Tests/look-fixtures/` | **Mostly removed.** `LookItem`, `LookDetector`, `LookDate` and the fixtures go, with the three failing Hebrew checks. `LookActionURL` **survives** as the scheme and URL checks behind `open_url`, `mail_draft` and `maps_directions`. `LookPrompt` **survives, rewritten**, for the two turns' instructions and context block |
-| 5. Service (PR #14) | `ScreenRecordingPermission`, `ScreenCapturer`, `LookCaptureSize`; and `LookReader`, `LookRecognitionDeadline`, `LookReaderTests`, a `ClipboardTextWorker` edit | **Split.** Permission, capture and the size cap survive unchanged. The reader, its deadline, its tests and the worker edit are removed. Close PR #14 in step 6; open a smaller PR with only the surviving files in step 7 |
+| 5. Service (PR #14) | `ScreenRecordingPermission`, `ScreenCapturer`, `LookCaptureSize`; and `LookReader`, `LookRecognitionDeadline`, `LookReaderTests`, a `ClipboardTextWorker` edit | **Split.** Permission, capture and the size cap survive unchanged. The reader, its deadline, its tests and the worker edit are removed. PR #14 is closed in step 6, its branch kept; step 7 opens a smaller PR with only the surviving files |
 
 Also withdrawn with the on-device rows: the Homebrew Tesseract step (old step 12) and
 `LOOK_HEBREW_OCR.md`'s plan. Hebrew is now the model's job; on 2026-11-21 it read the owner's

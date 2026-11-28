@@ -327,12 +327,13 @@ and failure mapping. `WebSearchSessionTests` uses an in-process `URLProtocol` fo
 
 ## Phase L. Look
 
-**Status.** Steps 1 to 4 are merged and were built for the earlier, on-device design; step 5 of
-that design (PR #14) remains open and on hold until step 6. The owner accepted the new design's
-recommended options for D37, D39, D43 to D48 and D50 to D53 by merging PR #15. He explicitly chose
-D49 (a), so `AGENT_RULES.md` now allows tools in Look's act turn only. PR #16 contains the
-rewritten step 5 spike. The owner's act trials passed; suggest worked on four screens by his
-assessment, and personal MCP isolation was inconclusive. See `LOOK.md` section 12.
+**Status.** Steps 1 to 4 are merged and were built for the earlier, on-device design. Step 6
+removes what the new design does not use and closes that design's step 5 (PR #14), whose branch
+step 7 takes permission and capture from. The owner accepted the new design's recommended
+options for D37, D39, D43 to D48 and D50 to D53 by merging PR #15. He explicitly chose D49 (a), so
+`AGENT_RULES.md` now allows tools in Look's act turn only. PR #16 contains the rewritten step 5
+spike. The owner's act trials passed; suggest worked on four screens by his assessment, and
+personal MCP isolation was inconclusive. See `LOOK.md` section 12.
 
 **Objective.** A hotkey, or ⌘L in the open launcher, captures the display under the pointer and
 sends it to the AI. The AI offers up to three actions, the person picks one or writes their own, and
@@ -376,10 +377,10 @@ New:
    isolation trace before Look ships, not as a blocker for merging the standalone spike. The
    [spike README](../../Scripts/fork/look-tool-spike/README.md) records the results, the checklist
    and the AI service seam read.
-6. **Remove the on-device reading** (D45): the helper's `image-stdin` mode and the `Data` entries,
-   `LookItem`, `LookDetector`, `LookDate`, `LookRecognitionTests`, the fixtures, the recognition
-   bench and the capture spike; `LOOK_HEBREW_OCR.md` marked withdrawn; the ledger rows for L3
-   removed. Close PR #14.
+6. **Remove the on-device reading** (D45), done 2026-11-28: the helper's `image-stdin` mode and
+   the `Data` entries, `LookItem`, `LookDetector`, `LookDate`, `LookRecognitionTests`, the
+   fixtures, the recognition bench and the capture spike; `LOOK_HEBREW_OCR.md` marked withdrawn;
+   the ledger rows for L3 removed. Close PR #14.
 7. **Permission and capture:** `ScreenRecordingPermission`, `ScreenCapturer` and the size cap,
    taken from PR #14 without the reader; the image encoded to fit 10 MB.
 8. **Model, test-first:** `LookSuggestion` and its parser (bad JSON, too many items, over-long
