@@ -129,6 +129,12 @@ answered D49 (a), "Change the rule for Look." Follow-up choices are not decided 
 | D52 | When Codex is missing, signed out, offline or over its limit | (a) One row that says why; no Look. (b) An on-device fallback that reads text and offers Copy | **Decided (a) by merging PR #15.** One row saying why; no offline fallback. |
 | D53 | The model for the suggest turn | (a) Look's chosen model for both turns. (b) A faster, cheaper model for suggestions and the chosen one to act | **Decided (a) initially by merging PR #15; unchanged.** The partial suggest trial did not measure the median. If measured suggestions miss 4 s at the median, recommend a matched comparison with (b) for a new owner decision. |
 
+### Safari page context
+
+| # | Decision | Alternatives | Status |
+| --- | --- | --- | --- |
+| D54 | Give Look context below the fold in the active Safari tab | Add page text mode; test a full-page image first; keep screenshot only | **Owner chose Add page text mode.** An explicit opt-in sends the existing still plus the tab title and bounded rendered text after disclosure and confirmation. Approval of the implementation plan is still pending. **Open:** whether to omit page text in the act turn (recommended with tools) or use a tool-free act for page text. D37 remains the ordinary screenshot rule; D49 is not broadened. See `LOOK.md` section 16. |
+
 ## 4. Upstream sync strategy
 
 The fork keeps merging. The aim is a merge that takes an hour or two and never surprises.

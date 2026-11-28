@@ -40,7 +40,7 @@ Hours are the owner's own time, given as a range.
 | 1 | App install from the main list (the MVP) | 45–95 |
 | – | Friend-build gate | 8–19 |
 | 2 | Web result rows | 35–70 |
-| L | Look: the screen sent to the AI, which offers actions and carries one out with tools | 78–161 |
+| L | Look: the screen sent to the AI, which offers actions and carries one out with tools | 86–177 |
 | 3 | File ranking and aliases | 12–28 |
 | 4 | Install refinements | 30–65 |
 | 5 | Context actions on files, images and clipboard | 45–100 |
@@ -403,6 +403,12 @@ New:
 15. **Mail tools:** `mail_read_selected`, `mail_send`.
 16. **General control:** a design document first (click, type, a fresh screenshot per step). Not
     sized and not started without a separate decision (D47).
+17. **Opt-in Safari page text (D54):** after ordinary Look is usable (step 12), and only once
+    the owner approves this plan. Keep the same screenshot, add a bounded Safari tab snapshot,
+    and ask before sending the expanded payload. Handle both Safari permissions, localize the
+    disclosure and usage string, test the payload bounds and two-turn rules, and run the owner
+    Mac checks in `LOOK.md` section 16. This capture mode does not depend on adding the Safari
+    tools or general control (steps 14 and 16).
 
 ### Risks
 
@@ -462,7 +468,8 @@ and both AI turns are hands-on.
 | 14. Safari tools | 6–14 |
 | 15. Mail tools | 6–14 |
 | 16. General control | Not sized |
-| **Total with steps 1 to 4** | **78–161** |
+| 17. Safari page-text mode (capture, consent, localized failures, checks) | 8–16 |
+| **Total with steps 1 to 4** | **86–177** |
 
 ## Phases 3 to 7
 
