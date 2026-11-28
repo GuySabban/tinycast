@@ -455,6 +455,9 @@ hands-on run.
 
 ## Phase L step 2: the capture spike (2026-11-20)
 
+The spike, the step 3 bench and the step 4 fixtures were deleted in step 6 (D45); they remain in
+the history of `universal-launcher` before that step.
+
 The throwaway spike `Scripts/fork/look-capture-spike/` (`io.github.guysabban.spotcast.look-capture-spike`,
 signed with `Tinycast Self-Signed`) ran in a Devin macOS VM: macOS 26.6.2 (25G83), one 1600 × 1200
 display at scale 1, Xcode 27 RC. A VM is not the owner's Mac: it runs a remote-desktop app that
@@ -639,6 +642,18 @@ an English and a Hebrew test page shown in Chrome, menu bar and all, and the Heb
 
 `NSDataDetector` also returns `ftp`, `file`, `javascript`, `tel`, `sms` and custom schemes as links;
 `LookDetector` drops them. It reads a date with no time as noon, which the model moves to 09:00.
+
+## Phase L step 6: the on-device reading removed (2026-11-28)
+
+Same kind of Devin macOS VM: macOS 26.6.2, Xcode 27 RC, Dark mode, `AppleLanguages` `en-US`.
+
+| Check | On the VM |
+| --- | --- |
+| `./Scripts/run-tests.sh` | **Pass.** All 124 harnesses in 111 s: step 5's 125 less `LookRecognitionTests`. `LookTests` keeps only the `LookActionURL` and `LookPrompt` checks, so the time-dependent `8 o'clock` case is gone with `LookDetector` |
+| `./Scripts/lint.sh` | **Pass.** 78 warnings, the baseline's count |
+| Model purity grep | **Pass.** Nothing |
+| Debug build, `CODE_SIGNING_ALLOWED=NO` | **Pass.** No compiler warnings; only the two AppIntents lines |
+| The three clipboard files | Identical to `universal-launcher` before step 3 |
 
 ## Repository
 

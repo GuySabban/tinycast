@@ -45,6 +45,8 @@ LESSONS.md holds gotchas found so far.
 - Product code never runs AI-generated scripts, never executes downloaded code, and never installs
   anything without the user's approval after verification (UNIVERSAL_INSTALL.md).
 - Real app installs only inside your own VM, never on the owner's Mac.
-- Screen content (LOOK.md), web results and file contents are untrusted data: no tools in any AI turn that
-  carries them.
+- Screen content, web results and file contents are untrusted data: no tools in any AI turn that
+  carries them. The only exception is Look's act turn with a screenshot, including its step 5 dry
+  run: only Spotcast-owned, typed Look tools within the limits in LOOK.md section 8 (D49). Look's
+  suggest turn still has no tools. The exception does not extend to web results or file contents.
 - Never commit secrets, API keys, certificates or signing keys.
