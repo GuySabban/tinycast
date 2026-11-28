@@ -330,8 +330,9 @@ and failure mapping. `WebSearchSessionTests` uses an in-process `URLProtocol` fo
 **Status.** Steps 1 to 4 are merged and were built for the earlier, on-device design; step 5 of
 that design (PR #14) remains open and on hold until step 6. The owner accepted the new design's
 recommended options for D37, D39, D43 to D48 and D50 to D53 by merging PR #15. He explicitly chose
-D49 (a), so `AGENT_RULES.md` now allows tools in Look's act turn only. The rewritten step 5 has a
-standalone probe; results from the owner's Mac are still needed before proceeding.
+D49 (a), so `AGENT_RULES.md` now allows tools in Look's act turn only. PR #16 contains the
+rewritten step 5 spike. The owner's act trials passed; suggest worked on four screens by his
+assessment, and personal MCP isolation was inconclusive. See `LOOK.md` section 12.
 
 **Objective.** A hotkey, or ⌘L in the open launcher, captures the display under the pointer and
 sends it to the AI. The AI offers up to three actions, the person picks one or writes their own, and
@@ -369,11 +370,12 @@ New:
 
 5. **Tool spike on the owner's Mac**, throwaway code on a branch, no app change: a loopback MCP
    server with one harmless tool given to a Codex turn that also carries a screenshot, and a
-   suggest turn over ten real screens. Settles `LOOK.md` section 12 rows 5 to 8 and 10 to 12, and
-   reads whether the AI service files need a seam edit. If row 7 or 11 fails, stop and
-   ask the owner to choose another way from `LOOK.md` section 6.4 before going on. D49 and D37
-   are decided; the [owner checklist](../../Scripts/fork/look-tool-spike/README.md) describes
-   the runs that still need the owner's signed-in Codex and screens.
+   tool-free suggest turn. The act trials verified rows 7, 8, 11 and 12 of `LOOK.md` section 12
+   for this setup. The owner stopped after four of the planned ten suggest screens, leaving
+   rows 5 and 6 unmeasured against their targets. Recommend one full rerun of the row 10
+   isolation trace before Look ships, not as a blocker for merging the standalone spike. The
+   [spike README](../../Scripts/fork/look-tool-spike/README.md) records the results, the checklist
+   and the AI service seam read.
 6. **Remove the on-device reading** (D45): the helper's `image-stdin` mode and the `Data` entries,
    `LookItem`, `LookDetector`, `LookDate`, `LookRecognitionTests`, the fixtures, the recognition
    bench and the capture spike; `LOOK_HEBREW_OCR.md` marked withdrawn; the ledger rows for L3
@@ -405,8 +407,8 @@ New:
 
 - A person approves a harmful call without reading it. The dialog is the last line of defence.
 - Every Look uploads the screen; an accidental hotkey press on a private page sends it.
-- Step 5 fails: Codex does not take an image and tools in one turn, or does not pass arguments
-  through. Look then needs another way to give tools (`LOOK.md` section 6.4).
+- Codex could regress on image-plus-tool turns or argument delivery despite the passing spike.
+  If either check fails, revisit how Look gives tools (`LOOK.md` section 6.4).
 - Suggestions take seconds. There is no on-device list to fall back on (D52).
 - All of Look depends on Codex's undocumented app-server protocol (R5).
 - macOS re-asks for Screen Recording about monthly. Accepted (D35).
@@ -434,8 +436,8 @@ and both AI turns are hands-on.
   mail, no opened URL and no saved event without a dialog that shows the recipient or URL in full.
   Tried on ten such pages with each tool that exists.
 - A tool call that fails validation never runs and never reaches a shell.
-- During an act turn no MCP server from `~/.codex/config.toml` is running, checked in the process
-  list.
+- No personal MCP server starts or connects from app-server launch through act completion and
+  process exit, checked with process and network traces (`LOOK.md` section 12, row 10).
 - A refused Screen Recording grant, and Codex missing or signed out, each show one row that opens
   the right place.
 - Harnesses, lint and build are clean, and changed lines are within 20% of the seam budget in

@@ -15,6 +15,18 @@ hold. It checks the app-server request shape, one approval and byte-for-byte mar
 tool-free schema request, and rejected HTTP/tool requests. It cannot establish any live Codex
 behaviour, duration or screen recognition.
 
+## Owner results
+
+macOS 27.2 on Apple M3, Codex 0.171.0, model `gpt-6.2-sol`, signed in through ChatGPT.
+Endpoint preflight passed. The short act, 60 s hold and two additional short restart trials
+passed; short restart through initialize was 116 ms median / 137 ms p95.
+
+The owner judged suggestions to work on four of ten screens and chose not to continue the
+cohort now. The 19-of-20 JSON target and quality scores were not measured. Row 10 was
+inconclusive: no personal stdio or HTTP matches, but 135 ambiguous observations before the
+classification fix in `eb69ef93`. Recommend one full isolation rerun before Look ships, not
+as a blocker for merging this spike. See [Look section 12](../../../docs/planning/LOOK.md#step-5-results-on-the-owners-mac-pr-16).
+
 ## Owner-only run: macOS 27.2, M3
 
 Only use screens you are willing to send to OpenAI. Use non-sensitive test content in your real
