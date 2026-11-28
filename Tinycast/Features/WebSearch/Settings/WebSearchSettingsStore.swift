@@ -37,6 +37,14 @@ final class WebSearchSettingsStore {
         refreshKeyStatus()
     }
 
+    @discardableResult
+    func reload() -> Bool {
+        let enabled = defaults.object(forKey: Self.enabledKey) as? Bool ?? true
+        guard isEnabled != enabled else { return false }
+        isEnabled = enabled
+        return true
+    }
+
     /// A presence check only, so it never shows the Keychain's password prompt.
     func refreshKeyStatus() {
         do {

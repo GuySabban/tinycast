@@ -11,7 +11,16 @@ struct WebSearchSettingsSection: View {
     var body: some View {
         let settings = core.webSearchSettings
         Section {
-            Toggle(isOn: Binding(get: { settings.isEnabled }, set: { core.webSearchCoordinator.setEnabled($0) })) {
+            Toggle(isOn: Binding(
+                get: { settings.isEnabled },
+                set: { enabled in
+                    if core.mainApp != nil {
+                        settings.isEnabled = enabled
+                    } else {
+                        core.webSearchCoordinator.setEnabled(enabled)
+                    }
+                }
+            )) {
                 Text("Show web results")
                 Text(Self.subtitle)
             }
@@ -56,7 +65,9 @@ struct WebSearchSettingsSection: View {
 
     private func save(_ key: String?) {
         do {
-            try core.webSearchSettings.setKey(key)
+            let settings = core.webSearchSettings
+            try settings.setKey(key)
+            core.mainApp?.send(.webSearchKeyChanged(removed: settings.keyStatus == .missing))
             draft = ""
             failure = nil
         } catch {

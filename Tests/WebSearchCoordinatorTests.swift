@@ -38,7 +38,9 @@ struct WebSearchCoordinatorTests {
         await onlyWebLinksOpen()
         await copyingALink()
         await switchingOffStopsTheSearch()
+        await reloadingTheSwitchStopsTheSearch()
         await removingTheKeyForgetsResults()
+        await reloadingTheKeyForgetsResults()
         await removingTheKeyStopsASearch()
         await storingAKeyClearsTheMissingKeyRow()
         await aRefusedKeychainIsNotAMissingKey()
@@ -60,6 +62,7 @@ struct WebSearchCoordinatorTests {
 
     struct World {
         let settings: WebSearchSettingsStore
+        let settingsPeer: WebSearchSettingsStore
         let session: WebSearchSession
         let coordinator: WebSearchCoordinator
         let core: AppCore
@@ -108,7 +111,8 @@ struct WebSearchCoordinatorTests {
             openURL: { opened.value.append($0) },
             copyText: { copied.value.append($0); return true })
         await body(World(
-            settings: settings, session: session, coordinator: coordinator, core: core, palette: palette,
+            settings: settings, settingsPeer: .init(defaults: defaults, keychain: keychain),
+            session: session, coordinator: coordinator, core: core, palette: palette,
             settingsWindow: settingsWindow, opened: opened, copied: copied))
     }
 
@@ -295,6 +299,37 @@ struct WebSearchCoordinatorTests {
             do { try w.settings.setKey(nil) } catch { return expect(false, "remove threw \(error)") }
             expect(w.session.results.isEmpty, "removing the key empties memory")
             expect(w.coordinator.launcherRows(for: "swift").isEmpty, "and the rows")
+        }
+    }
+
+    static func reloadingTheSwitchStopsTheSearch() async {
+        ExaFixture.reset(.hold)
+        await world("peer-switch-off") { w in
+            w.coordinator.search("swift")
+            await expectSettles("the request is in flight") { ExaFixture.requests.count == 1 }
+            w.settingsPeer.isEnabled = false
+            w.coordinator.reloadSettings()
+            expect(!w.coordinator.isAvailable, "main adopts off from the other Settings store")
+            await expectSettles("the peer's off switch stops the request") { ExaFixture.stopped == 1 }
+            expect(w.coordinator.launcherRows(for: "swift").isEmpty, "the peer's off switch hides rows")
+            ExaFixture.release(lite)
+        }
+    }
+
+    static func reloadingTheKeyForgetsResults() async {
+        ExaFixture.reset(.serve(200, lite))
+        await world("peer-remove-key") { w in
+            w.coordinator.search("swift")
+            await settled(w.session)
+            expect(!w.coordinator.launcherRows(for: "swift").isEmpty, "results before peer removal")
+            do { try w.settingsPeer.setKey(nil) } catch { return expect(false, "remove threw \(error)") }
+            w.coordinator.keyDidChange(removed: true)
+            expect(w.settings.keyStatus == .missing, "main rechecks Keychain after peer removal")
+            expect(!w.coordinator.isAvailable, "the fallback is no longer available")
+            expect(w.session.results.isEmpty, "peer removal empties main's memory")
+            do { try w.settingsPeer.setKey("replacement") } catch { return expect(false, "store threw \(error)") }
+            w.coordinator.keyDidChange(removed: false)
+            expect(w.coordinator.isAvailable, "main sees a key saved again in Settings")
         }
     }
 

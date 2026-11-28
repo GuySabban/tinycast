@@ -60,6 +60,9 @@ before resolving it. New files the fork owns (`Scripts/fork/`, `docs/planning/`)
 | Clipboard (v0.12.15) | `Scripts/run-tests.sh` | fork harness block | Registered `StagedImageClipboardTests` with the shipped manager, store and pasteboard reader | Reproduces the filename-over-pixels bug on a private pasteboard without touching the user's clipboard |
 | L4 | `Scripts/run-tests.sh` | fork harness block, after `StagedImageClipboardTests` | Added a one-line `run LookTests` entry | Compiles `Tinycast/Features/Look/Model/*.swift`, which is fork-owned |
 | L5 | `Scripts/run-tests.sh` | after the fork harness block | Run the Node tool spike tests in the full suite or as `LookToolSpikeTests` | Tests the fork-only probe and live loopback offline, without Codex or screenshots of the user's screen |
+| v0.17.0 | `Tinycast/Features/Launcher/Model/CommandID.swift` | `tint` | Added `.searchWeb` to the blue arm | Upstream's icon tint switch is exhaustive; web search shares the tint of the browser fallback |
+| v0.17.0 | `Tinycast/App/AppCore+SettingsProcess.swift` | `reloadDefaultsStores()` | Reload the fork's raw-key settings in both roles; only main applies engine effects | Honours both switches without moving them into `AppSettings`, backups, or `settings.json` (D6) |
+| v0.17.0 | `Tinycast/Features/Settings/Service/SettingsAction.swift`, `Tinycast/Features/Settings/Service/SettingsProcessController.swift` | `webSearchKeyChanged`, `perform(_:)` | Send and handle a Keychain-change notification containing only a removal flag | Main rechecks Keychain and invalidates its search session on removal; the Exa key never travels over IPC |
 
 `Tinycast.xcodeproj/project.pbxproj` is regenerated from `project.yml` by `xcodegen generate` and is
 never edited by hand.

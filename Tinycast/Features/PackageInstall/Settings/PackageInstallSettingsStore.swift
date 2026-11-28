@@ -16,4 +16,12 @@ final class PackageInstallSettingsStore {
         self.defaults = defaults
         isEnabled = defaults.object(forKey: Self.enabledKey) as? Bool ?? true
     }
+
+    @discardableResult
+    func reload() -> Bool {
+        let enabled = defaults.object(forKey: Self.enabledKey) as? Bool ?? true
+        guard isEnabled != enabled else { return false }
+        isEnabled = enabled
+        return true
+    }
 }

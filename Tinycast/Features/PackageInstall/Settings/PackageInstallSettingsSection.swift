@@ -5,11 +5,18 @@ struct PackageInstallSettingsSection: View {
     @Environment(AppCore.self) private var core
 
     var body: some View {
-        let coordinator = core.packageInstallCoordinator
+        let settings = core.packageInstallSettings
         Section {
             Toggle(
                 isOn: Binding(
-                    get: { coordinator.settings.isEnabled }, set: { coordinator.setEnabled($0) })
+                    get: { settings.isEnabled },
+                    set: { enabled in
+                        if core.mainApp != nil {
+                            settings.isEnabled = enabled
+                        } else {
+                            core.packageInstallCoordinator.setEnabled(enabled)
+                        }
+                    })
             ) {
                 Text("Install apps with Homebrew")
                 Text(Self.subtitle)

@@ -80,6 +80,17 @@ struct PackageInstallCoordinatorTests {
             coordinator.candidate(for: "install blender") != nil
         }
 
+        fixture.settingsPeer.isEnabled = false
+        coordinator.reloadSettings()
+        expect(!fixture.settings.isEnabled, "main adopts the switch from the other Settings store")
+        expect(coordinator.candidate(for: "install blender") == nil, "the peer's off switch hides the card")
+        expect(!fixture.store.isFetching, "the peer's off switch stops the index")
+        fixture.settingsPeer.isEnabled = true
+        coordinator.reloadSettings()
+        await expectSettles("the peer can also turn the card back on") {
+            coordinator.candidate(for: "install blender") != nil
+        }
+
         // The lookup's pill waits out the delay, so a quick reply never shows its costly spinner.
         let core = fixture.core
         expect(PackageInstallCoordinator.lookupPillDelay == .milliseconds(300), "the pill waits 300 ms")
@@ -134,6 +145,7 @@ struct PackageInstallCoordinatorTests {
         let apps: URL
         let store: CaskIndexStore
         let settings: PackageInstallSettingsStore
+        let settingsPeer: PackageInstallSettingsStore
         /// Held here because the coordinator keeps it `unowned`, as the app's `AppCore` owns it.
         let core = AppCore()
         let coordinator: PackageInstallCoordinator
@@ -167,7 +179,9 @@ struct PackageInstallCoordinatorTests {
             store = CaskIndexStore(
                 cacheURL: cache, baseURL: URL(string: "https://unreachable.test/")!,
                 now: { PackageInstallCoordinatorTests.now })
-            settings = PackageInstallSettingsStore(defaults: UserDefaults(suiteName: UUID().uuidString)!)
+            let defaults = UserDefaults(suiteName: UUID().uuidString)!
+            settings = PackageInstallSettingsStore(defaults: defaults)
+            settingsPeer = PackageInstallSettingsStore(defaults: defaults)
             coordinator = PackageInstallCoordinator(
                 settings: settings, index: store, appIndex: AppIndex(),
                 paletteCoordinator: PaletteCoordinator(), settingsCoordinator: SettingsCoordinator(),
