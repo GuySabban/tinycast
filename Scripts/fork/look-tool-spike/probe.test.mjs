@@ -7,7 +7,7 @@ import { createInterface } from "node:readline";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { listen, receipt, toolName } from "./loopback.mjs";
-import { report, settings as ownerSettings } from "./owner-checks.mjs";
+import { primaryCaptureContext, report, settings as ownerSettings } from "./owner-checks.mjs";
 import { analyzeTrace, packetRow } from "./owner-trace.mjs";
 import { run } from "./probe.mjs";
 
@@ -144,6 +144,15 @@ if (process.argv.at(-1) === "--json") {
 } else if (process.argv.at(-1) === "app-server") {
     await fakeAppServer();
 } else {
+    test("owner capture rejects an off-primary, straddling or missing front window", () => {
+        const app = ["TextEdit", "com.apple.TextEdit"];
+        const sample = { app, display: [0, 0, 1920, 1080] };
+        assert.deepEqual(primaryCaptureContext({ ...sample, window: [1120, 40, 800, 600] }), app);
+        for (const window of [[1920, 40, 800, 600], [-1000, 40, 800, 600], [1121, 40, 800, 600], undefined]) {
+            assert.equal(primaryCaptureContext({ ...sample, window }), null);
+        }
+    });
+
     test("owner checks default to the act retry and accept suggest-only and a separate comparison", () => {
         assert.deepEqual(ownerSettings(["--model", "gpt-spike"]), {
             model: "gpt-spike", codex: "codex", from: "act", comparison: false

@@ -92,7 +92,7 @@ export function report(state) {
             rows.filter(({ language }) => language === "y" || language === "n").length);
     }
     if (state.stop) out.push("Stopped: " + safe(state.stop,
-        /^(environment|endpoint preflight|capture or Preview approval|act safety gate|personal MCP activity|suggest endpoint\/setup|interrupted|local check)$/));
+        /^(environment|endpoint preflight|capture or Preview approval|front window not verified on main display|act safety gate|personal MCP activity|suggest endpoint\/setup|interrupted|local check)$/));
     out.push("Cleanup: " + safe(state.cleanup, /^(deleted|kept|not needed|could not delete)$/));
     return out.join("\n");
 }
@@ -137,9 +137,12 @@ function number(text, pattern) {
 }
 
 function capture(path, options) {
-    if (options.interrupted || local("/usr/sbin/screencapture", ["-x", "-m", path]).status !== 0) {
+    if (options.interrupted) throw new Stop("interrupted");
+    const app = frontApp();
+    if (local("/usr/sbin/screencapture", ["-x", "-m", path]).status !== 0) {
         throw new Stop("capture or Preview approval");
     }
+    return app;
 }
 
 function dimensions(path) {
@@ -163,7 +166,7 @@ function jpeg(source, path, edge) {
 }
 
 async function countdown(ask, label) {
-    await ask("Press Enter, then bring " + label + " to the front.");
+    await ask("Press Enter, then bring " + label + " to the front on the main display.");
     for (let seconds = 5; seconds > 0; seconds -= 1) {
         console.log("Capture in " + seconds + "…");
         await delay(1000);
@@ -243,15 +246,38 @@ async function act(options, ask, state, inventory, authorizeTrace) {
     if (actError) throw actError;
 }
 
+export function primaryCaptureContext({ app, window, display }) {
+    const rectangle = (bounds) => Array.isArray(bounds) && bounds.length === 4 &&
+        bounds.every(Number.isFinite) && bounds[2] > 0 && bounds[3] > 0;
+    if (!Array.isArray(app) || app.length !== 2 || !app.every((part) => typeof part === "string" && part) ||
+        !rectangle(window) || !rectangle(display)) return null;
+    const [x, y, width, height] = window;
+    const [left, top, displayWidth, displayHeight] = display;
+    return x >= left && y >= top && x + width <= left + displayWidth && y + height <= top + displayHeight
+        ? app : null;
+}
+
 function frontApp() {
     const result = local("/usr/bin/osascript", ["-l", "JavaScript", "-e",
-        'ObjC.import("AppKit"); var a=$.NSWorkspace.sharedWorkspace.frontmostApplication; ' +
-        'JSON.stringify([ObjC.unwrap(a.localizedName), ObjC.unwrap(a.bundleIdentifier)])']);
+        `ObjC.import("AppKit");
+        ObjC.import("CoreGraphics");
+        var a = $.NSWorkspace.sharedWorkspace.frontmostApplication;
+        var flags = $.kCGWindowListOptionOnScreenOnly | $.kCGWindowListExcludeDesktopElements;
+        var windows = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(flags, $.kCGNullWindowID)));
+        var front = windows.find(function(w) { return w.kCGWindowOwnerPID === a.processIdentifier && w.kCGWindowLayer === 0; });
+        var b = front && front.kCGWindowBounds;
+        var d = $.CGDisplayBounds($.CGMainDisplayID());
+        JSON.stringify({
+            app: [ObjC.unwrap(a.localizedName), ObjC.unwrap(a.bundleIdentifier)],
+            window: b && [b.X, b.Y, b.Width, b.Height],
+            display: [d.origin.x, d.origin.y, d.size.width, d.size.height]
+        });`]);
     try {
-        const [name, bundle] = JSON.parse(result.stdout);
-        if (typeof name === "string" && typeof bundle === "string" && name && bundle) return [name, bundle];
-    } catch { /* no reliable frontmost app */ }
-    throw new Stop("capture or Preview approval");
+        const app = result.status === 0 && primaryCaptureContext(JSON.parse(result.stdout));
+        if (app) return app;
+    } catch { /* no reliable front window geometry */ }
+    console.log("Could not verify the front window is entirely on the main display. Move it there and rerun.");
+    throw new Stop("front window not verified on main display");
 }
 
 async function suggestPair(options, ask, screen, rows, comparison) {
@@ -295,8 +321,7 @@ async function suggest(options, ask, state) {
         if (!/^[a-z]{2,8}(?:-[a-z0-9]{1,8}){0,5}$/i.test(language)) throw new Stop("suggest endpoint/setup");
         await countdown(ask, "screen " + id);
         const source = join(options.dir, id + ".png");
-        capture(source, options);
-        const [name, bundle] = frontApp();
+        const [name, bundle] = capture(source, options);
         const images = ["large", "compact"].map((size) => join(options.dir, id + "-" + size + ".jpg"));
         const large = jpeg(source, images[0], 4096);
         const compact = jpeg(source, images[1], large.edge > 2048 ? 2048 : Math.max(1, Math.floor(large.edge * 0.75)));
