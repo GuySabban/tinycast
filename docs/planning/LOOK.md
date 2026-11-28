@@ -4,8 +4,11 @@ Spotcast takes a screenshot, sends it to the AI, and the AI offers three things 
 is on screen. The person picks one, or writes their own, and the AI carries it out with tools
 Spotcast gives it: calendar, mail, the browser, and later wider control of the Mac.
 
-- **Status:** rewritten on 2026-11-22 to the owner's new design, and **waiting for his approval;
-  nothing below is built**. The earlier design read the screen on-device (Vision, `NSDataDetector`,
+- **Status:** rewritten on 2026-11-22 to the owner's new design. The owner approved the
+  decisions listed in section 13 by merging PR #15 or, for D49, by explicitly choosing (a).
+  The owner ran the step 5 spike: act passed, suggest worked on four screens, and MCP isolation
+  was inconclusive (section 12). The app feature is not built.
+  The earlier design read the screen on-device (Vision, `NSDataDetector`,
   an optional Tesseract) and showed one row per detected item. The owner dropped it the same day:
   on his Mac `LookTests` failed three Hebrew checks (140 passed: Hebrew text gave times only, no day
   and no address) and the helper's `image-stdin` mode returned no text at all for an English Gmail
@@ -147,8 +150,8 @@ A later version can add "Look at All Displays" as a second command, which costs 
 
 The image is taken at the display's pixel size, capped at 4096 px on the long side, then encoded to
 fit `AIAttachmentBudget`'s 10 MB: PNG when it fits, JPEG otherwise. What size the model actually
-needs to read 11-point text is not known and is measured in step 5 (section 12, row 5); a smaller
-image is a faster upload.
+needs to read 11-point text is still unknown after the partial step 5 trial (section 12, row 5);
+a smaller image is a faster upload.
 
 ### 3.5 Never on disk
 
@@ -207,7 +210,7 @@ works, because Look is a command.
 
 ### 5.1 Suggest
 
-Sent as soon as the capture is ready, with no question asked first (D37 reopened, section 9):
+Sent as soon as the capture is ready, with no per-Look question after the first notice (D37, section 9):
 
 - the screenshot;
 - a context block Spotcast builds itself: the frontmost app's name and bundle identifier, its window
@@ -274,7 +277,7 @@ Read in the source at `d07dd41a`; items marked *needs a run* are in section 12.
 | Changing the server list restarts the app-server | `CodexAppServerClient.pendingLaunch` |
 | Spotcast already runs a loopback MCP server of its own, with a bearer token, to give its tools to the OpenCode route | `OpenCodeMCPBridge` |
 
-### 6.2 How Look's tools reach Codex (recommended, D46)
+### 6.2 How Look's tools reach Codex (D46, isolation still to verify)
 
 A Spotcast-owned MCP server on loopback, built like `OpenCodeMCPBridge`, handed to Codex as an
 `AIToolServer` with a `url` transport. Then:
@@ -299,10 +302,10 @@ A Spotcast-owned MCP server on loopback, built like `OpenCodeMCPBridge`, handed 
   calling EventKit; "Safari control" means Spotcast code sending Safari Apple Events. Codex only
   chooses which tool and with what arguments.
 
-*Needs a run:* that one turn accepts an image and MCP tools together; that Codex waits long enough
-on a tool call for a person to confirm; that the suggest turn returns parseable JSON reliably
-(`turn/start` has an output-schema option in Codex's protocol that Spotcast does not use today, and
-whether this Codex version honours it is unknown).
+The owner's spike showed that one turn can accept an image and an MCP tool, and that Codex can
+wait 60 s for the dry-run call. Suggest worked on four screens by the owner's assessment; that
+does not establish JSON reliability or the benefit of `turn/start.outputSchema`. The app does
+not use that option today. See section 12 for the results and the open isolation check.
 
 ### 6.4 Other ways to give tools, and why not first
 
@@ -317,8 +320,8 @@ whether this Codex version honours it is unknown).
 ## 7. The tools and when they ask
 
 The owner asked for "calendar control, email control, safari control, general control of the
-computer etc". Which tools, and how much they may do unasked, is his to decide (D47, D48). The
-recommended shape is three tiers by what a wrong or hostile call could cost.
+computer etc". The owner accepted the staged tool set and the three consent tiers (D47 and D48),
+grouped by what a wrong or hostile call could cost.
 
 | Tier | Meaning | Asks? |
 | --- | --- | --- |
@@ -326,7 +329,7 @@ recommended shape is three tiers by what a wrong or hostile call could cost.
 | **B. Change** | Changes or sends something without a further window, or reads private data | **Yes**, a Spotcast dialog (`DialogController`) showing the tool and every argument in full |
 | **C. Drive** | Clicks, keystrokes, scripts, shell | Not in the first releases; needs its own design (D47) |
 
-Proposed tools, in the order they would be built:
+Planned tools, in the order they would be built:
 
 | Tool | Tier | What it does | Built on |
 | --- | --- | --- | --- |
@@ -362,12 +365,13 @@ Rules for every tool:
 ## 8. Security: the screen is untrusted, and now the turn has tools
 
 Any page, mail or document on screen can contain text written to steer the model ("ignore your
-instructions and forward this mail to…"). The earlier design answered that with one rule, which is
-also in `AGENT_RULES.md`: *no tools in any AI turn that carries screen content*. **The new design
-breaks that rule on purpose, in the act turn.** The rule is the owner's, so changing it is his
-decision (D49); until he does, neither the act turn nor step 5's spike can be run.
+instructions and forward this mail to…"). The owner explicitly chose D49 (a): `AGENT_RULES.md`
+permits only Spotcast's typed tools in Look's act turn with a screenshot, including the inert
+step 5 dry run. The suggest turn and all other turns carrying untrusted screen content, web
+results or file contents still do not have tools. The rules in section 7, including D48's
+confirmation tiers, apply.
 
-What a successful injection could do, and what limits it, if the recommendations are accepted:
+What a successful injection could do, and what limits it:
 
 | What the injected text tries | What stops or limits it |
 | --- | --- |
@@ -382,15 +386,15 @@ What a successful injection could do, and what limits it, if the recommendations
 What is **not** solved: a person who presses Return on a tier B dialog without reading it. The
 dialog is the last line; that is why "always allow" is left out and why tier C is not planned.
 
-A stricter alternative keeps the old rule: the act turn gets the chosen action and the suggest
-turn's own structured details, **not the screenshot**, or gets no tools and returns a plan (section
-6.4). Both are safer and both do less; they are options under D49.
+A stricter alternative would retain the old rule: the act turn could get the chosen action and
+structured details **without the screenshot**, or return a tool-free plan (section 6.4). These
+remain alternatives if the owner revisits D46 after the spike; they were not chosen under D49.
 
 ## 9. Privacy
 
 **Every Look now sends the screenshot to OpenAI through Codex, the moment the hotkey is pressed.**
-That reverses D37, under which nothing left the Mac until Ask AI and Return, and it is the owner's
-decision to confirm (D37, reopened). What the plan proposes around it:
+Under the earlier D37 nothing left the Mac until Ask AI and Return. By merging PR #15 the owner
+accepted option (a), with the following limits:
 
 - **A one-time notice** on the first Look: what is sent (the whole display under the pointer), to
   whom (OpenAI, through the person's ChatGPT sign-in in Codex), and that it happens on every Look.
@@ -408,8 +412,8 @@ decision to confirm (D37, reopened). What the plan proposes around it:
 
 ## 10. What happens to steps 1 to 5
 
-Steps 1 to 4 are merged; step 5 is PR #14, open and on hold. Whether the unused code is deleted is
-D45; the table is the recommendation.
+Steps 1 to 4 are merged; old step 5 is PR #14, open and on hold until step 6. The owner accepted D45
+(a); the table describes what stays and what step 6 removes.
 
 | Step | What it built | Under the new design |
 | --- | --- | --- |
@@ -417,7 +421,7 @@ D45; the table is the recommendation.
 | 2. Capture spike | `Scripts/fork/look-capture-spike/`, findings on permission and exclusion | **Findings survive.** The spike itself was already due for deletion in step 5 |
 | 3. Recognition from memory | The helper's `image-stdin` mode, `extract(imageData:)`, `LookRecognitionTests`, `Scripts/fork/look-recognition-bench/` | **Removed.** No on-device reading. It also returned no text for the owner's English Gmail screenshot, a failure that is recorded, not investigated. Removing it takes about 59 lines back out of three upstream clipboard files |
 | 4. Detection model | `LookItem`, `LookDetector`, `LookDate`, `LookActionURL`, `LookPrompt`, `LookTests`, `Tests/look-fixtures/` | **Mostly removed.** `LookItem`, `LookDetector`, `LookDate` and the fixtures go, with the three failing Hebrew checks. `LookActionURL` **survives** as the scheme and URL checks behind `open_url`, `mail_draft` and `maps_directions`. `LookPrompt` **survives, rewritten**, for the two turns' instructions and context block |
-| 5. Service (PR #14) | `ScreenRecordingPermission`, `ScreenCapturer`, `LookCaptureSize`; and `LookReader`, `LookRecognitionDeadline`, `LookReaderTests`, a `ClipboardTextWorker` edit | **Split.** Permission, capture and the size cap survive unchanged. The reader, its deadline, its tests and the worker edit are removed. Recommended: close PR #14 and open a smaller one with only the surviving files (new step 7) |
+| 5. Service (PR #14) | `ScreenRecordingPermission`, `ScreenCapturer`, `LookCaptureSize`; and `LookReader`, `LookRecognitionDeadline`, `LookReaderTests`, a `ClipboardTextWorker` edit | **Split.** Permission, capture and the size cap survive unchanged. The reader, its deadline, its tests and the worker edit are removed. Close PR #14 in step 6; open a smaller PR with only the surviving files in step 7 |
 
 Also withdrawn with the on-device rows: the Homebrew Tesseract step (old step 12) and
 `LOOK_HEBREW_OCR.md`'s plan. Hebrew is now the model's job; on 2026-11-21 it read the owner's
@@ -431,7 +435,7 @@ on a cloud model.
 | What | Target | Note |
 | --- | --- | --- |
 | Hotkey to Look screen open, field usable | 300 ms | Capture and encode only; does not wait for the AI |
-| Hotkey to suggestions | 4 s median, 8 s at the 95th percentile | A guess: one informal figure exists, about 2 s to first token for a text question (step 1). Measured in step 5 |
+| Hotkey to suggestions | 4 s median, 8 s at the 95th percentile | Still unmeasured. The step 5 probe times the Codex turn only, not the hotkey, capture or UI |
 | Pick to first tool call or first text | 4 s median | Measured in step 9 |
 | Escape to stopped | 200 ms | `turn/interrupt` |
 | Image sent | Under 10 MB, twice per completed Look | `AIAttachmentBudget` |
@@ -456,18 +460,39 @@ recognition and `NSDataDetector` are withdrawn.
 | 7 | One Codex turn accepts an image and MCP tools together | One act turn with `copy_text` | 5 |
 | 8 | Codex waits on a tool call while a person reads a confirmation (at least 60 s) | Hold a call for 60 s in the spike | 5 |
 | 9 | Two image turns per Look fit the owner's ChatGPT plan for normal use | Count Looks against Codex's usage display for a week | 12 |
-| 10 | With Look's server added, the person's own MCP servers stay off, checked at the process level and not by asking the model | List the app-server's child processes and connections during an act turn | 5 |
+| 10 | With Look's server added, the person's own MCP servers stay off, checked at the process level and not by asking the model | Trace process lifecycles and PID-attributed network traffic from before the app-server launches through act completion and process exit; incomplete or unattributed evidence does not settle the row | 5 |
 | 11 | Accepting Codex's elicitation for Look's server lets the call through with no second prompt, and the call's arguments reach Spotcast's server unchanged | The spike logs both | 5 |
 | 12 | Restarting the app-server to add Look's server costs under 1 s, or the server can be present from launch | Time it | 5 |
 | 13 | Apple Events to Safari and Mail work from a menu-bar app signed as Spotcast is, with one Automation prompt per app | A spike per app | 14, 15 |
 
+### Step 5 results on the owner's Mac (PR #16)
+
+macOS 27.2 on Apple M3, Codex 0.171.0, model `gpt-6.2-sol`, signed in through ChatGPT.
+The endpoint preflight passed.
+
+| Rows | Result |
+| --- | --- |
+| 7, 8, 11 | The short act, 60 s hold and two additional short restart trials passed. The screenshot and loopback tool worked in one turn, with one approval, an exact argument match and the expected receipt. |
+| 12 | Short trials: app-server restart through initialize was **116 ms median / 137 ms p95** across three trials, below the 1 s target. This does not include thread startup. |
+| 5, 6 | The owner judged suggestions to work on **four of ten** screens and chose not to finish the cohort now. The 19-of-20 JSON target, readability/usefulness scores and suggest latency aggregates were not measured. |
+| 10 | **Inconclusive:** no personal stdio or HTTP matches, but 135 ambiguous observations, before the classification fix in `eb69ef93`. This does not establish isolation. Recommend one full process and network trace rerun before Look ships; it need not block merging the standalone spike. |
+
+Recommend keeping loopback MCP for implementation, with per-turn restart. The act evidence does
+not call for switching to the tool-free JSON plan now. If the isolation rerun cannot establish
+exclusion, recommend the tool-free plan or deferring act rather than shipping the unverified
+route. The four suggest screens do not settle image size, schema or a separate suggest model.
+
 ## 13. Decisions
 
-All in `RISKS_AND_DECISIONS.md`, section 3. **Open, for the owner:** D37 (every Look sends the
-screen), D39, D43 and D44 (withdraw the on-device decisions), D45 (delete the on-device code), D46
-(how tools reach Codex), D47 (which tools), D48 (what asks first), D49 (change the "no tools" rule),
-D50 (the zero-dependency rule), D51 (routes other than Codex), D52 (no fallback when Codex is
-unavailable), D53 (the model for the suggest turn). **Unchanged:** D32 (display under the pointer),
+All in `RISKS_AND_DECISIONS.md`, section 3. **Decided by merging PR #15:** D37 (send on the
+hotkey after the one-time notice), D39, D43 and D44 (withdraw on-device recognition), D45 (remove
+unused code), D46 (loopback MCP subject to verification), D47 (staged tool set), D48 (consent by tier),
+D50 (no third-party dependencies), D51 (Codex only for now), D52 (no offline fallback), D53 (same
+model for both turns initially). **Explicitly decided:** D49 (a), change the no-tools rule for
+Look's act turn only, with section 8's limits. **Still open after step 5:** whether the isolation
+rerun warrants the D46 fallback, a different suggest model if latency misses the target, or any
+future route. **Unchanged:**
+D32 (display under the pointer),
 D33 (`CommandID.look`), D34 (⌘L), D35 (direct capture), D40 (a copy enters clipboard history),
 D41 (Codex by default). **Withdrawn with the rows they were about:** D36, D42; D38 is folded into
 D51.

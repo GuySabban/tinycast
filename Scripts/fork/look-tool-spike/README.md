@@ -1,0 +1,287 @@
+# Look phase L, step 5: Codex tool spike
+
+Developer probe only. It does not change or run Spotcast, use its Screen Recording grant, alter
+Codex config, or touch the pasteboard. The sole tool is an inert `copy_text`: it verifies one
+known marker without copying, opening, sending or saving anything. The suggest trial has no
+MCP server, no web search and no shell or script tool. Both turns use the existing route's
+ephemeral thread and read-only, offline sandbox settings. The Codex client itself still connects
+to OpenAI. The input file is read as a data URL; the probe does not create screenshot files.
+
+## VM evidence (not the owner run)
+
+`./Scripts/run-tests.sh LookToolSpikeTests` runs the offline protocol fixture. It uses a fake
+Codex child, a synthetic PNG, and a real, authenticated loopback HTTP connection with a short
+hold. It checks the app-server request shape, one approval and byte-for-byte marker handling, the
+tool-free schema request, and rejected HTTP/tool requests. It cannot establish any live Codex
+behaviour, duration or screen recognition.
+
+## Owner results
+
+macOS 27.2 on Apple M3, Codex 0.171.0, model `gpt-6.2-sol`, signed in through ChatGPT.
+Endpoint preflight passed. The short act, 60 s hold and two additional short restart trials
+passed; short restart through initialize was 116 ms median / 137 ms p95.
+
+The owner judged suggestions to work on four of ten screens and chose not to continue the
+cohort now. The 19-of-20 JSON target and quality scores were not measured. Row 10 was
+inconclusive: no personal stdio or HTTP matches, but 135 ambiguous observations before the
+classification fix in `eb69ef93`. Recommend one full isolation rerun before Look ships, not
+as a blocker for merging this spike. See [Look section 12](../../../docs/planning/LOOK.md#step-5-results-on-the-owners-mac-pr-16).
+
+## Owner-only run: macOS 27.2, M3
+
+Only use screens you are willing to send to OpenAI. Use non-sensitive test content in your real
+apps; hide notifications, real mail, personal data and unrelated windows. The Terminal commands
+below explicitly create local test fixtures; do not use a synced folder, commit them, redirect
+the probe output to a file, or share screenshots, transcripts, process arguments or endpoints.
+The Look feature's in-memory capture and TCC checks are later steps, not covered by this probe.
+
+### One-command checks (recommended)
+
+In macOS Terminal from the PR checkout, pause other Codex sessions and leave your personal MCP
+servers configured. Terminal needs Screen Recording for capture and Full Disk Access for the
+process trace. Use Node 22+ and Codex signed in through ChatGPT. No Claude Code is needed.
+
+```sh
+git pull --ff-only
+./Scripts/fork/look-tool-spike/run-owner-checks.sh --model YOUR_CODEX_MODEL_ID
+```
+
+- Bring the TextEdit fixture and ten mock screens to the front during their countdowns. With
+  multiple displays, put the entire window on the main display. The
+  runner asks for each screen's interface language (Enter for `en-US`) and takes the app and
+  bundle ID from the frontmost app. It uses a synthetic window title rather than reading yours.
+- Inspect the exact file(s) in Preview before answering `y`. The runner refuses to upload
+  without that answer, and the probe verifies the endpoint again for every turn.
+- Authorize both traces with the one sudo prompt if macOS asks. The runner starts both traces
+  before the short act, checks the `true` and `nc` evidence, and only proceeds with the hold and
+  restarts after a successful short act. It stops on act failure or detected personal MCP
+  activity. Missing, dropped or ambiguous trace evidence is reported as inconclusive, not pass.
+  The runner compares process/packet observations with your MCP inventory locally in memory;
+  it does not save trace evidence. Keeping the fixture directory does not make row 10 replayable.
+- Optionally score valid suggest results (1–5 or Enter to skip) and confirm the interface
+  language. Only paste the final aggregate report, not earlier terminal output. Answer `y` to
+  delete the private fixture directory. Revoke Terminal's Full Disk Access if granted for this run.
+
+Use `--from suggest` if you already completed the act retry and want to skip that stage (ten
+fresh suggest samples; endpoint preflight still runs). Use `--from act` to start at act, or
+`--no-schema` to repeat the same ten samples afterward in a separate prompt-only cohort. For
+Codex outside PATH, pass `--codex /absolute/path/to/codex`. The steps below remain available
+as a manual fallback, including for investigations where attribution alone is inconclusive.
+
+### Act: rows 7, 8, 10, 11 and 12
+
+1. In the PR checkout, confirm `sw_vers -productVersion`, `system_profiler SPHardwareDataType`
+   (check the Chip field), `node --version` (Node 22+), `codex --version`, and
+   `codex login status` (signed in through ChatGPT). Run `codex mcp list` to identify your normal
+   configured servers privately; note which ones launch a program and which use an HTTP host
+   and port. Leave them configured for the exclusion check. Pause other Codex sessions so they
+   are not confused with the probe. Use the normal OpenAI backend (no custom provider, endpoint
+   or API key). ChatGPT login alone does not verify the upload destination.
+2. In Terminal at repo root, set up the probe and a private fixture directory. Set `model` to the
+   exact Codex model ID you want to test; use it for both turns (D53).
+
+   ```sh
+   probe="$PWD/Scripts/fork/look-tool-spike/probe.mjs"
+   shots=$(mktemp -d "$HOME/spotcast-look-screens.XXXXXX")
+   model='REPLACE_WITH_YOUR_CODEX_MODEL_ID'
+   ```
+
+   Run this endpoint preflight. It sends no screenshot and starts no turn. If Codex is not on
+   PATH, add `--codex /absolute/path/to/codex` to this and the later probe commands.
+
+   ```sh
+   node "$probe" check-endpoint
+   ```
+
+   Proceed only if it reports `Verified Codex endpoint: provider=openai, base URL=https://chatgpt.com/backend-api/.`
+   If it fails or reports an override, stop without uploading. The probe rejects configured
+   base-URL overrides, including `openai_base_url`, `chatgpt_base_url`, and provider `base_url`
+   entries, as well as environment overrides such as `OPENAI_BASE_URL`. Each act or suggest run repeats
+   the check on the app-server that would handle the image, including the armed server for act.
+   A refusal names the settings that failed the check. For URLs, it shows only the scheme and
+   host; for environment variables, only their names. Keep the output private and share only
+   the setting names, not the displayed hosts.
+
+3. In TextEdit, turn off Smart Quotes under **Edit ▸ Substitutions** before typing. On the main
+   display, put a TextEdit document on screen with
+   `LOOK SPIKE: M3TEST5271 שלום` in a single clearly visible line, or choose your own
+   harmless marker. Run the local-only capture block in Terminal, switch to the document within
+   five seconds, and allow Terminal screen capture if prompted.
+
+   ```sh
+   act_image="$shots/act.png"
+   screencapture -x -m -T 5 "$act_image" && open -a Preview "$act_image"
+   ```
+
+   If the capture is above 10 MiB, convert it with `sips -s format jpeg -s formatOptions 85
+   -Z 4096 "$shots/act.png" --out "$shots/act.jpg"` and set `act_image="$shots/act.jpg"`.
+   Inspect the exact file selected for upload in Preview. Proceed only if it shows the marker
+   clearly and contains nothing sensitive or unintended; otherwise recapture. Use the part
+   **after** `LOOK SPIKE: ` exactly as `--expect`. It is compared locally, not put in the prompt.
+
+4. For row 10, start both event traces **before invoking the probe**. In two separate Terminal
+   tabs, set `shots` to the private directory created in step 2 (`printf '%s\n' "$shots"` in
+   the original tab). Run the first block in one tab and the second in the other. Terminal
+   needs Full Disk Access for `eslogger`; the traces use `sudo` and `jq`. If you cannot collect
+   both traces, mark row 10 inconclusive rather than substituting a snapshot.
+
+   ```sh
+   sudo /usr/bin/eslogger fork exec exit | jq --unbuffered -c '
+     {seq: .global_seq_num, pid: .process.audit_token.pid, ppid: .process.ppid,
+      child: .event.fork.child.audit_token.pid, image: .event.exec.target.executable.path,
+      exit: (.event | has("exit"))}
+   ' > "$shots/mcp-process.jsonl"
+   ```
+
+   ```sh
+   sudo /usr/sbin/tcpdump -i pktap,all -nnlq -k INPD 'ip or ip6' > "$shots/mcp-network.txt"
+   ```
+
+   The first trace keeps process IDs, exec paths and lifecycle events, not arguments or
+   environment; the second writes packet summaries, not payloads. Keep both files private.
+   Before launch, run `/usr/bin/true; /usr/bin/nc -z -w 1 127.0.0.1 9` in the original tab.
+   Confirm the first trace has the `/usr/bin/true` exec and the second has the PID-attributed
+   `nc` attempt to port 9 (a refused connection is fine). Leave both traces running.
+
+   Only after the endpoint and Preview checks in steps 2 and 3, run this upload block:
+
+   ```sh
+   node "$probe" act --confirm-upload --image "$act_image" --model "$model" \
+     --expect 'M3TEST5271 שלום'
+   ```
+
+   Check that the short act completed with one accepted elicitation, no subsequent approval
+   request, and one exact marker match (rows 7 and 11). If it fails, follow step 6. The probe
+   names any tool rejection; for a mismatch it prints lengths, comparison results and the first
+   difference (only punctuation, space and format code points are shown), not the received text.
+   A match after any diagnostic transformation is still a failure. Only after a successful
+   short act, rerun the same command with `--hold-60s` appended. Keep both traces running until the probe
+   exits, then stop both with Ctrl-C. Note the **Trace root** and both **App-server PID** values
+   for each run.
+
+   Check that the process sequence is complete (`true` on success) and tcpdump reports zero
+   packets dropped by the kernel.
+
+   ```sh
+   jq -se 'map(.seq) | sort | . as $n |
+     length > 0 and all(.[]; type == "number") and
+     all(range(1; length); . as $i | $n[$i] == ($n[$i-1] + 1))
+   ' "$shots/mcp-process.jsonl"
+   ```
+
+   For each run, substitute the trace-root PID into the following to list its entire recorded
+   process tree, including brief children:
+
+   ```sh
+   pid=REPLACE_WITH_TRACE_ROOT_PID
+   jq -nc --argjson root "$pid" '
+     reduce inputs as $e ({pids: [$root], events: []};
+       if (.pids | index($e.pid)) != null or (.pids | index($e.ppid)) != null then
+         .pids += ([$e.pid, $e.child] | map(select(. != null))) | .events += [$e]
+       else . end) | .events[]
+   ' < "$shots/mcp-process.jsonl"
+   ```
+
+   Check the recorded forks and execs from before the initial and armed app-server launches
+   through their exits. Match both app-server PIDs and every descendant PID to the outbound
+   packet summaries, including startup, thread creation, and the time before the tool call.
+   For example, with PIDs 123 and 456, use
+   `grep -E 'proc [^,]*:(123|456)([, )]|$)' "$shots/mcp-network.txt"` to find attributed packets;
+   also check for unattributed traffic matching a personal endpoint.
+   The expected peers are the normal provider and the printed loopback address. **Fail row 10**
+   if any personal stdio MCP process or any connection attempt to a personal HTTP MCP endpoint
+   appears at any point, even if gone by the hold. If the launch/exit or loopback evidence is
+   missing, either trace dropped events (process sequence gaps or nonzero tcpdump kernel drops),
+   attribution cannot distinguish a potential personal endpoint, or no personal servers were
+   configured, mark the row inconclusive. Share only the disabled count and result, not traces,
+   process names or addresses.
+5. In the probe Terminal, record whether there was a tool reply at or beyond 60,000 ms and the
+   model returned its receipt (8). Record the actual hold time and both restart timings. For row 12 use
+   **Restart through initialize**, including stopping the warm process, enumerating personal
+   servers, binding the bridge and handshaking; record **Restart through thread/start** separately
+   so any added thread cost is visible. Repeat the short act run twice more for restart timing,
+   with the same model, fixture and machine. Compare the median short-run restart to 1,000 ms.
+6. If row 7 (image plus tool) or 11 (single approval and unchanged arguments) fails, or personal
+   tools start, **stop**. Do not loosen the sandbox, enable personal MCP servers or start another
+   roadmap step. Report which evidence was missing. The probe allows a 90 s tool timeout and a
+   150 s turn deadline **only so a single dry-run call can itself wait 60 s**; it does not
+   replace the product's eight-call / 60 s maximum.
+
+### Suggest: rows 5 and 6
+
+7. Prepare ten distinct screens at normal display scaling, including a visible piece of
+   known 11-point text in English and in Hebrew. Example screens: English mail, Hebrew mail,
+   English calendar invite, Hebrew event flyer, PDF, long web article, chat, document, map or
+   directions page, and a busy spreadsheet. Use mock content in the real apps. Note one expected
+   reading or natural action per screen **before** running the probe. Use `01` to `10` as IDs.
+8. Capture each screen with the same delayed command from step 3, but use a new ID in place of
+   `01`. Make a large (up to 4096 px long side) and a compact (up to 2048 px) version of each
+   same capture. Verify actual dimensions and encoded byte counts; if the variants have the
+   same size, make the compact one smaller. Keep either file at or below 10 MiB (lower JPEG
+   quality as needed). Open both final files in Preview and verify neither contains anything
+   sensitive or unintended before running the separate upload block in step 9.
+
+   ```sh
+   id=01
+   screencapture -x -m -T 5 "$shots/$id.png"
+   sips -s format jpeg -s formatOptions 85 -Z 4096 "$shots/$id.png" --out "$shots/$id-large.jpg"
+   sips -s format jpeg -s formatOptions 85 -Z 2048 "$shots/$id.png" --out "$shots/$id-compact.jpg"
+   sips -g pixelWidth -g pixelHeight "$shots/$id-large.jpg" "$shots/$id-compact.jpg"
+   stat -f '%z bytes: %N' "$shots/$id-large.jpg" "$shots/$id-compact.jpg"
+   ```
+
+9. After checking the endpoint in step 2 and previewing both files, run this upload block for
+   each ID (twenty turns total); use the actual app, bundle ID,
+   safe window title and chosen interface language for each capture, consistently between sizes.
+   `--language he-IL` can check Hebrew output; Hebrew input reading should also work with
+   `--language en-US`. Do not put the expected text from the body of the screen in the context.
+   The probe provides the current date, weekday, time zone and a fixed list of possible actions.
+
+   ```sh
+   app=TextEdit bundle=com.apple.TextEdit title='Spike sample 01' language=en-US
+   for size in large compact; do
+     node "$probe" suggest --confirm-upload --model "$model" --image "$shots/$id-$size.jpg" \
+       --app "$app" --bundle-id "$bundle" --window-title "$title" --language "$language"
+   done
+   ```
+
+10. Per result, record ID, dimensions and bytes, elapsed turn milliseconds, JSON valid yes/no,
+    screen fact read correctly yes/no, useful suggestions yes/no, and interface language correct
+    yes/no. Review the suggestions before counting them: an empty list is valid JSON but not
+    evidence the screen was read. Look specifically for correct 11-point English and Hebrew and
+    any mistakes that occur at only one size. Compute timing median and nearest-rank p95, both
+    overall and by size, and count valid results out of 20 (target ≥19). The timing is
+    `turn/start` through `turn/completed`, including the data URL transfer; it does not measure a
+    hotkey, newly capturing the screen, or drawing the future Look UI. If the schema option is
+    rejected or the score misses, record that result before trying the same samples with
+    `--no-schema`; report that second cohort separately. Do not silently replace a failed run.
+11. Share aggregate results and failures only, with the OS/chip, model and Codex version. Delete
+    the test fixtures and traces in Finder (the folder is in `$shots`), then empty Trash if
+    appropriate. Remove Terminal's Full Disk Access if you granted it just for this check.
+
+## Decisions if the evidence misses a gate
+
+| Trigger | Options and recommendation (not decided here) |
+| --- | --- |
+| Rows 7 or 11 fail | Keep loopback only after the owner agrees to another bounded verification, or switch to the tool-free JSON plan (D46(b)); recommend the plan if the failure persists. A key-based tool loop changes routes; no loosened shell or third-party servers. |
+| Row 8 fails | Verify the longest supported wait on the same version, or defer tools that require confirmation. Recommend measuring the safe wait before deploying any confirmation-dependent tools. |
+| Row 10 fails | Stop on the security failure. Keep the route blocked pending an exclusion fix and a repeat process check, or use the tool-free plan if safe isolation cannot be shown. Recommend no act turn until the isolation is evidenced. |
+| Row 12 reaches 1 s or more | Keep per-turn restart with its cost, or investigate a server address present from launch without enabling it or accepting any token outside an act turn. Recommend investigating the latter only if the owner wants to spend the seam budget. |
+| JSON or small-text target misses | Compare structured and prompt-only JSON for the same screens; keep the large image, adjust encoding, or try a different model under D53. Recommend choosing from measured quality before lowering resolution. |
+| Median suggestions miss 4 s | Keep the same chosen model (D53(a)) or compare a faster suggest-only model (b). Recommend a matched comparison before changing defaults. |
+
+## Seam read (source only, no app change)
+
+- `AIProviderFactory`, `ChatGPTSubscriptionManager` and `CodexTurnRunner` already pass
+  `AIToolServerSession` per provider/turn. `CodexMCPLaunch` already supports a URL, a bearer token
+  passed in the child environment, and prompt approval mode; `CodexTurnRunner.consent(to:)`
+  routes the elicitation by active thread, server handle and tool. If rows 7 and 11 pass with the
+  current protocol, Look can supply its own session and validate arguments at its own bridge;
+  there is no demonstrated need to restructure those seams.
+- `CodexTurnRunner` already combines text and image input, disables web search on request, and
+  creates a read-only, ephemeral thread, but does not send `turn/start.outputSchema`. If that
+  option proves useful, add an opt-in field at the request/runner seam in the later suggest step;
+  otherwise a tool-free prompt plus strict parsing can use the current request.
+- `CodexAppServerClient.start(toolServers:)` replaces the shared process when the server list
+  changes, potentially stranding other chats. A slow restart or an isolation failure is not
+  justification to restructure that seam in this step; report the measured result first.
