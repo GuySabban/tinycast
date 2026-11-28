@@ -45,6 +45,7 @@ enum SettingsAction: Codable, Sendable {
     case checkForUpdates
     case showSupport
     case showOnboarding
+    case webSearchKeyChanged(removed: Bool)
 
     var presentsWindow: Bool {
         switch self {

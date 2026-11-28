@@ -50,7 +50,21 @@ final class WebSearchCoordinator {
 
     func setEnabled(_ enabled: Bool) {
         settings.isEnabled = enabled
-        if !enabled { session.cancel() }
+        applyEnabled()
+    }
+
+    func reloadSettings() {
+        if settings.reload() { applyEnabled() }
+    }
+
+    private func applyEnabled() {
+        if !settings.isEnabled { session.cancel() }
+    }
+
+    func keyDidChange(removed: Bool) {
+        settings.refreshKeyStatus()
+        if removed || !settings.hasKey { session.forget() }
+        else { session.dropFailure() }
     }
 
     // MARK: - Trigger

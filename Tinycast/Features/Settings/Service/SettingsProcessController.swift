@@ -236,6 +236,8 @@ final class SettingsProcessController {
             if stagedBackup?.preview.id == id { discardStagedBackup() }
         case .checkForUpdates:
             core.updateCoordinator.checkForUpdates()
+        case .webSearchKeyChanged(let removed):
+            core.webSearchCoordinator.keyDidChange(removed: removed)
         case .showSupport:
             core.supportCoordinator.showSupport()
         case .showOnboarding:

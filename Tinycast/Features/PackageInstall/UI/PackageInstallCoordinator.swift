@@ -77,6 +77,10 @@ final class PackageInstallCoordinator {
         applyEnabled()
     }
 
+    func reloadSettings() {
+        if settings.reload() { applyEnabled() }
+    }
+
     /// Run on every launcher show, so the card's "installed" and "missing" stay current.
     func refreshInstalled() {
         guard settings.isEnabled else { return }

@@ -63,6 +63,13 @@ extension AppCore {
         customWindowSizes.reload()
         rooms.reload()
         calendarStore.reloadHiddenCalendars()
+        if ProcessRole.current == .main {
+            packageInstallCoordinator.reloadSettings()
+            webSearchCoordinator.reloadSettings()
+        } else {
+            packageInstallSettings.reload()
+            webSearchSettings.reload()
+        }
         hotKeys.reloadBindings()
     }
 
