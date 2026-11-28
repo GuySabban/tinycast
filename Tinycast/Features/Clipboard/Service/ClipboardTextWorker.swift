@@ -23,33 +23,16 @@ nonisolated enum ClipboardTextWorker {
     static func extract(
         at url: URL, isPDF: Bool, executable: URL, timeout: Duration = .seconds(60)
     ) async throws -> String {
-        try await run([isPDF ? "pdf" : "image", url.path], input: nil, executable: executable, timeout: timeout)
-    }
-
-    /// Look's entry: the PNG goes through the helper's standard input, never through a file.
-    static func extract(imageData: Data, executable: URL, timeout: Duration) async throws -> String {
-        try await run(["image-stdin"], input: imageData, executable: executable, timeout: timeout)
-    }
-
-    private static func run(
-        _ arguments: [String], input: Data?, executable: URL, timeout: Duration
-    ) async throws -> String {
         try Task.checkCancellation()
         let process = Process()
         let output = Pipe()
-        let stdin = input.map { _ in Pipe() }
         process.executableURL = executable
-        process.arguments = arguments
-        process.standardInput = stdin ?? FileHandle.nullDevice
+        process.arguments = [isPDF ? "pdf" : "image", url.path]
+        process.standardInput = FileHandle.nullDevice
         process.standardOutput = output
         process.standardError = FileHandle.nullDevice
         process.qualityOfService = .background
-        // A helper that exits before reading everything must fail the write, not SIGPIPE Tinycast.
-        if let stdin, fcntl(stdin.fileHandleForWriting.fileDescriptor, F_SETNOSIGPIPE, 1) != 0 {
-            throw Failure.recognition
-        }
         guard let exit = try? process.runObservingExit() else { throw Failure.recognition }
-        if let stdin, let input { write(input, to: stdin) }
         // Cancellation can land between the check above and the launch, which nothing else catches.
         if Task.isCancelled { terminate(process) }
         let deadline = Task.detached(priority: .background) {
@@ -94,16 +77,6 @@ nonisolated enum ClipboardTextWorker {
             return .failure(.recognition)
         }
         return .success(text)
-    }
-
-    /// On its own queue thread, so a helper that stops reading cannot stall `collect`.
-    private static func write(_ data: Data, to pipe: Pipe) {
-        try? pipe.fileHandleForReading.close()
-        queue.async {
-            let writer = pipe.fileHandleForWriting
-            try? writer.write(contentsOf: data)
-            try? writer.close()
-        }
     }
 
     /// `terminate()` traps on a process that never launched, so the state has to be asked first.

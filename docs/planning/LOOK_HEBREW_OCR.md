@@ -1,5 +1,9 @@
 # On-device Hebrew text reading for Look — findings
 
+**Withdrawn** (D45, Phase L step 6). Look no longer reads the screen on-device; the screenshot goes
+to the AI, which reads Hebrew itself (`LOOK.md` section 10). Nothing below is planned; it is kept as
+a record of what was measured.
+
 ## Recommendation
 Tesseract 5 (`tessdata_best` heb+eng) as a second pass in the existing `ClipboardTextHelper`, run only when the capture has Hebrew (or always for an owner whose languages include Hebrew), with Vision kept for everything else. About 1 CPU second per screen, 19 MB of models, Apache-2.0, fully on the Mac, image stays in memory (libtesseract takes a pixel buffer; no file needed).
 Open decision for the owner: AGENTS.md says "Zero third-party dependencies". Bundling libtesseract + leptonica (C/C++) breaks that; the alternative is to use a Tesseract the owner installs himself (Homebrew) and fall back to Vision-only when it is absent.
