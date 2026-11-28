@@ -194,7 +194,7 @@ function trackRun(events, run, counts) {
             seenExec.add(event.pid);
             if (![run.root, ...run.appServers].includes(event.pid)) {
                 if (event.personal) counts.personalProcess += 1;
-                else if (event.possible) counts.ambiguous += 1;
+                else if (event.possible) counts.possibleStdio += 1;
             }
         }
         if (event.exit) { seenExit.add(event.pid); active.delete(event.pid); }
@@ -205,7 +205,8 @@ function trackRun(events, run, counts) {
 }
 
 export function analyzeTrace(trace, runs, targets, { configStable = true, proxy = false } = {}) {
-    const counts = { personalProcess: 0, personalHTTP: 0, otherPeer: 0, ambiguous: 0 };
+    const counts = { personalProcess: 0, personalHTTP: 0, otherPeer: 0,
+        possibleStdio: 0, sharedPeer: 0, proxiedPeer: 0, unattributedPeer: 0 };
     const events = [...trace.events].sort((a, b) => a.seq - b.seq);
     const sequenced = events.length > 0 && events.every((event, index) =>
         Number.isSafeInteger(event.seq) && (index === 0 || event.seq === events[index - 1].seq + 1));
@@ -215,7 +216,7 @@ export function analyzeTrace(trace, runs, targets, { configStable = true, proxy 
         const tree = trackRun(events, run, counts);
         const loopback = "127.0.0.1/" + run.port;
         complete &&= tree.complete && run.port > 0;
-        return { ...tree, loopback, reachedBridge: false, reachedProvider: false };
+        return { ...tree, root: run.root, loopback, bridgeClients: new Set(), reachedBridge: false, reachedProvider: false };
     });
     const otherPeers = new Set();
     for (const packet of trace.packets) {
@@ -224,20 +225,30 @@ export function analyzeTrace(trace, runs, targets, { configStable = true, proxy 
         const run = tracked.find((item) => packet.pids.some((pid) => item.pids.has(pid)));
         const personal = targets.http.has(packet.destination);
         if (run) {
-            if (packet.destination === run.loopback) run.reachedBridge = true;
-            if (targets.provider.has(packet.destination)) run.reachedProvider = true;
-            const allowed = packet.source === run.loopback || packet.destination === run.loopback ||
-                targets.provider.has(packet.destination);
-            if (personal && !allowed && !proxy) counts.personalHTTP += 1;
-            else if (personal) counts.ambiguous += 1;
-            else if (!allowed) otherPeers.add(packet.destination ?? "unparsed");
+            const toBridge = packet.destination === run.loopback;
+            const toProvider = targets.provider.has(packet.destination);
+            const fromBridge = packet.source === run.loopback;
+            if (toBridge && packet.source?.startsWith("127.0.0.1/") && packet.pids.some((pid) => pid !== run.root)) {
+                run.bridgeClients.add(packet.source);
+            }
+            const bridgeReply = fromBridge && run.bridgeClients.has(packet.destination) &&
+                packet.pids.every((pid) => pid === run.root);
+            run.reachedBridge ||= toBridge;
+            run.reachedProvider ||= toProvider;
+            if (bridgeReply) continue;
+            if (personal) {
+                if (toBridge || toProvider || fromBridge) counts.sharedPeer += 1;
+                else if (proxy) counts.proxiedPeer += 1;
+                else counts.personalHTTP += 1;
+            } else if (!toBridge && !toProvider) otherPeers.add(packet.destination ?? "unparsed");
         } else if (personal && packet.pids.length === 0) {
-            counts.ambiguous += 1;
+            counts.unattributedPeer += 1;
         }
     }
     counts.otherPeer = otherPeers.size;
+    const ambiguous = counts.possibleStdio + counts.sharedPeer + counts.proxiedPeer + counts.unattributedPeer;
     complete &&= tracked.every((run) => run.reachedBridge && run.reachedProvider) &&
-        counts.otherPeer === 0 && counts.ambiguous === 0;
+        counts.otherPeer === 0 && ambiguous === 0;
     return { status: counts.personalProcess || counts.personalHTTP ? "fail" : complete ? "pass" : "inconclusive",
-        ...counts };
+        ambiguous, ...counts };
 }

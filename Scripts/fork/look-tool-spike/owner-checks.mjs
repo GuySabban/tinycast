@@ -15,6 +15,15 @@ const screens = ["English mail (include known 11-point text)", "Hebrew mail (inc
     "English calendar invite", "Hebrew event flyer", "PDF", "long web article", "chat", "document",
     "map or directions", "busy spreadsheet"];
 const usage = "Usage: run-owner-checks.sh --model MODEL [--codex /absolute/path] [--from act|suggest] [--no-schema]";
+const captureReasons = {
+    "display count unavailable": "Could not determine the active displays. Run from a logged-in macOS desktop.",
+    "front app unavailable": "Could not identify the front app. Bring the sample app forward during the countdown.",
+    "main display bounds unavailable": "Could not read the main display bounds.",
+    "front window bounds unavailable": "Could not find an onscreen window for the front app. Bring its window forward.",
+    "front window outside main display": "The front window is not entirely on the main display. Move it there and rerun.",
+    "macOS desktop query failed": "Could not query the macOS desktop. Run from a logged-in macOS Terminal.",
+    "main display capture failed": "Could not capture the main display. Check Screen Recording permission for Terminal."
+};
 
 export function settings(args) {
     const { values } = parseArgs({ args, options: {
@@ -75,7 +84,10 @@ export function report(state) {
     out.push("Row 10: " + (row10 ?
         safe(row10.status, /^(pass|fail|inconclusive)$/) + "; personal stdio matches " +
             count(row10.personalProcess) + ", personal HTTP packet matches " + count(row10.personalHTTP) +
-            ", other peers " + count(row10.otherPeer) + ", ambiguous observations " + count(row10.ambiguous) :
+            ", other peers " + count(row10.otherPeer) + ", ambiguous observations " + count(row10.ambiguous) +
+            " (possible stdio " + count(row10.possibleStdio) + ", shared provider/bridge peer " + count(row10.sharedPeer) +
+            ", proxied peer " + count(row10.proxiedPeer) + ", unattributed personal peer " +
+            count(row10.unattributedPeer) + ")" :
         "not run"));
     for (const [name, rows] of [["Schema", schema], ["No-schema", comparison]]) {
         if (!rows.length) { out.push(name + ": not run"); continue; }
@@ -91,8 +103,8 @@ export function report(state) {
             rows.filter(({ language }) => language === "y").length + "/" +
             rows.filter(({ language }) => language === "y" || language === "n").length);
     }
-    if (state.stop) out.push("Stopped: " + safe(state.stop,
-        /^(environment|endpoint preflight|capture or Preview approval|front window not verified on main display|act safety gate|personal MCP activity|suggest endpoint\/setup(?: or protocol)?|interrupted|local check)$/));
+    if (state.stop) out.push("Stopped: " + (Object.hasOwn(captureReasons, state.stop) ? state.stop : safe(state.stop,
+        /^(environment|endpoint preflight|capture or Preview approval|act safety gate|personal MCP activity|suggest endpoint\/setup(?: or protocol)?|interrupted|local check)$/)));
     out.push("Cleanup: " + safe(state.cleanup, /^(deleted|kept|not needed|could not delete)$/));
     return out.join("\n");
 }
@@ -140,7 +152,7 @@ function capture(path, options) {
     if (options.interrupted) throw new Stop("interrupted");
     const app = frontApp();
     if (local("/usr/sbin/screencapture", ["-x", "-m", path]).status !== 0) {
-        throw new Stop("capture or Preview approval");
+        stopCapture("main display capture failed");
     }
     return app;
 }
@@ -246,15 +258,25 @@ async function act(options, ask, state, inventory, authorizeTrace) {
     if (actError) throw actError;
 }
 
-export function primaryCaptureContext({ app, window, display }) {
+export function primaryCaptureContext({ app, window, display, displayCount }) {
     const rectangle = (bounds) => Array.isArray(bounds) && bounds.length === 4 &&
         bounds.every(Number.isFinite) && bounds[2] > 0 && bounds[3] > 0;
-    if (!Array.isArray(app) || app.length !== 2 || !app.every((part) => typeof part === "string" && part) ||
-        !rectangle(window) || !rectangle(display)) return null;
+    if (!Array.isArray(app) || app.length !== 2 || !app.every((part) => typeof part === "string" && part)) {
+        return { reason: "front app unavailable" };
+    }
+    if (!Number.isSafeInteger(displayCount) || displayCount < 1) return { reason: "display count unavailable" };
+    if (displayCount === 1) return { app };
+    if (!rectangle(display)) return { reason: "main display bounds unavailable" };
+    if (!rectangle(window)) return { reason: "front window bounds unavailable" };
     const [x, y, width, height] = window;
     const [left, top, displayWidth, displayHeight] = display;
     return x >= left && y >= top && x + width <= left + displayWidth && y + height <= top + displayHeight
-        ? app : null;
+        ? { app } : { reason: "front window outside main display" };
+}
+
+function stopCapture(reason) {
+    console.log(captureReasons[reason]);
+    throw new Stop(reason);
 }
 
 function frontApp() {
@@ -262,22 +284,31 @@ function frontApp() {
         `ObjC.import("AppKit");
         ObjC.import("CoreGraphics");
         var a = $.NSWorkspace.sharedWorkspace.frontmostApplication;
-        var flags = $.kCGWindowListOptionOnScreenOnly | $.kCGWindowListExcludeDesktopElements;
-        var windows = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(flags, $.kCGNullWindowID)));
-        var front = windows.find(function(w) { return w.kCGWindowOwnerPID === a.processIdentifier && w.kCGWindowLayer === 0; });
-        var b = front && front.kCGWindowBounds;
-        var d = $.CGDisplayBounds($.CGMainDisplayID());
-        JSON.stringify({
+        var context = {
             app: [ObjC.unwrap(a.localizedName), ObjC.unwrap(a.bundleIdentifier)],
-            window: b && [b.X, b.Y, b.Width, b.Height],
-            display: [d.origin.x, d.origin.y, d.size.width, d.size.height]
-        });`]);
+            displayCount: Number($.NSScreen.screens.count)
+        };
+        if (context.displayCount > 1) {
+            var flags = $.kCGWindowListOptionOnScreenOnly | $.kCGWindowListExcludeDesktopElements;
+            var windows = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(flags, $.kCGNullWindowID)));
+            var front = Array.isArray(windows) && windows.find(function(w) {
+                return w.kCGWindowOwnerPID === a.processIdentifier && w.kCGWindowLayer === 0;
+            });
+            var b = front && front.kCGWindowBounds;
+            var d = $.CGDisplayBounds($.CGMainDisplayID());
+            if (b) context.window = [b.X, b.Y, b.Width, b.Height];
+            context.display = [d.origin.x, d.origin.y, d.size.width, d.size.height];
+        }
+        JSON.stringify(context);`]);
+    if (result.status !== 0) stopCapture("macOS desktop query failed");
+    let context;
     try {
-        const app = result.status === 0 && primaryCaptureContext(JSON.parse(result.stdout));
-        if (app) return app;
-    } catch { /* no reliable front window geometry */ }
-    console.log("Could not verify the front window is entirely on the main display. Move it there and rerun.");
-    throw new Stop("front window not verified on main display");
+        context = primaryCaptureContext(JSON.parse(result.stdout));
+    } catch {
+        stopCapture("macOS desktop query failed");
+    }
+    if (context.reason) stopCapture(context.reason);
+    return context.app;
 }
 
 export function recordSuggestResult(rows, size, { ok, code, stdout, stderr }) {

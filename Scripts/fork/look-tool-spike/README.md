@@ -34,7 +34,8 @@ git pull --ff-only
 ./Scripts/fork/look-tool-spike/run-owner-checks.sh --model YOUR_CODEX_MODEL_ID
 ```
 
-- Bring the TextEdit fixture and ten mock screens to the front during their countdowns. The
+- Bring the TextEdit fixture and ten mock screens to the front during their countdowns. With
+  multiple displays, put the entire window on the main display. The
   runner asks for each screen's interface language (Enter for `en-US`) and takes the app and
   bundle ID from the frontmost app. It uses a synthetic window title rather than reading yours.
 - Inspect the exact file(s) in Preview before answering `y`. The runner refuses to upload
@@ -44,7 +45,7 @@ git pull --ff-only
   restarts after a successful short act. It stops on act failure or detected personal MCP
   activity. Missing, dropped or ambiguous trace evidence is reported as inconclusive, not pass.
   The runner compares process/packet observations with your MCP inventory locally in memory;
-  it does not write raw ES events or packet summaries to disk.
+  it does not save trace evidence. Keeping the fixture directory does not make row 10 replayable.
 - Optionally score valid suggest results (1–5 or Enter to skip) and confirm the interface
   language. Only paste the final aggregate report, not earlier terminal output. Answer `y` to
   delete the private fixture directory. Revoke Terminal's Full Disk Access if granted for this run.

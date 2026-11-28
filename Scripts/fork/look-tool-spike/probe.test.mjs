@@ -172,11 +172,15 @@ if (process.argv.at(-1) === "--json") {
 
     test("owner capture rejects an off-primary, straddling or missing front window", () => {
         const app = ["TextEdit", "com.apple.TextEdit"];
-        const sample = { app, display: [0, 0, 1920, 1080] };
-        assert.deepEqual(primaryCaptureContext({ ...sample, window: [1120, 40, 800, 600] }), app);
-        for (const window of [[1920, 40, 800, 600], [-1000, 40, 800, 600], [1121, 40, 800, 600], undefined]) {
-            assert.equal(primaryCaptureContext({ ...sample, window }), null);
+        const sample = { app, display: [0, 0, 1920, 1080], displayCount: 2 };
+        assert.deepEqual(primaryCaptureContext({ ...sample, window: [1120, 40, 800, 600] }), { app });
+        for (const window of [[1920, 40, 800, 600], [-1000, 40, 800, 600], [1121, 40, 800, 600]]) {
+            assert.equal(primaryCaptureContext({ ...sample, window }).reason, "front window outside main display");
         }
+        assert.equal(primaryCaptureContext(sample).reason, "front window bounds unavailable");
+        assert.equal(primaryCaptureContext({ app }).reason, "display count unavailable");
+        assert.deepEqual(primaryCaptureContext({ app, displayCount: 1 }), { app });
+        assert.deepEqual(primaryCaptureContext({ ...sample, displayCount: 1, window: [-8, 40, 800, 600] }), { app });
     });
 
     test("owner checks default to the act retry and accept suggest-only and a separate comparison", () => {
@@ -198,12 +202,13 @@ if (process.argv.at(-1) === "--json") {
                 login: "ChatGPT", name: privateData },
             endpoint: true, disabled: 5, cleanup: "deleted", acts: [],
             row10: { status: "inconclusive", personalProcess: 0, personalHTTP: 0, otherPeer: 1,
-                ambiguous: 1, peers: [privateData] },
+                ambiguous: 1, possibleStdio: 0, sharedPeer: 0, proxiedPeer: 0, unattributedPeer: 1, peers: [privateData] },
             schema: Array.from({ length: 20 }, (_, i) => ({ size: i % 2 ? "compact" : "large",
                 valid: i !== 19, elapsed: (i + 1) * 100, readability: i % 2 ? 3 : 5, language: "y", raw: privateData })),
             comparison: [{ size: "large", valid: false, elapsed: 200, usefulness: 5 }]
         });
         assert.match(result, /Row 10: inconclusive;.*other peers 1/);
+        assert.match(result, /ambiguous observations 1 \(possible stdio 0, shared provider\/bridge peer 0, proxied peer 0, unattributed personal peer 1\)/);
         assert.match(result, /Schema: 19\/20 valid JSON \(19\/20 target met\); median\/p95 1050\/1900 ms/);
         assert.match(result, /readability 4\.0\/5 \(n=20\)/);
         assert.match(result, /No-schema: 0\/1 valid JSON \(partial\)/);
@@ -234,6 +239,24 @@ if (process.argv.at(-1) === "--json") {
         assert.equal(analyzeTrace(trace, runs, { ...targets, stdio: [], http: new Set() }).status, "inconclusive");
         const candidate = { out: true, pids: [], destination: "192.0.2.9/443" };
         assert.equal(analyzeTrace({ ...trace, packets: [...packets, candidate] }, runs, targets).status, "inconclusive");
+        const reply = { out: true, pids: [100], source: "127.0.0.1/3000", destination: "127.0.0.1/4000" };
+        const shared = { ...targets, http: new Set([...targets.http, reply.destination]) };
+        assert.equal(analyzeTrace({ ...trace, packets: [...packets, reply] }, runs, shared).status, "pass");
+        const proxy = { ...candidate, pids: [102] };
+        const ambiguous = analyzeTrace({
+            ...trace,
+            events: events.map((event) => event.pid === 103 && event.exec ? { ...event, possible: true } : event),
+            packets: [...packets, { ...reply, pids: [102] }, candidate, proxy]
+        }, runs, shared, { proxy: true });
+        assert.equal(ambiguous.status, "inconclusive");
+        assert.equal(ambiguous.ambiguous, 4);
+        assert.equal(ambiguous.possibleStdio, 1);
+        assert.equal(ambiguous.sharedPeer, 1);
+        assert.equal(ambiguous.proxiedPeer, 1);
+        assert.equal(ambiguous.unattributedPeer, 1);
+        const providerOverlap = analyzeTrace(trace, runs, { ...targets, http: new Set(targets.provider) });
+        assert.equal(providerOverlap.status, "inconclusive");
+        assert.equal(providerOverlap.sharedPeer, 4);
         const hit = analyzeTrace({ ...trace, packets: [...packets, { ...candidate, pids: [103] }] }, runs, targets);
         assert.equal(hit.status, "fail");
         assert.equal(hit.personalHTTP, 1);
