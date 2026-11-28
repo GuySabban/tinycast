@@ -7,6 +7,8 @@ import { createInterface } from "node:readline";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { listen, receipt, toolName } from "./loopback.mjs";
+import { report, settings as ownerSettings } from "./owner-checks.mjs";
+import { analyzeTrace, packetRow } from "./owner-trace.mjs";
 import { run } from "./probe.mjs";
 
 const expected = 'שלום "Look" \\ ?';
@@ -142,6 +144,70 @@ if (process.argv.at(-1) === "--json") {
 } else if (process.argv.at(-1) === "app-server") {
     await fakeAppServer();
 } else {
+    test("owner checks default to the act retry and accept suggest-only and a separate comparison", () => {
+        assert.deepEqual(ownerSettings(["--model", "gpt-spike"]), {
+            model: "gpt-spike", codex: "codex", from: "act", comparison: false
+        });
+        assert.deepEqual(ownerSettings(["--from", "suggest", "--model", "gpt-spike", "--no-schema", "--codex", "/bin/codex"]), {
+            model: "gpt-spike", codex: "/bin/codex", from: "suggest", comparison: true
+        });
+        assert.throws(() => ownerSettings(["--model", "gpt-spike", "--from", "hold"]));
+        assert.throws(() => ownerSettings(["--model", "gpt-spike", "--codex", "../codex"]));
+        assert.throws(() => ownerSettings(["--model", "https://private.invalid"]));
+    });
+
+    test("owner report separates cohorts and keeps identifying or raw data out", () => {
+        const privateData = "https://private.invalid/unique-path";
+        const result = report({
+            facts: { os: "27.2", chip: "Apple M3", node: "v22.3.0", codex: "1.2.3", model: "gpt-spike",
+                login: "ChatGPT", name: privateData },
+            endpoint: true, disabled: 5, cleanup: "deleted", acts: [],
+            row10: { status: "inconclusive", personalProcess: 0, personalHTTP: 0, otherPeer: 1,
+                ambiguous: 1, peers: [privateData] },
+            schema: Array.from({ length: 20 }, (_, i) => ({ size: i % 2 ? "compact" : "large",
+                valid: i !== 19, elapsed: (i + 1) * 100, readability: i % 2 ? 3 : 5, language: "y", raw: privateData })),
+            comparison: [{ size: "large", valid: false, elapsed: 200, usefulness: 5 }]
+        });
+        assert.match(result, /Row 10: inconclusive;.*other peers 1/);
+        assert.match(result, /Schema: 19\/20 valid JSON \(19\/20 target met\); median\/p95 1050\/1900 ms/);
+        assert.match(result, /readability 4\.0\/5 \(n=20\)/);
+        assert.match(result, /No-schema: 0\/1 valid JSON \(partial\)/);
+        assert.doesNotMatch(result, /private\.invalid|unique-path/);
+    });
+
+    test("owner isolation analysis checks both app servers and a child that exits before the hold", () => {
+        const targets = { stdio: [{}], http: new Set(["192.0.2.9/443"]), provider: new Set(["192.0.2.10/443"]), unknown: 0 };
+        const runs = Array.from({ length: 4 }, (_, i) => ({ root: 100 + i * 10,
+            appServers: [101 + i * 10, 102 + i * 10], port: 3000 + i }));
+        const events = runs.flatMap(({ root, appServers: [initial, armed] }) => [
+            { pid: root, exec: true }, { pid: root, child: initial }, { pid: initial, exec: true },
+            { pid: initial, child: initial + 2 }, { pid: initial + 2, exec: true }, { pid: initial + 2, exit: true },
+            { pid: initial, exit: true }, { pid: root, child: armed }, { pid: armed, exec: true },
+            { pid: armed, exit: true }, { pid: root, exit: true }
+        ]).map((event, i) => ({ ...event, seq: i + 1 }));
+        const packets = runs.flatMap(({ port, appServers: [, pid] }) => [
+            packetRow("10:01:02.123456 (lo0, proc codex:" + pid + ", out) IP 127.0.0.1.4000 > 127.0.0.1." + port + ": tcp 0"),
+            packetRow("10:01:03.123456 (en0, proc codex:" + pid + ", out) IP 192.0.2.5.4000 > 192.0.2.10.443: tcp 0")
+        ]);
+        assert.deepEqual(packetRow("10:01:02.123456 (en0, proc sample:222, out) IP6 fe80::123.4 > 2001:db8::1.443: tcp 0"),
+            { pids: [222], out: true, source: "fe80::123/4", destination: "2001:db8::1/443" });
+        const trace = { events, packets, complete: true };
+        assert.equal(analyzeTrace(trace, runs, targets).status, "pass");
+        assert.equal(analyzeTrace({ ...trace, events: events.filter((event) => event.seq !== 5) }, runs, targets).status,
+            "inconclusive");
+        assert.equal(analyzeTrace({ ...trace, complete: false }, runs, targets).status, "inconclusive");
+        assert.equal(analyzeTrace(trace, runs, { ...targets, stdio: [], http: new Set() }).status, "inconclusive");
+        const candidate = { out: true, pids: [], destination: "192.0.2.9/443" };
+        assert.equal(analyzeTrace({ ...trace, packets: [...packets, candidate] }, runs, targets).status, "inconclusive");
+        const hit = analyzeTrace({ ...trace, packets: [...packets, { ...candidate, pids: [103] }] }, runs, targets);
+        assert.equal(hit.status, "fail");
+        assert.equal(hit.personalHTTP, 1);
+        const processHit = analyzeTrace({ ...trace, events: events.map((event) =>
+            event.pid === 103 && event.exec ? { ...event, personal: true } : event) }, runs, targets);
+        assert.equal(processHit.status, "fail");
+        assert.equal(processHit.personalProcess, 1);
+    });
+
     test("suggest and act traverse the app-server protocol and live loopback without Codex", async () => {
         const cwd = await mkdtemp(join(tmpdir(), "spotcast-look-fixture-"));
         try {

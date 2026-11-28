@@ -23,6 +23,38 @@ below explicitly create local test fixtures; do not use a synced folder, commit 
 the probe output to a file, or share screenshots, transcripts, process arguments or endpoints.
 The Look feature's in-memory capture and TCC checks are later steps, not covered by this probe.
 
+### One-command checks (recommended)
+
+In macOS Terminal from the PR checkout, pause other Codex sessions and leave your personal MCP
+servers configured. Terminal needs Screen Recording for capture and Full Disk Access for the
+process trace. Use Node 22+ and Codex signed in through ChatGPT. No Claude Code is needed.
+
+```sh
+git pull --ff-only
+./Scripts/fork/look-tool-spike/run-owner-checks.sh --model YOUR_CODEX_MODEL_ID
+```
+
+- Bring the TextEdit fixture and ten mock screens to the front during their countdowns. The
+  runner asks for each screen's interface language (Enter for `en-US`) and takes the app and
+  bundle ID from the frontmost app. It uses a synthetic window title rather than reading yours.
+- Inspect the exact file(s) in Preview before answering `y`. The runner refuses to upload
+  without that answer, and the probe verifies the endpoint again for every turn.
+- Authorize both traces with the one sudo prompt if macOS asks. The runner starts both traces
+  before the short act, checks the `true` and `nc` evidence, and only proceeds with the hold and
+  restarts after a successful short act. It stops on act failure or detected personal MCP
+  activity. Missing, dropped or ambiguous trace evidence is reported as inconclusive, not pass.
+  The runner compares process/packet observations with your MCP inventory locally in memory;
+  it does not write raw ES events or packet summaries to disk.
+- Optionally score valid suggest results (1–5 or Enter to skip) and confirm the interface
+  language. Only paste the final aggregate report, not earlier terminal output. Answer `y` to
+  delete the private fixture directory. Revoke Terminal's Full Disk Access if granted for this run.
+
+Use `--from suggest` if you already completed the act retry and want to skip that stage (ten
+fresh suggest samples; endpoint preflight still runs). Use `--from act` to start at act, or
+`--no-schema` to repeat the same ten samples afterward in a separate prompt-only cohort. For
+Codex outside PATH, pass `--codex /absolute/path/to/codex`. The steps below remain available
+as a manual fallback, including for investigations where attribution alone is inconclusive.
+
 ### Act: rows 7, 8, 10, 11 and 12
 
 1. In the PR checkout, confirm `sw_vers -productVersion`, `system_profiler SPHardwareDataType`
