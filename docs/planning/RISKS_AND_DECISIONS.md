@@ -129,6 +129,12 @@ recommendations are the plan's, the decisions are his.**
 | D52 | When Codex is missing, signed out, offline or over its limit | (a) One row that says why; no Look. (b) An on-device fallback that reads text and offers Copy | Recommended (a), following D39 |
 | D53 | The model for the suggest turn | (a) Look's chosen model for both turns. (b) A faster, cheaper model for suggestions and the chosen one to act | Recommended (a) to start; measure in step 5 and move to (b) if suggestions miss 4 s |
 
+### Safari page context
+
+| # | Decision | Alternatives | Status |
+| --- | --- | --- | --- |
+| D54 | Give Look context below the fold in the active Safari tab | Add page text mode; test a full-page image first; keep screenshot only | **Owner chose Add page text mode.** An explicit opt-in sends the existing still plus the tab title and bounded rendered text after disclosure and confirmation. Approval of the implementation plan is still pending. **Open:** whether to omit page text in the act turn (recommended with tools) or use a tool-free act for page text. D37 remains the ordinary screenshot rule; D49 is not broadened. See `LOOK.md` section 16. |
+
 ## 4. Upstream sync strategy
 
 The fork keeps merging. The aim is a merge that takes an hour or two and never surprises.

@@ -143,6 +143,9 @@ display the panel is on.
 A later version can add "Look at All Displays" as a second command, which costs one more
 `CommandID` and nothing else.
 
+The opt-in Safari page-text mode keeps this capture rule and adds tab text, not a full-page image
+(D54, section 16).
+
 ### 3.4 Size
 
 The image is taken at the display's pixel size, capped at 4096 px on the long side, then encoded to
@@ -489,7 +492,7 @@ Lines in files the fork does not own.
 | `Clipboard/Service/ClipboardTextHelper.swift`, `ClipboardTextWorker.swift`, `ClipboardTextExtractor.swift` | −55 | −4 | Step 3's edits taken back out (D45) |
 | `Scripts/run-tests.sh` | about 2 | 0 | `LookTests` stays; `LookRecognitionTests` goes |
 | `Resources/Localizable.xcstrings` | about 1,600 | 0 | About 30 strings in eight languages |
-| `Tinycast/Info.plist` or `project.yml` | about 2 | 0 | `NSAppleEventsUsageDescription`, only when a Safari or Mail tool is built |
+| `Tinycast/Info.plist`, `Tinycast/Resources/InfoPlist.xcstrings` | 0 | existing usage text | Update `NSAppleEventsUsageDescription` when Safari tab reads are built (section 16); no entitlement change |
 
 About 35 lines in nine upstream files outside strings, fewer than before. Whether the AI service
 files (`CodexTurnRunner`, `CodexAppServerClient`) need an edit to accept Look's server, or the
@@ -509,3 +512,69 @@ existing `AIToolServerSession` is enough, is read in step 5 and added here.
 - **Plan limits.** Two image turns per Look against a ChatGPT plan.
 - **Upstream merges.** `RootPaletteView` and `CommandID` are busy upstream; the seam stays a few
   lines each.
+
+## 16. Safari page-text mode (D54)
+
+The owner chose **Add page text mode**, not a full-page image. This section is for his approval
+before anything is built. Ordinary Look keeps D32: one still of the display under the pointer,
+plus the existing context block; it neither reads Safari nor asks for Automation.
+
+**Invocation and consent.** Offer a separate **Look with Safari Page Text** action when Safari
+is frontmost before the launcher takes focus. It is off by default: the person explicitly chooses
+it for each Look, and the normal shortcut never upgrades itself. Before sending anything, show a
+confirmation naming OpenAI via Codex, the screen still, the Safari tab title, and the bounded
+page text—including text below the fold and potentially private, signed-in content. Show whether
+the text is truncated and what can be sent again on the second turn. Cancel sends nothing.
+The existing D37 notice for ordinary screenshots and macOS permission alone do not authorize
+an expanded upload.
+
+**Capture and budget.** Pin the front Safari window and active tab at invocation, before
+Spotcast changes focus. Keep the same display still and context block. Read the pinned tab's
+title and top-level `document.body.innerText` with fixed, read-only JavaScript bundled with
+Spotcast, sent as Safari's `do JavaScript` Apple Event. No model or page text becomes script
+source. Omit the URL by default; do not collect HTML, cookies, storage or form values. This is
+rendered text already loaded in the tab, not a traversal of every frame or item in a virtual list;
+do not scroll, navigate or fetch to fill gaps.
+
+Cap the returned text at 16 KiB UTF-8 at extraction and bound it again before sending, targeting
+about 4,000 model input tokens (token counts vary by language and model; use the smaller limit
+where a reliable count is available). Keep the tab title separately, keep text in reading order,
+and cut back to a paragraph or line boundary where practical without splitting Unicode
+characters. Mark omitted text in both the confirmation and the prompt. Keep the captured
+payload in memory only: no files, logs, clipboard or history. If the tab/window changes before
+capture completes or the snapshot is no longer the one shown for approval, abort.
+
+**Permissions and failures.** The still needs the same Screen Recording grant as ordinary
+Look. Reading the tab additionally needs macOS Automation approval for Safari (per app
+identity and target) and Safari's **Allow JavaScript from Apple Events** developer setting.
+The existing `com.apple.security.automation.apple-events` entitlement covers the hardened app;
+update the existing `NSAppleEventsUsageDescription` in `Tinycast/Info.plist` and
+`Tinycast/Resources/InfoPlist.xcstrings` in all supported languages for Safari page reads.
+Don't add a duplicate key or entitlement. Request access only on explicit invocation. If
+Automation is denied, point to System Settings › Privacy & Security › Automation. If Safari
+refuses JavaScript, explain the separate Safari developer setting; never enable it on the
+person's behalf. For private browsing, unsupported pages (such as internal pages or a PDF
+without usable body text), empty results, capture errors or an unverified target, do not send
+the expanded payload or silently fall back. Offer an explicit ordinary Look instead. Verify
+that the private-window check can fail closed on supported Safari versions before shipping.
+
+**Two turns.** Append the titled, bounded text to the same screenshot and context in the
+tool-free suggest turn, treating it as untrusted data. This is app-owned capture, not a new
+model tool or a call to the separate tier B `safari_read_tab` tool. Escape before choosing
+still sends nothing further. D49's screenshot-with-tools exception in PR #16 does not
+authorize Safari page text in a turn with tools. **Open for the owner:** keep the regular act
+payload and omit page text (recommended for a tool-enabled act), or offer a tool-free act
+that can answer from the same approved text. Including page text in a turn with tools would
+require a separate explicit change to D49 and `AGENT_RULES.md`. Never re-read the tab during
+act for this mode.
+
+**Owner's Mac checks (roadmap step 17).** On supported Safari/macOS versions, try both
+development and the intended signed distribution build with a fresh Automation grant. Verify
+the two permission failures separately and confirm ordinary Look never requests them. Use a
+non-sensitive fixture with text below the fold, a long page with multibyte text, a private
+window, an unsupported tab, and a tab switch during capture. Check the title, below-fold
+coverage, truncation and size at the boundary, URL omission, and that private/unsupported
+pages do not send tab text. Inspect the actual suggest and act payloads with fixtures: no
+upload on cancellation or failed capture, no tab data on ordinary Look, no tools in suggest,
+and no page text alongside tools. Check that the launcher stays responsive and neither the
+page nor the clipboard is changed.
