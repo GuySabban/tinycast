@@ -11,8 +11,11 @@ struct PackageInstallSettingsSection: View {
                 isOn: Binding(
                     get: { settings.isEnabled },
                     set: { enabled in
-                        if core.mainApp != nil { settings.isEnabled = enabled }
-                        else { core.packageInstallCoordinator.setEnabled(enabled) }
+                        if core.mainApp != nil {
+                            settings.isEnabled = enabled
+                        } else {
+                            core.packageInstallCoordinator.setEnabled(enabled)
+                        }
                     })
             ) {
                 Text("Install apps with Homebrew")

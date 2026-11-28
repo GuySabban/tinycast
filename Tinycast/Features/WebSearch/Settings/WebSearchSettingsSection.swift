@@ -14,8 +14,11 @@ struct WebSearchSettingsSection: View {
             Toggle(isOn: Binding(
                 get: { settings.isEnabled },
                 set: { enabled in
-                    if core.mainApp != nil { settings.isEnabled = enabled }
-                    else { core.webSearchCoordinator.setEnabled(enabled) }
+                    if core.mainApp != nil {
+                        settings.isEnabled = enabled
+                    } else {
+                        core.webSearchCoordinator.setEnabled(enabled)
+                    }
                 }
             )) {
                 Text("Show web results")

@@ -63,8 +63,11 @@ final class WebSearchCoordinator {
 
     func keyDidChange(removed: Bool) {
         settings.refreshKeyStatus()
-        if removed || !settings.hasKey { session.forget() }
-        else { session.dropFailure() }
+        if removed || !settings.hasKey {
+            session.forget()
+        } else {
+            session.dropFailure()
+        }
     }
 
     // MARK: - Trigger
