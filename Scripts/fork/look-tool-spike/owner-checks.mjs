@@ -92,7 +92,7 @@ export function report(state) {
             rows.filter(({ language }) => language === "y" || language === "n").length);
     }
     if (state.stop) out.push("Stopped: " + safe(state.stop,
-        /^(environment|endpoint preflight|capture or Preview approval|front window not verified on main display|act safety gate|personal MCP activity|suggest endpoint\/setup|interrupted|local check)$/));
+        /^(environment|endpoint preflight|capture or Preview approval|front window not verified on main display|act safety gate|personal MCP activity|suggest endpoint\/setup(?: or protocol)?|interrupted|local check)$/));
     out.push("Cleanup: " + safe(state.cleanup, /^(deleted|kept|not needed|could not delete)$/));
     return out.join("\n");
 }
@@ -126,7 +126,7 @@ function runProbe(options, args) {
         child.on("error", () => {});
         child.on("close", (code) => {
             options.active = null;
-            resolve({ ok: code === 0 && !overflow, stdout, stderr });
+            resolve({ ok: code === 0 && !overflow, code: overflow ? null : code, stdout, stderr });
         });
     });
 }
@@ -280,6 +280,18 @@ function frontApp() {
     throw new Stop("front window not verified on main display");
 }
 
+export function recordSuggestResult(rows, size, { ok, code, stdout, stderr }) {
+    const elapsed = number(stdout, /^Turn status: completed; (\d+) ms\.$/m);
+    const valid = ok && /^Suggest JSON parsed and passed the shape and length checks\.$/m.test(stdout);
+    const invalid = code === 1 && stderr.trim() === "Suggest JSON failed validation.";
+    if (!/^Verified Codex endpoint: /m.test(stdout) || elapsed === undefined || (!valid && !invalid)) {
+        throw new Stop("suggest endpoint/setup or protocol");
+    }
+    const row = { size, elapsed, valid };
+    rows.push(row);
+    return row;
+}
+
 async function suggestPair(options, ask, screen, rows, comparison) {
     await approve(ask, screen.images);
     for (const [i, size] of ["large", "compact"].entries()) {
@@ -288,14 +300,7 @@ async function suggestPair(options, ask, screen, rows, comparison) {
             "--image", screen.images[i], "--language", screen.language, "--app", screen.name,
             "--bundle-id", screen.bundle, "--window-title", "Spike sample " + screen.id,
             ...(comparison ? ["--no-schema"] : [])]);
-        const elapsed = number(result.stdout, /^Turn status: .*; (\d+) ms\.$/m);
-        const row = { size, elapsed, valid: result.ok &&
-            /^Suggest JSON parsed and passed the shape and length checks\.$/m.test(result.stdout) };
-        rows.push(row);
-        if (!result.stdout.includes("Verified Codex endpoint:") ||
-            result.stderr.includes("Turn failed, surfaced unexpected activity, or required another approval.")) {
-            throw new Stop("suggest endpoint/setup");
-        }
+        const row = recordSuggestResult(rows, size, result);
         if (!row.valid) { console.log(size + ": no valid suggestions."); continue; }
         const raw = result.stdout.split("\n").find((line) => line.startsWith('{"suggestions":'));
         console.log(size + " (local suggestions — do not paste):\n" + stripVTControlCharacters(raw ?? ""));

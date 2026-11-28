@@ -7,7 +7,7 @@ import { createInterface } from "node:readline";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { listen, receipt, toolName } from "./loopback.mjs";
-import { primaryCaptureContext, report, settings as ownerSettings } from "./owner-checks.mjs";
+import { primaryCaptureContext, recordSuggestResult, report, settings as ownerSettings } from "./owner-checks.mjs";
 import { analyzeTrace, packetRow } from "./owner-trace.mjs";
 import { run } from "./probe.mjs";
 
@@ -144,6 +144,32 @@ if (process.argv.at(-1) === "--json") {
 } else if (process.argv.at(-1) === "app-server") {
     await fakeAppServer();
 } else {
+    test("owner suggest counts only completed turns that reached JSON validation", () => {
+        const rows = [];
+        const endpoint = "Verified Codex endpoint: provider=openai, base URL=https://chatgpt.com/backend-api/.\n";
+        const completed = endpoint + "Turn status: completed; 42 ms.\n";
+        for (const [stdout, stderr] of [
+            [endpoint, "Codex rejected thread/start.\n"],
+            [endpoint, "Codex rejected turn/start.\n"],
+            [completed, "Turn failed, surfaced unexpected activity, or required another approval.\n"],
+            [endpoint, "Suggest JSON failed validation.\n"]
+        ]) {
+            assert.throws(() => recordSuggestResult(rows, "large", { ok: false, code: 1, stdout, stderr }),
+                /suggest endpoint\/setup or protocol/);
+        }
+        assert.deepEqual(rows, []);
+        recordSuggestResult(rows, "large", {
+            ok: false, code: 1, stdout: completed, stderr: "Suggest JSON failed validation.\n"
+        });
+        recordSuggestResult(rows, "compact", {
+            ok: true, code: 0, stdout: completed + "Suggest JSON parsed and passed the shape and length checks.\n", stderr: ""
+        });
+        assert.deepEqual(rows, [
+            { size: "large", elapsed: 42, valid: false },
+            { size: "compact", elapsed: 42, valid: true }
+        ]);
+    });
+
     test("owner capture rejects an off-primary, straddling or missing front window", () => {
         const app = ["TextEdit", "com.apple.TextEdit"];
         const sample = { app, display: [0, 0, 1920, 1080] };
